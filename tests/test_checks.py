@@ -1,0 +1,214 @@
+"""Behavioral tests for the deterministic checkers and verdict logic."""
+
+import json
+
+import pytest
+
+from showwork.checks import evaluate_records, verify_claim
+
+
+def claim(check=None, severity="RED", **extra):
+    rec = {"session": "t", "claim": extra.pop("text", "test claim"), "severity": severity}
+    if check is not None:
+        rec["check"] = check
+    rec.update(extra)
+    return rec
+
+
+# ---------- file_exists ----------
+
+def test_file_exists_pass(tmp_path):
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_exists", "path": "a.txt"}), tmp_path)
+    assert r["status"] == "pass"
+
+
+def test_file_exists_fail(tmp_path):
+    r = verify_claim(claim({"type": "file_exists", "path": "missing.txt"}), tmp_path)
+    assert r["status"] == "fail"
+
+
+# ---------- file_contains ----------
+
+def test_file_contains_pass_and_fail(tmp_path):
+    (tmp_path / "a.md").write_text("alpha beta", encoding="utf-8")
+    ok = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": "beta"}), tmp_path)
+    bad = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": "gamma"}), tmp_path)
+    assert ok["status"] == "pass"
+    assert bad["status"] == "fail"
+
+
+def test_file_contains_absent(tmp_path):
+    (tmp_path / "a.md").write_text("alpha", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                            "pattern": "gamma", "absent": True}), tmp_path)
+    assert r["status"] == "pass"
+
+
+def test_file_contains_rejects_vacuous_pattern(tmp_path):
+    """A regex matching the empty string proves nothing; it must error, not pass."""
+    (tmp_path / "a.md").write_text("anything", encoding="utf-8")
+    for pattern in ("", ".*", "^", "x?"):
+        r = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                "pattern": pattern}), tmp_path)
+        assert r["status"] == "error", pattern
+
+
+def test_file_contains_invalid_regex_errors(tmp_path):
+    (tmp_path / "a.md").write_text("x", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": "("}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_file_contains_bom_safe(tmp_path):
+    (tmp_path / "a.md").write_bytes(b"\xef\xbb\xbfneedle here")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": "needle"}), tmp_path)
+    assert r["status"] == "pass"
+
+
+# ---------- path_moved ----------
+
+def test_path_moved(tmp_path):
+    (tmp_path / "done").mkdir()
+    (tmp_path / "done" / "t.md").write_text("x", encoding="utf-8")
+    ok = verify_claim(claim({"type": "path_moved", "from": "t.md", "to": "done/t.md"}), tmp_path)
+    assert ok["status"] == "pass"
+    (tmp_path / "t.md").write_text("still here", encoding="utf-8")
+    bad = verify_claim(claim({"type": "path_moved", "from": "t.md", "to": "done/t.md"}), tmp_path)
+    assert bad["status"] == "fail"
+
+
+# ---------- frontmatter ----------
+
+def test_frontmatter(tmp_path):
+    (tmp_path / "task.md").write_text("---\nstatus: done\n---\nbody", encoding="utf-8")
+    ok = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                             "field": "status", "equals": "done"}), tmp_path)
+    bad = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                              "field": "status", "equals": "pending"}), tmp_path)
+    missing = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                                  "field": "nope", "equals": "x"}), tmp_path)
+    assert ok["status"] == "pass"
+    assert bad["status"] == "fail"
+    assert missing["status"] == "fail"
+
+
+def test_frontmatter_no_block(tmp_path):
+    (tmp_path / "plain.md").write_text("no frontmatter", encoding="utf-8")
+    r = verify_claim(claim({"type": "frontmatter", "path": "plain.md",
+                            "field": "status", "equals": "done"}), tmp_path)
+    assert r["status"] == "fail"
+
+
+# ---------- glob_count ----------
+
+def test_glob_count(tmp_path):
+    for i in range(3):
+        (tmp_path / f"n{i}.md").write_text("x", encoding="utf-8")
+    ok = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": 3}), tmp_path)
+    bad = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": ">", "n": 5}), tmp_path)
+    assert ok["status"] == "pass"
+    assert bad["status"] == "fail"
+
+
+def test_glob_count_rejects_vacuous(tmp_path):
+    """count >= 0 is always true; it must error, not pass."""
+    r = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": ">=", "n": 0}), tmp_path)
+    assert r["status"] == "error"
+    r = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": ">", "n": -1}), tmp_path)
+    assert r["status"] == "error"
+
+
+# ---------- command (locked) ----------
+
+def test_command_happy_path(tmp_path):
+    (tmp_path / "ok.py").write_text("print('all good')", encoding="utf-8")
+    r = verify_claim(claim({"type": "command", "argv": ["python", "ok.py"],
+                            "stdout_contains": "all good"}), tmp_path)
+    assert r["status"] == "pass"
+
+
+def test_command_exit_code_mismatch(tmp_path):
+    (tmp_path / "boom.py").write_text("raise SystemExit(2)", encoding="utf-8")
+    r = verify_claim(claim({"type": "command", "argv": ["python", "boom.py"]}), tmp_path)
+    assert r["status"] == "fail"
+
+
+def test_command_lock_rejects_shell_meta(tmp_path):
+    r = verify_claim(claim({"type": "command", "argv": ["python", "a.py;rm"]}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_command_lock_rejects_non_python(tmp_path):
+    r = verify_claim(claim({"type": "command", "argv": ["bash", "x.sh"]}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_command_lock_rejects_powershell(tmp_path):
+    r = verify_claim(claim({"type": "command", "argv": ["python", "x.ps1"]}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_command_lock_rejects_escape(tmp_path):
+    r = verify_claim(claim({"type": "command", "argv": ["python", "../outside.py"]}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_command_recursion_guard(tmp_path, monkeypatch):
+    monkeypatch.setenv("SHOWWORK_VERIFYING", "1")
+    (tmp_path / "ok.py").write_text("print('x')", encoding="utf-8")
+    r = verify_claim(claim({"type": "command", "argv": ["python", "ok.py"]}), tmp_path)
+    assert r["status"] == "error"
+    assert "recursion" in r["detail"]
+
+
+# ---------- skips, retractions, verdicts ----------
+
+def test_no_check_is_skipped(tmp_path):
+    r = verify_claim(claim(None, text="squishy prose, no check"), tmp_path)
+    assert r["status"] == "skipped"
+
+
+def test_unknown_type_errors(tmp_path):
+    r = verify_claim(claim({"type": "telepathy"}), tmp_path)
+    assert r["status"] == "error"
+
+
+def test_inline_retraction_skipped(tmp_path):
+    rec = claim({"type": "file_exists", "path": "missing.txt"})
+    rec["retracted"] = True
+    rec["retraction_reason"] = "was wrong"
+    r = verify_claim(rec, tmp_path)
+    assert r["status"] == "skipped"
+
+
+def test_append_only_retraction(tmp_path):
+    bad = claim({"type": "file_exists", "path": "missing.txt"}, text="I made a file")
+    retraction = {"session": "t", "retracted": True,
+                  "retracts": {"session": "t", "claim": "I made a file"},
+                  "retraction_reason": "never happened"}
+    state = evaluate_records([bad, retraction], tmp_path, label="t")
+    assert state["verdict"] == "GREEN"
+    assert state["total"] == 1  # the retraction marker itself is not a claim
+    assert state["results"][0]["status"] == "skipped"
+
+
+def test_verdict_red_yellow_green(tmp_path):
+    (tmp_path / "real.txt").write_text("x", encoding="utf-8")
+    good = claim({"type": "file_exists", "path": "real.txt"})
+    red_fail = claim({"type": "file_exists", "path": "nope.txt"})
+    yellow_fail = claim({"type": "file_exists", "path": "nope.txt"}, severity="YELLOW")
+    assert evaluate_records([good], tmp_path)["verdict"] == "GREEN"
+    assert evaluate_records([good, yellow_fail], tmp_path)["verdict"] == "YELLOW"
+    assert evaluate_records([good, red_fail], tmp_path)["verdict"] == "RED"
+
+
+def test_checker_error_is_yellow(tmp_path):
+    err = claim({"type": "glob_count", "pattern": "*.md", "op": ">=", "n": 0})
+    assert evaluate_records([err], tmp_path)["verdict"] == "YELLOW"
+
+
+def test_records_roundtrip_json(tmp_path):
+    """Claim records are plain JSON - the ledger format is the API."""
+    rec = claim({"type": "file_exists", "path": "a.txt"})
+    assert json.loads(json.dumps(rec)) == rec

@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "genesis", "ts": "2026-07-09T22:39:49", "agent": "claude-code", "note": "first receipt: the repo verifies itself"}
+{"event": "session.finish", "session": "genesis", "ts": "2026-07-09T22:39:51", "status": "ok", "claims_verdict": "GREEN"}

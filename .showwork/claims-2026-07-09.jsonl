@@ -1,0 +1,2 @@
+{"session": "genesis", "ts": "2026-07-09T22:39:49", "claim": "test suite is green (35 tests)", "severity": "RED", "check": {"type": "command", "argv": ["python", "scripts/run_tests.py"], "stdout_contains": "35 passed"}}
+{"session": "genesis", "ts": "2026-07-09T22:39:50", "claim": "README documents the exit gate", "severity": "RED", "check": {"type": "file_contains", "path": "README.md", "pattern": "exit gate"}}
