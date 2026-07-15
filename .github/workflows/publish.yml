@@ -16,6 +16,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      # When PYPI_TOKEN is set on the repo, use token upload; otherwise OIDC trusted publisher.
+      HAS_TOKEN: ${{ secrets.PYPI_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +39,15 @@ jobs:
         env:
           SOURCE_DATE_EPOCH: "315532800"
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (trusted publishing)
+        if: ${{ env.HAS_TOKEN != 'true' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+
+      - name: Publish to PyPI (token fallback)
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          password: ${{ secrets.PYPI_TOKEN }}
