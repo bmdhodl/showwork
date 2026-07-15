@@ -1,2 +1,9 @@
 {"event": "session.start", "session": "genesis", "ts": "2026-07-09T22:39:49", "agent": "claude-code", "note": "first receipt: the repo verifies itself"}
 {"event": "session.finish", "session": "genesis", "ts": "2026-07-09T22:39:51", "status": "ok", "claims_verdict": "GREEN"}
+{"event": "session.start", "session": "codex-complete-tasks", "ts": "2026-07-10T14:10:09", "agent": "codex"}
+{"event": "session.finish.refused", "session": "codex-complete-tasks", "ts": "2026-07-10T14:21:13", "status": "ok", "claims_verdict": "RED"}
+{"event": "session.finish", "session": "codex-complete-tasks", "ts": "2026-07-10T14:21:58", "status": "ok", "claims_verdict": "GREEN"}
+{"event": "session.start", "session": "codex-release-hardening", "ts": "2026-07-10T14:25:24", "agent": "codex"}
+{"event": "session.finish", "session": "codex-release-hardening", "ts": "2026-07-10T14:25:26", "status": "ok", "claims_verdict": "GREEN"}
+{"event": "session.start", "session": "fleet-adoption-docs", "ts": "2026-07-11T12:10:17", "agent": "claude-code"}
+{"event": "session.finish", "session": "fleet-adoption-docs", "ts": "2026-07-11T12:10:17", "status": "ok", "claims_verdict": "GREEN"}

@@ -1,0 +1,1 @@
+{"session": "fleet-adoption-docs", "ts": "2026-07-11T12:10:17", "claim": "generic fleet-adoption guide added to docs", "severity": "RED", "check": {"type": "file_contains", "path": "docs/fleet-adoption.md", "pattern": "Adopting showwork across a fleet of repos"}}

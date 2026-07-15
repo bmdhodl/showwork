@@ -8,5 +8,12 @@ import subprocess
 import sys
 
 raise SystemExit(
-    subprocess.run([sys.executable, "-m", "pytest", "tests/", "-q"]).returncode
+    subprocess.run([
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/",
+        "-q",
+        "--basetemp=.showwork/pytest-tmp",
+    ]).returncode
 )

@@ -17,6 +17,7 @@ import json
 import sys
 
 from .checks import EXIT_BY_VERDICT, render_report
+from .hooks import observe_stop, read_stop_payload
 from .ledger import (
     finish_session,
     ledger_dir,
@@ -140,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
 
+    p = sub.add_parser("stop-hook", help="observe a coding-agent Stop hook; never gates")
+    p.add_argument("--status", default="ok")
+
     args = ap.parse_args(argv)
     root = resolve_root(args.root)
 
@@ -184,6 +188,18 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"session.finish recorded: {args.session}")
         return code
+
+    if args.cmd == "stop-hook":
+        try:
+            payload = read_stop_payload(sys.stdin)
+            _event, state = observe_stop(root, payload, status=args.status)
+            print(f"stop observed: {state['verdict']} "
+                  f"({state['passed']}/{state['total']} verified)")
+        except Exception as exc:  # noqa: BLE001
+            # A Stop hook is post-hoc telemetry. Breaking the host's shutdown
+            # path would turn an evidence adapter into an availability risk.
+            print(f"showwork stop-hook: {exc}", file=sys.stderr)
+        return 0
 
     return 2  # unreachable
 

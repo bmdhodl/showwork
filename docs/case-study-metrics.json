@@ -1,0 +1,23 @@
+{
+  "schema": "showwork-case-study-metrics-v1",
+  "source": "sanitized aggregates from the private production vault",
+  "ledger_files": 19,
+  "malformed_ledger_lines": 1,
+  "total_claims_recorded": 2158,
+  "verifiable_claims_recorded": 2152,
+  "unique_sessions": 843,
+  "retraction_records": 152,
+  "documented_origin_false_dones": 2,
+  "origin_evidence": "log.md:597",
+  "first_ledger_date": "2026-06-20",
+  "last_ledger_date": "2026-07-10",
+  "calendar_span_days": 21,
+  "active_ledger_days": 19,
+  "state_audit_reports": 43,
+  "latest_audit": {
+    "verdict": "RED",
+    "passed": 54,
+    "total": 60
+  },
+  "claims_source_sha256": "7917db0f00b19b4734026df74a69906a18dac78cf1a386acc53c1c09689a3166"
+}

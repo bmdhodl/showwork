@@ -1,10 +1,15 @@
 # showwork
 
+[![CI](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml/badge.svg)](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml)
+
 **Make your AI agents show their work.**
 
 Observability tools log what an agent *did*. showwork verifies what an agent *claimed* it did — deterministically, against reality — and refuses to bless a "done" that isn't real.
 
 Zero dependencies. Stdlib only. One append-only ledger.
+
+[Read the portable `spec-v0.1` ledger specification](SPEC.md) or install the
+[Claude Code Stop-hook adapter](docs/claude-code.md).
 
 ## The problem
 
@@ -88,7 +93,18 @@ assert state["verdict"] == "GREEN"
 
 ## Provenance
 
-This isn't a spec written on a whiteboard. It's extracted from the verification layer that runs a real one-person, AI-operated company — a fleet of scheduled and interactive agents whose "done" reports were only trusted after this exact pattern caught a session confidently reporting three completed changes of which two had never happened. Months of production receipts came first; the package came second.
+This isn't a spec written on a whiteboard. It's extracted from the verification
+layer that runs a real one-person, AI-operated company. The system began after
+one agent confidently reported three completed actions and two were not real.
+The resulting production ledger now supplies the receipts behind the package.
+
+[Read the sanitized case study and reproduce its aggregate metrics.](docs/case-study.md)
+
+The sanitized snapshot contains 2,158 claims from 842 sessions. Deterministic
+checks back 2,152 claims. The ledger preserves 152 retractions and surfaced one
+malformed line instead of dropping it. Its captured audit was RED at 54/60
+verified, because failed proof remains visible rather than becoming a green
+marketing number.
 
 ## What showwork is not
 
@@ -98,8 +114,7 @@ This isn't a spec written on a whiteboard. It's extracted from the verification 
 
 ## Roadmap
 
-- Claude Code / Codex stop-hook adapters (drop-in exit gate for coding agents)
-- SPEC.md: the ledger format as a portable spec
+- More coding-agent adapters
 - Event stream + point-in-time replay
 - More check types (HTTP probe, git state)
 
