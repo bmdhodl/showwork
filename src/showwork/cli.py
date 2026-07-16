@@ -14,21 +14,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 
 from .audit import audit_root, render_audit
 from .checks import EXIT_BY_VERDICT, render_report
 from .hooks import observe_stop, read_stop_payload
 from .ledger import (
+    ROOT_ENV,
     finish_session,
     ledger_dir,
     record_claim,
+    record_event,
     record_retraction,
     resolve_root,
     start_session,
     verify_date,
     verify_session,
 )
+
+SESSION_ENV = "SHOWWORK_SESSION"
 
 CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
                "glob_count", "command"]
@@ -145,6 +151,14 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--json", action="store_true")
 
+    p = sub.add_parser("run", help="wrap any command in a session: start, run, record the verdict")
+    p.add_argument("--session", required=True)
+    p.add_argument("--agent")
+    p.add_argument("--gate", action="store_true",
+                   help="exit 2 when the command succeeds but this session's claims are RED")
+    p.add_argument("command", nargs=argparse.REMAINDER,
+                   help="the command to wrap, after --")
+
     p = sub.add_parser("stop-hook", help="observe a coding-agent Stop hook; never gates")
     p.add_argument("--status", default="ok")
 
@@ -200,6 +214,37 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(render_audit(state))
         return EXIT_BY_VERDICT[state["verdict"]]
+
+    if args.cmd == "run":
+        cmd = list(args.command)
+        if cmd and cmd[0] == "--":
+            cmd = cmd[1:]
+        if not cmd:
+            raise SystemExit("run requires a command after --")
+        start_session(root, args.session, agent=args.agent,
+                      note="wrapped: " + " ".join(cmd))
+        # The wrapped process inherits the session and root, so anything it
+        # runs can record claims without extra plumbing.
+        env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
+        try:
+            proc_code = subprocess.run(cmd, cwd=str(root), env=env).returncode
+        except FileNotFoundError as exc:
+            record_event(root, "session.finish", args.session, status="error",
+                         observed_by="run-wrapper", note=f"command not found: {exc}")
+            print(f"showwork run: command not found: {cmd[0]}", file=sys.stderr)
+            return 127
+        state = verify_session(root, args.session)
+        record_event(root, "session.finish", args.session,
+                     status=("ok" if proc_code == 0 else "error"),
+                     claims_verdict=state["verdict"], command_exit=proc_code,
+                     observed_by="run-wrapper")
+        print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
+              f"({state['passed']}/{state['total']} verified)")
+        if args.gate and proc_code == 0 and state["verdict"] == "RED":
+            print("GATE: the command reported success but this session's "
+                  "claims do not verify.", file=sys.stderr)
+            return 2
+        return proc_code
 
     if args.cmd == "stop-hook":
         try:

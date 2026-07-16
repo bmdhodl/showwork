@@ -1,0 +1,41 @@
+{
+  "intact.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null,
+    "chained": 3,
+    "pre_chain": 0
+  },
+  "tampered.jsonl": {
+    "verdict": "RED",
+    "break_at": 3
+  },
+  "deleted.jsonl": {
+    "verdict": "RED",
+    "break_at": 2
+  },
+  "unchained-after-start.jsonl": {
+    "verdict": "RED",
+    "break_at": 3
+  },
+  "pre-chain-anchored.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null,
+    "chained": 2,
+    "pre_chain": 1
+  },
+  "legacy-only.jsonl": {
+    "verdict": "YELLOW",
+    "break_at": null,
+    "chained": 0,
+    "pre_chain": 2
+  },
+  "crlf.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null
+  },
+  "comments.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null,
+    "chained": 2
+  }
+}

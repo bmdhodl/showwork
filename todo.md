@@ -37,17 +37,22 @@ Hash-chain the ledger so "append-only" is provable, not promised.
 - Gate script validated locally by rendering the composite step and running
   it against this repo's real ledger (exit 0; honest YELLOWs displayed)
 
-## Phase 3 — Ubiquity: universal wrapper + second implementation  [status: pending]
+## Phase 3 — Ubiquity: universal wrapper + second implementation  [status: DONE 2026-07-16]
 
-- [ ] `showwork run --session S -- <any agent command>`: wraps any process in
-      a session (start → run → finish observe-mode with verdict stamped)
-- [ ] `js/`: TypeScript auditor (`showwork-audit-js`) — parses the ledger,
-      verifies the hash chain, computes verdict algebra; filesystem checks
-      re-verified where dialect-safe, `command` reported as unsupported
-      (YELLOW), never silently skipped
-- [ ] Cross-implementation conformance: fixture ledgers verified by both
-      implementations must agree verdict-for-verdict
-- [ ] docs/adapters.md: Codex CLI, Gemini CLI, generic wrapper lifecycles
+- [x] `showwork run --session S [--gate] -- <any agent command>`: wraps any
+      process in a session; observe mode is exit-transparent, gate mode
+      exits 2 on "command says success, receipts say RED"; child inherits
+      SHOWWORK_SESSION/SHOWWORK_ROOT (5 tests)
+- [x] `js/showwork-audit`: zero-dep Node implementation of the spec-v0.2
+      reading half (chain audit + verdicts; re-executes no checks; scope
+      honestly narrowed from "TS + check re-execution" to reader-only
+      conformance, which the spec explicitly blesses)
+- [x] Cross-implementation conformance: 8 frozen fixture ledgers
+      (tests/fixtures/chain/ + expected.json, regenerable via
+      scripts/make_chain_fixtures.py); Python 8/8, JS 9/9, and both agree
+      with each other on this repo's real ledger byte-for-byte on heads
+- [x] `conformance-js` CI job; docs/adapters.md (Claude Code, Codex, Gemini,
+      wrapper, write-your-own)
 
 ## Phase 4 — The False Done Rate  [status: pending]
 

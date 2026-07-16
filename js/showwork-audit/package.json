@@ -1,0 +1,13 @@
+{
+  "name": "showwork-audit",
+  "version": "0.2.0",
+  "description": "Reader-side auditor for showwork agent-receipt ledgers: verifies the spec-v0.2 integrity chain. Zero dependencies.",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": { "showwork-audit": "index.mjs" },
+  "scripts": { "test": "node test.mjs" },
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/bmdhodl/showwork" },
+  "keywords": ["ai-agents", "verification", "audit", "tamper-evident", "jsonl"]
+}

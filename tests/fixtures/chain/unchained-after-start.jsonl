@@ -1,0 +1,3 @@
+{"session": "fx", "ts": "2026-07-16T00:00:01", "claim": "one", "severity": "RED", "prev": "4a0c0004aeaa66ed6ff888356e0dc97eeb0744d0d977e662870bd43d5e8a82c3"}
+{"session": "fx", "ts": "2026-07-16T00:00:02", "claim": "two", "severity": "RED", "prev": "f0466ab3305c6949d33bbf3b504bca1ba62c266ded65d62e34529cfe5971da2d"}
+{"session": "fx", "ts": "2026-07-16T00:00:03", "claim": "sneaky", "severity": "RED"}

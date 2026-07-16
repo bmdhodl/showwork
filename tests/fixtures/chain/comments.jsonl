@@ -1,0 +1,4 @@
+# a comment
+{"session": "fx", "ts": "2026-07-16T00:00:01", "claim": "one", "severity": "RED", "prev": "a895113e6132d0277439ef5130874ad2e398b79c60534ec0fab764545d6c2018"}
+
+{"session": "fx", "ts": "2026-07-16T00:00:02", "claim": "two", "severity": "RED", "prev": "63378824614054fe74ed2bc7a4b9ab012a8b6de688cdb2b0cf1d1c28b8118486"}

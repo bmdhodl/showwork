@@ -27,6 +27,15 @@ jobs:
       - name: Verify the committed genesis receipt
         run: .venv/bin/showwork verify --session genesis --no-report
 
+  conformance-js:
+    runs-on: [self-hosted, linux, x64, pc]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: JS auditor must match the frozen chain fixtures
+        run: node js/showwork-audit/test.mjs
+
   receipts:
     runs-on: [self-hosted, linux, x64, pc]
     steps:
