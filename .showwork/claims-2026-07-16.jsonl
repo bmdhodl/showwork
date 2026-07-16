@@ -1,0 +1,3 @@
+{"session": "showwork-self-adoption", "ts": "2026-07-16T10:02:36", "claim": "Stop-hook adapter installed in .claude/settings.json", "severity": "RED", "check": {"type": "file_contains", "path": ".claude/settings.json", "pattern": "showwork.cli stop-hook"}}
+{"session": "showwork-self-adoption", "ts": "2026-07-16T10:02:36", "claim": "AGENTS.md carries ground rules and the dogfood contract", "severity": "RED", "check": {"type": "file_contains", "path": "AGENTS.md", "pattern": "eats its own dog food"}}
+{"session": "showwork-self-adoption", "ts": "2026-07-16T10:02:37", "claim": "CLAUDE.md defers to AGENTS.md as single source", "severity": "RED", "check": {"type": "file_contains", "path": "CLAUDE.md", "pattern": "single source of agent instructions"}}
