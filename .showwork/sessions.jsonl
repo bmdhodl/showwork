@@ -24,3 +24,5 @@
 {"event": "session.finish", "session": "v02-phase-4", "ts": "2026-07-16T12:26:46", "status": "ok", "claims_verdict": "GREEN", "prev": "f41a6e7d0c774a80a3ffd86efc230e860329fea74eefd5826bc149d90b1f14f9"}
 {"event": "session.start", "session": "v02-phase-5", "ts": "2026-07-16T12:29:59", "agent": "claude-code", "note": "compliance evidence packs: generator + framework mapping + real sample", "prev": "58c33c3170096cc24071a969552b15fd8135c62b5b3e490aad11758d95b8ac3f"}
 {"event": "session.finish", "session": "v02-phase-5", "ts": "2026-07-16T12:30:03", "status": "ok", "claims_verdict": "GREEN", "prev": "0a7f334fee3b1a7dad47cd321cbbdbd2296154cf61cc71d57b69681231c09e24"}
+{"event": "session.start", "session": "v02-wrap", "ts": "2026-07-16T12:37:25", "agent": "claude-code", "note": "0.2.0 release prep + marketing video", "prev": "e3134a9750136f8790b3b289f7ba762c19cb2163397451582b273416c78c8c8e"}
+{"event": "session.finish", "session": "v02-wrap", "ts": "2026-07-16T12:37:29", "status": "ok", "claims_verdict": "GREEN", "prev": "db2c10322bb7727dbc16fda1e0a17a121e2ebd95b4c87e18b28a1214dd4e5cdd"}

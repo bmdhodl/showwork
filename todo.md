@@ -86,4 +86,7 @@ Hash-chain the ledger so "append-only" is provable, not promised.
 - [x] Every phase's session closed GREEN through the exit gate
       (v02-phase-1 through v02-phase-5; phase 1 includes 2 genuine REFUSEDs)
 - [x] CHANGELOG + version bump to 0.2.0; README v0.2 sections
-- [ ] Marketing video of the new capabilities, real CLI output only
+- [x] Marketing video of the new capabilities, real CLI output only
+      (Outbox/Launch/showwork/showwork-v02-launch.mp4, 45s 1080p; every
+      terminal line captured from real runs, incl. the real tamper RED and
+      the real day-0 FDR table)
