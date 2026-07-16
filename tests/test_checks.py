@@ -28,6 +28,20 @@ def test_file_exists_fail(tmp_path):
     assert r["status"] == "fail"
 
 
+def test_file_checks_reject_evidence_outside_project_root(tmp_path):
+    outside = tmp_path.parent / "outside-proof.txt"
+    outside.write_text("secret proof", encoding="utf-8")
+    checks = [
+        {"type": "file_exists", "path": "../outside-proof.txt"},
+        {"type": "file_contains", "path": "../outside-proof.txt", "pattern": "secret"},
+        {"type": "frontmatter", "path": "../outside-proof.txt", "field": "status", "equals": "done"},
+    ]
+    for check in checks:
+        result = verify_claim(claim(check), tmp_path)
+        assert result["status"] == "fail"
+        assert "escapes project root" in result["detail"]
+
+
 # ---------- file_contains ----------
 
 def test_file_contains_pass_and_fail(tmp_path):
@@ -78,6 +92,15 @@ def test_path_moved(tmp_path):
     assert bad["status"] == "fail"
 
 
+def test_path_moved_rejects_evidence_outside_project_root(tmp_path):
+    result = verify_claim(
+        claim({"type": "path_moved", "from": "../before.md", "to": "done.md"}),
+        tmp_path,
+    )
+    assert result["status"] == "fail"
+    assert "escapes project root" in result["detail"]
+
+
 # ---------- frontmatter ----------
 
 def test_frontmatter(tmp_path):
@@ -115,6 +138,17 @@ def test_glob_count_rejects_vacuous(tmp_path):
     """count >= 0 is always true; it must error, not pass."""
     r = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": ">=", "n": 0}), tmp_path)
     assert r["status"] == "error"
+
+
+def test_glob_count_rejects_escape(tmp_path):
+    outside = tmp_path.parent / "outside.md"
+    outside.write_text("x", encoding="utf-8")
+    r = verify_claim(
+        claim({"type": "glob_count", "pattern": "../*.md", "op": ">=", "n": 1}),
+        tmp_path,
+    )
+    assert r["status"] == "fail"
+    assert "escapes project root" in r["detail"]
     r = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": ">", "n": -1}), tmp_path)
     assert r["status"] == "error"
 

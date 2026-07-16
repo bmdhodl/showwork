@@ -26,3 +26,5 @@
 {"event": "session.finish", "session": "v02-phase-5", "ts": "2026-07-16T12:30:03", "status": "ok", "claims_verdict": "GREEN", "prev": "0a7f334fee3b1a7dad47cd321cbbdbd2296154cf61cc71d57b69681231c09e24"}
 {"event": "session.start", "session": "v02-wrap", "ts": "2026-07-16T12:37:25", "agent": "claude-code", "note": "0.2.0 release prep + marketing video", "prev": "e3134a9750136f8790b3b289f7ba762c19cb2163397451582b273416c78c8c8e"}
 {"event": "session.finish", "session": "v02-wrap", "ts": "2026-07-16T12:37:29", "status": "ok", "claims_verdict": "GREEN", "prev": "db2c10322bb7727dbc16fda1e0a17a121e2ebd95b4c87e18b28a1214dd4e5cdd"}
+{"event": "session.start", "session": "pi-furnace-path-boundary-20260716", "ts": "2026-07-16T17:13:50", "agent": "codex", "note": "Harden evidence path boundary before Pi furnace", "prev": "54214f3207d1cf3fdec4eeec2ef536babb41f58498b6bc7586cd0e125869ad15"}
+{"event": "session.finish", "session": "pi-furnace-path-boundary-20260716", "ts": "2026-07-16T17:13:51", "status": "ok", "claims_verdict": "GREEN", "note": "78 tests passed", "prev": "0590a0e2b62a187091096919100c5e0a331b8a6c139523efab6e7010eacedce0"}

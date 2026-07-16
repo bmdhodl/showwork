@@ -53,8 +53,18 @@ EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 # status in {"pass", "fail", "error"}.
 
 
+class PathEscapeError(ValueError):
+    """A claim tried to use evidence outside the declared project root."""
+
+
 def _resolve(root: Path, path_str: str) -> Path:
-    return (root / path_str).resolve()
+    resolved_root = root.resolve()
+    resolved = (resolved_root / path_str).resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise PathEscapeError(f"path escapes project root: {path_str}") from exc
+    return resolved
 
 
 def chk_file_exists(c: dict, root: Path) -> tuple[str, str]:
@@ -118,6 +128,9 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     op = c["op"]
     want = int(c["n"])
+    pattern_path = Path(str(c["pattern"]))
+    if pattern_path.is_absolute() or ".." in pattern_path.parts:
+        return ("fail", f"glob escapes project root: {c['pattern']}")
     # Reject counts that are always true regardless of the glob result: a count
     # is never negative, so `>= 0` / `> -1` verify nothing.
     if (op == ">=" and want <= 0) or (op == ">" and want < 0):
@@ -218,6 +231,8 @@ def verify_claim(record: dict, root: Path) -> dict:
                 "detail": f"unknown check type {ctype!r}"}
     try:
         status, detail = fn(check, root)
+    except PathEscapeError as e:
+        status, detail = "fail", str(e)
     except KeyError as e:
         status, detail = "error", f"missing arg {e}"
     except Exception as e:  # noqa: BLE001
