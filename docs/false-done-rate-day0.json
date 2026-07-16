@@ -1,0 +1,263 @@
+{
+  "showwork": {
+    "root": ".",
+    "eligible_sessions": 8,
+    "false_done_sessions": 3,
+    "fdr_session": 0.375,
+    "false_done_events": 8,
+    "clean_closes": 9,
+    "fdr_event": 0.47058823529411764,
+    "checked_claims": 32,
+    "sessions": {
+      "codex-complete-tasks": {
+        "agent": "codex",
+        "checked_claims": 7,
+        "retractions": 2,
+        "refused": 1,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "codex-release-hardening": {
+        "agent": "codex",
+        "checked_claims": 2,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "fleet-adoption-docs": {
+        "agent": "claude-code",
+        "checked_claims": 1,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "genesis": {
+        "agent": "claude-code",
+        "checked_claims": 3,
+        "retractions": 1,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "showwork-self-adoption": {
+        "agent": "claude-code",
+        "checked_claims": 3,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 2,
+        "closes": 2
+      },
+      "v02-phase-1": {
+        "agent": "claude-code",
+        "checked_claims": 6,
+        "retractions": 2,
+        "refused": 2,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "v02-phase-2": {
+        "agent": "claude-code",
+        "checked_claims": 5,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "v02-phase-3": {
+        "agent": "claude-code",
+        "checked_claims": 5,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      }
+    },
+    "false_done_session_ids": [
+      "codex-complete-tasks",
+      "genesis",
+      "v02-phase-1"
+    ]
+  },
+  "fleet-web": {
+    "root": "C:\\Users\\patri\\Documents\\GitHub\\bmdpat",
+    "eligible_sessions": 8,
+    "false_done_sessions": 5,
+    "fdr_session": 0.625,
+    "false_done_events": 11,
+    "clean_closes": 14,
+    "fdr_event": 0.44,
+    "checked_claims": 36,
+    "sessions": {
+      "blog-ctr-funnel-rebuild": {
+        "agent": "claude-code",
+        "checked_claims": 8,
+        "retractions": 3,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 3,
+        "closes": 3
+      },
+      "design-instrument-pass": {
+        "agent": "codex",
+        "checked_claims": 11,
+        "retractions": 2,
+        "refused": 1,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 2,
+        "closes": 2
+      },
+      "email-system-inbox-log": {
+        "agent": "codex",
+        "checked_claims": 1,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "email-system-inventory": {
+        "agent": "codex",
+        "checked_claims": 3,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "email-system-sync-auth": {
+        "agent": "codex",
+        "checked_claims": 2,
+        "retractions": 1,
+        "refused": 1,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "fix-blog-image-overflow": {
+        "agent": "codex",
+        "checked_claims": 2,
+        "retractions": 1,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 3,
+        "closes": 3
+      },
+      "remove-ai-slop": {
+        "agent": "codex",
+        "checked_claims": 6,
+        "retractions": 1,
+        "refused": 1,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "showwork-fleet-adoption": {
+        "agent": "claude-code",
+        "checked_claims": 3,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 2,
+        "closes": 2
+      }
+    },
+    "false_done_session_ids": [
+      "blog-ctr-funnel-rebuild",
+      "design-instrument-pass",
+      "email-system-sync-auth",
+      "fix-blog-image-overflow",
+      "remove-ai-slop"
+    ]
+  },
+  "fleet-trading": {
+    "root": "K:\\autotrader",
+    "eligible_sessions": 5,
+    "false_done_sessions": 1,
+    "fdr_session": 0.2,
+    "false_done_events": 2,
+    "clean_closes": 8,
+    "fdr_event": 0.2,
+    "checked_claims": 18,
+    "sessions": {
+      "daily-report-2026-07-12": {
+        "agent": "claude-code",
+        "checked_claims": 4,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "nflx-q2-earnings-watch": {
+        "agent": "claude-code",
+        "checked_claims": 6,
+        "retractions": 2,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 3,
+        "closes": 3
+      },
+      "showwork-fleet-adoption": {
+        "agent": "claude-code",
+        "checked_claims": 3,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 2,
+        "closes": 2
+      },
+      "weekend-crypto-scout-2026-07-12": {
+        "agent": "claude-code",
+        "checked_claims": 3,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      },
+      "weekly-review-2026-07-12": {
+        "agent": "claude-code",
+        "checked_claims": 2,
+        "retractions": 0,
+        "refused": 0,
+        "red_closes": 0,
+        "bypassed": 0,
+        "clean_closes": 1,
+        "closes": 1
+      }
+    },
+    "false_done_session_ids": [
+      "nflx-q2-earnings-watch"
+    ]
+  }
+}

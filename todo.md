@@ -54,15 +54,17 @@ Hash-chain the ledger so "append-only" is provable, not promised.
 - [x] `conformance-js` CI job; docs/adapters.md (Claude Code, Codex, Gemini,
       wrapper, write-your-own)
 
-## Phase 4 — The False Done Rate  [status: pending]
+## Phase 4 — The False Done Rate  [status: DONE 2026-07-16]
 
-- [ ] `scripts/false_done_rate.py`: computes FDR from any set of ledgers —
-      sessions whose clean close was REFUSED (or closed RED/bypassed) over
-      total closed sessions with checked claims; per-agent breakdown
-- [ ] docs/false-done-rate.md: pre-registered methodology (claim taxonomy,
-      what counts, what does not, honesty rules — a low rate gets published
-      too)
-- [ ] Day-0 report from the real fleet ledgers, numbers traceable to claim IDs
+- [x] `scripts/false_done_rate.py`: session- and event-level FDR from any
+      labeled set of ledgers; durable evidence only (REFUSED events,
+      retractions, RED closes, bypass stamps); 5 behavioral tests
+- [x] docs/false-done-rate.md: pre-registered methodology + honesty rules
+      (lower bound stated, low rates published too, no retro-editing)
+- [x] docs/false-done-rate-day0.md + frozen .json: REAL day-0 numbers —
+      **21 eligible sessions across the fleet, 9 false-done (42.9%), every
+      one caught by the gate**, incl. the gate catching its own author
+      during phase 1. One repo excluded (pre-adoption branch), stated.
 
 ## Phase 5 — Compliance evidence packs  [status: pending]
 
