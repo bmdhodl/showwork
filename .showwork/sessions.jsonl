@@ -14,3 +14,5 @@
 {"event": "session.finish.refused", "session": "v02-phase-1", "ts": "2026-07-16T12:10:17", "status": "ok", "claims_verdict": "RED", "prev": "d03a9d566f4656f7b010bd2377e8750ef04ac308d70794d65f9ce02038bc6931"}
 {"event": "session.finish.refused", "session": "v02-phase-1", "ts": "2026-07-16T12:10:38", "status": "ok", "claims_verdict": "RED", "prev": "09285f941a0166880149142e479fd8729305184fe7951ffdb242c90852eb1b1c"}
 {"event": "session.finish", "session": "v02-phase-1", "ts": "2026-07-16T12:11:20", "status": "ok", "claims_verdict": "GREEN", "prev": "ec99eda5357146c5c6a3f8ee103fec9df6c6428af54b3a9b0edf12da698d60a2"}
+{"event": "session.start", "session": "v02-phase-2", "ts": "2026-07-16T12:16:12", "agent": "claude-code", "note": "CI gate: verify action + fork-safe policy + dogfood workflow", "prev": "0d631b2b40fdcde43465367f5efcf51da8ddfe7a8a591c364c3f38274f1a1004"}
+{"event": "session.finish", "session": "v02-phase-2", "ts": "2026-07-16T12:16:15", "status": "ok", "claims_verdict": "GREEN", "prev": "858082a9128203d90baca3f55cde4d6ffe351c19211fed0705f7b5359303be75"}

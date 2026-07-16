@@ -212,3 +212,19 @@ def test_records_roundtrip_json(tmp_path):
     """Claim records are plain JSON - the ledger format is the API."""
     rec = claim({"type": "file_exists", "path": "a.txt"})
     assert json.loads(json.dumps(rec)) == rec
+
+
+def test_command_disabled_by_no_commands_env(tmp_path, monkeypatch):
+    """CI fork-safety: SHOWWORK_NO_COMMANDS makes command checks refuse to
+    execute repo code and report an error (verdict degrades to YELLOW)."""
+    from showwork.checks import NO_COMMANDS_ENV, chk_command
+    script = tmp_path / "ok.py"
+    script.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    check = {"type": "command", "argv": ["python", "ok.py"]}
+    monkeypatch.setenv(NO_COMMANDS_ENV, "1")
+    status, detail = chk_command(check, tmp_path)
+    assert status == "error"
+    assert "SHOWWORK_NO_COMMANDS" in detail
+    monkeypatch.delenv(NO_COMMANDS_ENV)
+    status, _ = chk_command(check, tmp_path)
+    assert status == "pass"

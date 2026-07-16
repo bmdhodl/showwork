@@ -40,6 +40,12 @@ SHELL_META = set(";|&$<>`\n\r")
 # to run instead of recursing forever.
 VERIFYING_ENV = "SHOWWORK_VERIFYING"
 
+# Policy switch for hostile-input contexts (CI verifying a fork PR): when set,
+# `command` checks refuse to execute and report an error instead. The verdict
+# honestly degrades to YELLOW ("not fully verified") rather than either
+# running untrusted repo code or silently passing.
+NO_COMMANDS_ENV = "SHOWWORK_NO_COMMANDS"
+
 EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 
 
@@ -130,6 +136,9 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
     """Run a LOCKED command. Only `python <script under the project root>`,
     no shell, no metacharacters, no `..` escape. A ledger data file must never
     be able to run arbitrary commands."""
+    if os.environ.get(NO_COMMANDS_ENV):
+        return ("error", "command checks disabled by SHOWWORK_NO_COMMANDS "
+                         "(policy: do not execute repo code in this context)")
     if os.environ.get(VERIFYING_ENV):
         return ("error", "nested command verification refused (recursion guard)")
     argv = c.get("argv")

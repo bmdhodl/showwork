@@ -1,0 +1,115 @@
+name: "showwork verify"
+description: >-
+  Gate a job on agent receipts: fails when the ledger's integrity chain is
+  broken, when a session's claims do not verify, or when the session closed
+  through a --no-verify bypass. Verification is deterministic - no LLM judges
+  an LLM.
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  root:
+    description: "Project root containing the .showwork/ ledger"
+    default: "."
+  session:
+    description: "Session id to verify (empty: audit the chain only)"
+    default: ""
+  strict:
+    description: "Fail on YELLOW too, not only RED (YELLOW = unprovable or partially verified)"
+    default: "false"
+  allow-commands:
+    description: >-
+      Execute locked `command` checks. Leave false for fork PRs / untrusted
+      code: command checks then report an error and the verdict honestly
+      degrades to YELLOW instead of running repo code.
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install showwork (from this action's ref)
+      shell: bash
+      env:
+        PIP_BREAK_SYSTEM_PACKAGES: "1"
+      run: |
+        PY="$(command -v python || command -v python3)"
+        "$PY" -m pip install --quiet --user "${GITHUB_ACTION_PATH}/../.." \
+          || "$PY" -m pip install --quiet "${GITHUB_ACTION_PATH}/../.."
+        "$PY" -m showwork.cli --help >/dev/null
+        echo "SHOWWORK_PY=$PY" >> "$GITHUB_ENV"
+
+    - name: Verify receipts
+      shell: bash
+      env:
+        SW_ROOT: ${{ inputs.root }}
+        SW_SESSION: ${{ inputs.session }}
+        SW_STRICT: ${{ inputs.strict }}
+        SW_ALLOW_COMMANDS: ${{ inputs.allow-commands }}
+      run: |
+        set -u
+        PY="${SHOWWORK_PY:-python}"
+        if [ "${SW_ALLOW_COMMANDS}" != "true" ]; then
+          export SHOWWORK_NO_COMMANDS=1
+        fi
+        fail=0
+
+        gate () { # $1 = exit code of a showwork command
+          case "$1" in
+            0) : ;;
+            3) if [ "${SW_STRICT}" = "true" ]; then fail=1; fi ;;
+            *) fail=1 ;;
+          esac
+        }
+
+        echo '## showwork receipt' >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+        set +e
+        audit_out=$("$PY" -m showwork.cli --root "${SW_ROOT}" audit 2>&1)
+        gate $?
+        echo "$audit_out"
+        echo "$audit_out" >> "$GITHUB_STEP_SUMMARY"
+
+        if [ -n "${SW_SESSION}" ]; then
+          verify_out=$("$PY" -m showwork.cli --root "${SW_ROOT}" verify --session "${SW_SESSION}" --no-report 2>&1)
+          gate $?
+          echo "$verify_out"
+          echo "$verify_out" >> "$GITHUB_STEP_SUMMARY"
+
+          bypass_out=$("$PY" - "$SW_ROOT" "$SW_SESSION" <<'PY'
+        import json, sys
+        from pathlib import Path
+        root, session = sys.argv[1], sys.argv[2]
+        path = Path(root) / ".showwork" / "sessions.jsonl"
+        finishes = []
+        if path.is_file():
+            for line in path.read_text(encoding="utf-8-sig").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if rec.get("session") == session and rec.get("event") == "session.finish":
+                    finishes.append(rec)
+        if not finishes:
+            print(f"no session.finish recorded for {session!r}: the exit gate never ran")
+            raise SystemExit(2)
+        last = finishes[-1]
+        if last.get("verify_bypassed"):
+            print(f"session {session!r} closed with --no-verify: bypass is stamped on the record")
+            raise SystemExit(2)
+        print(f"session {session!r} closed clean (status={last.get('status')}, "
+              f"claims_verdict={last.get('claims_verdict')})")
+        PY
+        )
+          gate $?
+          echo "$bypass_out"
+          echo "$bypass_out" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        set -e
+
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        exit $fail

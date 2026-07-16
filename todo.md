@@ -23,14 +23,19 @@ Hash-chain the ledger so "append-only" is provable, not promised.
 - Session `v02-phase-1` closed GREEN (4/6; 2 honest retractions in history —
   the gate REFUSED a bash-mangled regex claim mid-development. Dogfood works.)
 
-## Phase 2 — Receipts as CI gates  [status: in_progress]
+## Phase 2 — Receipts as CI gates  [status: DONE 2026-07-16]
 
-- [ ] `actions/verify/action.yml`: composite GitHub Action — fails a job when
-      the receipt is missing, RED, chain-broken, or bypass-stamped
-- [ ] Fork-PR safety: `command` checks disabled in CI context (verify without
-      executing repo code)
-- [ ] Dogfood: showwork's own CI runs the action against its own ledger
-- [ ] docs/ci.md: usage, session→PR mapping guidance, missing-receipt policy
+- [x] `actions/verify/action.yml`: composite GitHub Action — fails a job when
+      the receipt is missing, RED, chain-broken, or bypass-stamped; renders
+      the receipt into the job step summary; installs from its own ref (no
+      PyPI dependency)
+- [x] Fork-PR safety: `SHOWWORK_NO_COMMANDS` policy env — command checks
+      refuse to execute repo code, verdict degrades honestly to YELLOW
+- [x] Dogfood: `receipts` job in ci.yml gates on the chain audit + the real
+      `v02-phase-1` session (fork-safe mode live-demonstrated)
+- [x] docs/ci.md: inputs, failure modes, fork-safety, session→PR mapping
+- Gate script validated locally by rendering the composite step and running
+  it against this repo's real ledger (exit 0; honest YELLOWs displayed)
 
 ## Phase 3 — Ubiquity: universal wrapper + second implementation  [status: pending]
 

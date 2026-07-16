@@ -26,3 +26,17 @@ jobs:
 
       - name: Verify the committed genesis receipt
         run: .venv/bin/showwork verify --session genesis --no-report
+
+  receipts:
+    runs-on: [self-hosted, linux, x64, pc]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Gate on the repo's own receipts (chain audit + phase-1 session)
+        uses: ./actions/verify
+        with:
+          session: v02-phase-1
+          # allow-commands stays false: this doubles as a live demonstration
+          # of fork-safe mode - the suite's command claim reports the policy
+          # error honestly and the gate tolerates YELLOW unless strict.
