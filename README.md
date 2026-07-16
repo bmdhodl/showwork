@@ -79,6 +79,60 @@ showwork verify --session deploy-fix --json
 
 Vacuous checks are rejected, not blessed: a regex that matches the empty string, or a glob count that's always true (`>= 0`), returns an error instead of a pass. A checker that lets an agent record a bogus "done" is worse than no checker.
 
+## Tamper-evident by construction (v0.2)
+
+Every appended record carries the SHA-256 of the record before it, so
+"append-only" is provable, not promised:
+
+```bash
+showwork audit
+# showwork audit  =>  GREEN  (34/34 records chained)
+#   OK  claims-2026-07-16.jsonl  head ad93b1103b7bfc04
+```
+
+Alter, delete, or reorder one byte of chained history and the audit goes RED
+at the exact line. Publishing a file's *head hash* anywhere out-of-band (a
+commit message, a post) anchors the entire history behind it. Spec:
+[SPEC.md](SPEC.md) § Integrity chain. A zero-dependency Node auditor
+([js/showwork-audit](js/showwork-audit/)) is held to the same frozen
+conformance fixtures as the Python reference.
+
+## Gate your CI on receipts
+
+```yaml
+- uses: bmdhodl/showwork/actions/verify@main
+  with:
+    session: my-agent-session
+```
+
+Fails the job on a chain break, failed claims, a missing exit-gate close, or
+a `--no-verify` bypass stamp — and renders the receipt into the step summary.
+Fork-safe by default ([docs/ci.md](docs/ci.md)).
+
+## Wrap any agent, no integration
+
+```bash
+showwork run --session fix-123 --gate -- codex exec "fix the failing test"
+```
+
+Observe mode is exit-transparent; `--gate` exits 2 when the command reports
+success but the receipts are RED ([docs/adapters.md](docs/adapters.md)).
+
+## The False Done Rate
+
+Receipts make a new number measurable: **how often agents claim work that is
+not backed by reality.** Day-0 on our own production fleet: **21 sessions,
+42.9% contained a false done — every one caught by the gate.** Methodology
+pre-registered, corpus honesty rules included:
+[docs/false-done-rate.md](docs/false-done-rate.md).
+
+## Evidence packs for auditors
+
+`scripts/evidence_pack.py` maps a date range of chain-verified receipts to
+EU AI Act Art. 12/26(6), SOC 2, and HIPAA record-keeping language — and
+refuses to generate from a tampered ledger
+([docs/compliance.md](docs/compliance.md)).
+
 ## Python API
 
 ```python
@@ -114,9 +168,11 @@ marketing number.
 
 ## Roadmap
 
-- More coding-agent adapters
+- More coding-agent adapters (OpenAI Agents SDK / LangGraph middleware)
 - Event stream + point-in-time replay
 - More check types (HTTP probe, git state)
+- False Done Rate at study scale: controlled task sets, per-model corpora
+- Detached signing of ledger heads (external timestamp anchoring)
 
 ## License
 
