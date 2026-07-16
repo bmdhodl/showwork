@@ -12,6 +12,7 @@ was asserted, when, and what was later withdrawn.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import datetime
@@ -21,6 +22,7 @@ from .checks import evaluate_records
 
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
+GENESIS_PREFIX = "showwork:genesis:"
 
 
 def resolve_root(root: str | Path | None = None) -> Path:
@@ -52,8 +54,40 @@ def sessions_path(root: Path) -> Path:
     return ledger_dir(root) / "sessions.jsonl"
 
 
+def line_hash(line: str) -> str:
+    """SHA-256 of one record line's content. EOL-agnostic on purpose: the
+    hash covers the stripped line, so an editor or checkout that only
+    rewrites line endings does not break the chain, while any content
+    change does."""
+    return hashlib.sha256(line.strip().encode("utf-8")).hexdigest()
+
+
+def genesis_hash(path: Path) -> str:
+    """Anchor for the first record of a ledger file."""
+    return hashlib.sha256((GENESIS_PREFIX + path.name).encode("utf-8")).hexdigest()
+
+
+def _record_lines(path: Path) -> list[str]:
+    """The record lines of a ledger file: BOM-safe, blank and comment lines
+    skipped, exactly the framing the reader uses."""
+    if not path.is_file():
+        return []
+    lines = []
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            lines.append(stripped)
+    return lines
+
+
+def _prev_hash(path: Path) -> str:
+    lines = _record_lines(path)
+    return line_hash(lines[-1]) if lines else genesis_hash(path)
+
+
 def _append(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    record["prev"] = _prev_hash(path)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 

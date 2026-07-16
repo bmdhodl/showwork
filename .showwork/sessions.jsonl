@@ -10,3 +10,7 @@
 {"event": "session.start", "session": "showwork-self-adoption", "ts": "2026-07-16T10:02:36", "agent": "claude-code"}
 {"event": "session.finish", "session": "showwork-self-adoption", "ts": "2026-07-16T10:02:37", "status": "ok", "claims_verdict": "GREEN"}
 {"event": "session.finish", "session": "showwork-self-adoption", "ts": "2026-07-16T10:02:37", "status": "ok", "observed_by": "stop-hook", "claims_verdict": "GREEN", "claims_unverified": []}
+{"event": "session.start", "session": "v02-phase-1", "ts": "2026-07-16T12:04:58", "agent": "claude-code", "note": "tamper-evident receipts: hash chain + audit command + spec-v0.2"}
+{"event": "session.finish.refused", "session": "v02-phase-1", "ts": "2026-07-16T12:10:17", "status": "ok", "claims_verdict": "RED", "prev": "d03a9d566f4656f7b010bd2377e8750ef04ac308d70794d65f9ce02038bc6931"}
+{"event": "session.finish.refused", "session": "v02-phase-1", "ts": "2026-07-16T12:10:38", "status": "ok", "claims_verdict": "RED", "prev": "09285f941a0166880149142e479fd8729305184fe7951ffdb242c90852eb1b1c"}
+{"event": "session.finish", "session": "v02-phase-1", "ts": "2026-07-16T12:11:20", "status": "ok", "claims_verdict": "GREEN", "prev": "ec99eda5357146c5c6a3f8ee103fec9df6c6428af54b3a9b0edf12da698d60a2"}

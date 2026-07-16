@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 
+from .audit import audit_root, render_audit
 from .checks import EXIT_BY_VERDICT, render_report
 from .hooks import observe_stop, read_stop_payload
 from .ledger import (
@@ -141,6 +142,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
 
+    p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
+    p.add_argument("--json", action="store_true")
+
     p = sub.add_parser("stop-hook", help="observe a coding-agent Stop hook; never gates")
     p.add_argument("--status", default="ok")
 
@@ -188,6 +192,14 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"session.finish recorded: {args.session}")
         return code
+
+    if args.cmd == "audit":
+        state = audit_root(root)
+        if args.json:
+            print(json.dumps(state, indent=2))
+        else:
+            print(render_audit(state))
+        return EXIT_BY_VERDICT[state["verdict"]]
 
     if args.cmd == "stop-hook":
         try:

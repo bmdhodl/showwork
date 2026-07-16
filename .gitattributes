@@ -1,0 +1,4 @@
+# Ledger files are integrity-chained JSONL. Never EOL-rewrite them: the
+# chain hash is EOL-agnostic, but keeping bytes stable avoids noise.
+.showwork/** -text
+tests/fixtures/** -text

@@ -1,6 +1,6 @@
 # showwork Claims Ledger Specification
 
-**Specification version:** `spec-v0.1`
+**Specification version:** `spec-v0.2`
 
 This document defines a portable, append-only format for falsifiable agent
 claims, deterministic verification, retractions, session lifecycle events, and
@@ -127,6 +127,48 @@ escape, and MUST [test:
 tests/test_checks.py::test_command_recursion_guard] reject nested command
 verification.
 
+## Integrity chain (`spec-v0.2`)
+
+Append-only stops being a promise and becomes provable. Every record a
+writer appends MUST [test: tests/test_audit.py::test_append_adds_prev_hash]
+carry a `prev` field: the SHA-256 hex digest of the previous record line in
+the same file, or of the genesis anchor `showwork:genesis:<filename>` when
+the file has no prior record.
+
+```json
+{"session":"s","ts":"...","claim":"...","severity":"RED","prev":"<sha256 of previous record line>"}
+```
+
+Hashing covers the record line's stripped content. It MUST [test:
+tests/test_audit.py::test_chain_survives_eol_rewrite] be end-of-line
+agnostic, so a checkout or editor that rewrites line endings does not break
+the chain while any content change does. Blank and comment lines are not
+records and do not participate.
+
+An auditor walks each file and re-derives the chain. It MUST [test:
+tests/test_audit.py::test_tamper_detected_at_exact_line] report a break,
+naming the first affected line, when a record's `prev` does not match the
+re-derived hash; it MUST [test:
+tests/test_audit.py::test_deleted_line_is_detected] detect a deleted record
+the same way. A record without `prev` appearing after the chain has started
+MUST [test: tests/test_audit.py::test_unchained_after_chain_start_is_red]
+be a break: append-only can no longer be shown for that file.
+
+Records that predate the chain (`spec-v0.1` ledgers) are *pre-chain*.
+A file containing only pre-chain records MUST [test:
+tests/test_audit.py::test_pre_chain_records_are_anchored] not audit
+GREEN — integrity is unprovable, which is YELLOW, never a silent pass. The
+first chained append anchors everything above it: from that point tampering
+with a pre-chain record MUST [test:
+tests/test_audit.py::test_pre_chain_records_are_anchored] break the chain.
+
+The hash of a file's last record is its *head*. An auditor MUST [test:
+tests/test_audit.py::test_head_hash_reported] expose the head so it can be
+published out-of-band (a commit message, a post, a printout); a published
+head anchors the entire history behind it. The reference CLI exposes all of
+this as `showwork audit`, exiting 0/3/2 for GREEN/YELLOW/RED [test:
+tests/test_audit.py::test_cli_audit_exit_codes].
+
 ## Retractions
 
 History is never edited. A correction appends a referencing record:
@@ -178,13 +220,20 @@ tests/test_checks.py::test_checker_error_is_yellow] prevent a GREEN verdict.
 
 ## Conformance
 
-An implementation conforms to `spec-v0.1` when:
+An implementation conforms to `spec-v0.2` when:
 
 - every normative requirement has a behavioral test named beside it;
 - claims and retractions remain append-only;
+- every appended record extends the integrity chain, and audits detect
+  tampering, deletion, and unchained appends;
 - all six checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - parse and checker errors stay visible.
+
+A reader-only implementation (an auditor that verifies chains and computes
+verdicts without writing) MAY declare conformance to the reading half of
+this specification; it SHOULD state which checker types it re-executes and
+report the rest as errors rather than silently skipping them.
 
 Implementations SHOULD publish their conformance suite and the specification
 version they target.

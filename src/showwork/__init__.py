@@ -5,6 +5,7 @@ showwork verifies what it CLAIMED it did, and refuses to bless a "done"
 that is not backed by reality.
 """
 
+from .audit import audit_file, audit_root, render_audit
 from .checks import CHECKERS, evaluate_records, render_report, verify_claim
 from .hooks import observe_stop, payload_session_id, read_stop_payload
 from .ledger import (
@@ -24,6 +25,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     "CHECKERS",
+    "audit_file",
+    "audit_root",
     "claims_for_session",
     "evaluate_records",
     "finish_session",
@@ -34,6 +37,7 @@ __all__ = [
     "record_event",
     "record_retraction",
     "read_stop_payload",
+    "render_audit",
     "render_report",
     "resolve_root",
     "start_session",
