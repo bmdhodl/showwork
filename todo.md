@@ -66,14 +66,17 @@ Hash-chain the ledger so "append-only" is provable, not promised.
       one caught by the gate**, incl. the gate catching its own author
       during phase 1. One repo excluded (pre-adoption branch), stated.
 
-## Phase 5 — Compliance evidence packs  [status: pending]
+## Phase 5 — Compliance evidence packs  [status: DONE 2026-07-16]
 
-- [ ] `scripts/evidence_pack.py`: date-range of chain-verified receipts →
-      auditor-readable bundle (control ↔ receipt ↔ chain proof)
-- [ ] docs/compliance.md: mapping tables — EU AI Act Art. 12 record-keeping /
-      Art. 26 deployer obligations, SOC 2 CC-series, HIPAA audit controls —
-      framed as supporting evidence, explicitly not legal advice
-- [ ] One real pack generated from this repo's own ledger
+- [x] `scripts/evidence_pack.py`: date-range of receipts → auditor bundle
+      (integrity heads, activity summary, control mapping, receipt
+      inventory, `--redact`); REFUSES to generate from a RED ledger
+      (4 behavioral tests)
+- [x] docs/compliance.md: EU AI Act Art. 12 / Art. 26(6), SOC 2 CC8.1 +
+      CC7.2/7.3, HIPAA 164.312(b) / 164.316(b); point-in-time vs
+      at-export verification explained; not-legal-advice framing throughout
+- [x] docs/evidence-pack-sample.md: real pack from this repo's own ledger
+      (honestly shows 3 refusals + historical claims that no longer verify)
 
 ## Exit criteria (all phases)
 
