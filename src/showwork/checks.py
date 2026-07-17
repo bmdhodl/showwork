@@ -252,9 +252,14 @@ def apply_append_retractions(records: list[dict]) -> list[dict]:
     record that identifies it:
         {"retracted": true, "retracts": {"session": "...", "claim": "..."},
          "retraction_reason": "..."}
+
+    A retraction suppresses only *prior* targets in ledger order. A later
+    re-claim with the same session+claim text is a new live claim and is not
+    permanently killed by an earlier retraction.
     """
-    retractions: dict[tuple[str, str], str] = {}
-    for record in records:
+    # (index, key, reason) for each referencing retraction, in file order.
+    events: list[tuple[int, tuple[str, str], str]] = []
+    for i, record in enumerate(records):
         target = record.get("retracts")
         if not record.get("retracted") or not isinstance(target, dict):
             continue
@@ -262,17 +267,28 @@ def apply_append_retractions(records: list[dict]) -> list[dict]:
         if key == ("", ""):
             continue
         reason = str(record.get("retraction_reason", "claim retracted by later record")).strip()
-        retractions[key] = reason or "claim retracted by later record"
+        events.append((i, key, reason or "claim retracted by later record"))
 
-    if not retractions:
+    if not events:
         return records
 
     out: list[dict] = []
-    for record in records:
+    for i, record in enumerate(records):
+        # Referencing retraction markers are bookkeeping; leave them untouched
+        # (evaluate_records drops them from the active claim list separately).
+        if record.get("retracted") and isinstance(record.get("retracts"), dict):
+            out.append(record)
+            continue
         key = _record_key(record)
-        if key in retractions and not (record.get("retracted") and isinstance(record.get("retracts"), dict)):
+        reason = None
+        for j, rkey, rreason in events:
+            # Only a retraction that appears *after* this record can suppress it.
+            if j > i and rkey == key:
+                reason = rreason
+                break
+        if reason is not None:
             patched = dict(record)
-            patched["_append_retraction_reason"] = retractions[key]
+            patched["_append_retraction_reason"] = reason
             out.append(patched)
         else:
             out.append(record)
