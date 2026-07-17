@@ -145,14 +145,48 @@ agnostic, so a checkout or editor that rewrites line endings does not break
 the chain while any content change does. Blank and comment lines are not
 records and do not participate.
 
-An auditor walks each file and re-derives the chain. It MUST [test:
-tests/test_audit.py::test_tamper_detected_at_exact_line] report a break,
-naming the first affected line, when a record's `prev` does not match the
-re-derived hash; it MUST [test:
-tests/test_audit.py::test_deleted_line_is_detected] detect a deleted record
-the same way. A record without `prev` appearing after the chain has started
-MUST [test: tests/test_audit.py::test_unchained_after_chain_start_is_red]
-be a break: append-only can no longer be shown for that file.
+An auditor walks each file and re-derives the chain. A record's `prev` is
+valid when it matches the hash of **any earlier record line in the same file**,
+or the genesis anchor. The common case is the immediate predecessor (a linear
+step). A `prev` that matches an earlier but non-immediate line is a *fork*, not
+a break (see *Concurrent branches* below). A `prev` that matches **no earlier
+line** MUST [test: tests/test_audit.py::test_tamper_detected_at_exact_line]
+report a break, naming the first affected line — this is exactly what
+modification produces; the auditor MUST [test:
+tests/test_audit.py::test_deleted_line_is_detected] detect a deleted record and
+MUST [test: tests/test_audit.py::test_fork_does_not_hide_tampering] detect
+tampering inside a forked file the same way. Because an anchor must resolve to
+an *earlier* line, reordering a record before its anchor is also a break. A
+record without `prev` appearing after the chain has started MUST [test:
+tests/test_audit.py::test_unchained_after_chain_start_is_red] be a break:
+append-only can no longer be shown for that file.
+
+### Concurrent branches (forks)
+
+Two sessions appending concurrently in separate worktrees, then merged, produce
+a fork: two record blocks whose `prev` points at the same earlier line. This is
+legitimate concurrency, not tampering, so an auditor MUST [test:
+tests/test_audit.py::test_concurrent_merge_audits_green_with_forks] accept a
+record whose `prev` re-anchors to an earlier line, count it as a fork, keep the
+file's verdict GREEN, and report the fork count with each *branch head* (a
+record line that no other record anchors to) so the fork is never silent. Two
+independent chains sharing a file — each first record anchored to genesis — are
+a fork of two roots, handled the same way [test:
+tests/test_audit.py::test_two_genesis_roots_is_a_fork_not_a_break].
+
+A conforming writer SHOULD mark ledger files `merge=union` in `.gitattributes`
+so concurrent appends concatenate instead of producing conflict markers; union
+merge preserves each side's line order, so every block's internal chain stays
+intact.
+
+Fork tolerance preserves tamper-evidence and gives up only linearity: a forked
+file has more than one head, so deleting a whole branch tip is undetectable from
+the file alone — as deleting the single tip of a linear chain always was.
+Publishing every head (each is exposed in the audit output) closes that gap per
+branch. An auditor MAY offer a strict mode that treats any fork as RED [test:
+tests/test_audit.py::test_strict_forbids_forks] for repositories that forbid
+concurrent sessions and want the single-history guarantee. The full rationale is
+in [docs/concurrency.md](docs/concurrency.md).
 
 Records that predate the chain (`spec-v0.1` ledgers) are *pre-chain*.
 A file containing only pre-chain records MUST [test:
@@ -167,7 +201,8 @@ tests/test_audit.py::test_head_hash_reported] expose the head so it can be
 published out-of-band (a commit message, a post, a printout); a published
 head anchors the entire history behind it. The reference CLI exposes all of
 this as `showwork audit`, exiting 0/3/2 for GREEN/YELLOW/RED [test:
-tests/test_audit.py::test_cli_audit_exit_codes].
+tests/test_audit.py::test_cli_audit_exit_codes]; `showwork audit --strict`
+turns any fork RED [test: tests/test_audit.py::test_cli_audit_strict_exit_code].
 
 ## Retractions
 
@@ -225,7 +260,8 @@ An implementation conforms to `spec-v0.2` when:
 - every normative requirement has a behavioral test named beside it;
 - claims and retractions remain append-only;
 - every appended record extends the integrity chain, and audits detect
-  tampering, deletion, and unchained appends;
+  tampering, deletion, and unchained appends while accepting concurrent forks
+  (a `prev` re-anchored to an earlier line) as GREEN and reporting them;
 - all six checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - parse and checker errors stay visible.

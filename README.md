@@ -97,6 +97,16 @@ commit message, a post) anchors the entire history behind it. Spec:
 ([js/showwork-audit](js/showwork-audit/)) is held to the same frozen
 conformance fixtures as the Python reference.
 
+**Concurrent sessions merge cleanly.** Two agents appending in separate git
+worktrees and merging produce a *fork* — two blocks chaining off the same
+parent. That is legitimate concurrency, not tampering: the audit accepts it as
+GREEN, reports the fork count and every branch head, and still goes RED on any
+real modification, deletion, or reorder. Mark the ledger `merge=union` in
+`.gitattributes` (this repo does) so git concatenates instead of writing
+conflict markers. Repos that forbid concurrency can enforce single history with
+`showwork audit --strict`. Rationale and the incident that motivated it:
+[docs/concurrency.md](docs/concurrency.md).
+
 ## Gate your CI on receipts
 
 ```yaml

@@ -2,6 +2,21 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- **Fork-tolerant audit**: concurrent sessions appending in separate git
+  worktrees and merging produce a *fork* — two record blocks chaining off the
+  same parent line — which a linear walk mis-read as a chain break (RED). The
+  audit now accepts a `prev` that re-anchors to any earlier line as a fork
+  (GREEN), reports the fork count and every branch head, and still goes RED on
+  real tampering, deletion, reorder, or an unchained append. `showwork audit
+  --strict` forbids forks for repos that want single-history. A `.gitattributes`
+  `merge=union` stanza makes concurrent appends concatenate instead of writing
+  conflict markers. No record format change; existing linear ledgers audit
+  identically. Mirrored in `js/showwork-audit`; two new conformance fixtures
+  (`forked`, `forked-tampered`) bind both implementations. Rationale and the
+  2026-07-16 bmdpat incident: docs/concurrency.md.
+
 ## 0.2.0 (2026-07-16)
 
 Five moves, one arc: provable -> enforced -> ubiquitous -> famous -> paid.

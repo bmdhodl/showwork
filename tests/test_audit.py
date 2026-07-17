@@ -145,3 +145,93 @@ def test_cli_audit_json(tmp_path, capsys):
     state = json.loads(capsys.readouterr().out)
     assert state["verdict"] == "GREEN"
     assert state["files"][0]["chained"] == 1
+
+
+# ---------- concurrent-append forks (the 2026-07-16 bmdpat incident) ----------
+
+
+def _sessions_file(root: Path) -> Path:
+    return root / ".showwork" / "sessions.jsonl"
+
+
+def _union_merge_fork(root: Path) -> Path:
+    """Reproduce the exact shape git union-merge produced in bmdpat: a shared
+    parent line, then two blocks (sessions B and A) that both chain off that
+    same parent because each was written from a worktree holding the pre-merge
+    copy. Returns the sessions.jsonl path."""
+    record_event(root, "session.start", "shared")   # parent, chained off genesis
+    path = _sessions_file(root)
+    parent_hash = line_hash(_lines(path)[-1])
+    # Session B's finish reached main first, chaining off the parent.
+    b1 = {"event": "session.finish", "session": "B", "ts": "t", "prev": parent_hash}
+    b1_line = json.dumps(b1)
+    # Session A's worktree appended Stop-hook heartbeats chaining off the SAME
+    # parent. git union-merge concatenates both blocks after the parent.
+    a1 = {"event": "session.heartbeat", "session": "A", "ts": "t", "prev": parent_hash}
+    a1_line = json.dumps(a1)
+    a2 = {"event": "session.heartbeat", "session": "A", "ts": "t2",
+          "prev": line_hash(a1_line)}
+    with path.open("a", encoding="utf-8") as f:
+        f.write(b1_line + "\n" + a1_line + "\n" + json.dumps(a2) + "\n")
+    return path
+
+
+def test_concurrent_merge_audits_green_with_forks(tmp_path):
+    path = _union_merge_fork(tmp_path)
+    result = audit_file(path)
+    assert result["verdict"] == "GREEN"       # a linear walk went RED here
+    assert result["forks"] == 1               # one block re-anchors to the parent
+    assert len(result["heads"]) == 2          # session B tip and session A tip
+    assert result["break_at"] is None
+
+
+def test_fork_does_not_hide_tampering(tmp_path):
+    path = _union_merge_fork(tmp_path)
+    lines = _lines(path)
+    lines[0] = lines[0].replace("shared", "sh4red")  # tamper the shared parent
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    result = audit_file(path)
+    assert result["verdict"] == "RED"
+    assert result["break_at"] == 2  # first record that anchored to the parent
+
+
+def test_strict_forbids_forks(tmp_path):
+    path = _union_merge_fork(tmp_path)
+    assert audit_file(path)["verdict"] == "GREEN"
+    strict = audit_file(path, strict=True)
+    assert strict["verdict"] == "RED"
+    assert "fork" in strict["detail"]
+
+
+def test_two_genesis_roots_is_a_fork_not_a_break(tmp_path):
+    record_event(tmp_path, "session.start", "A")  # anchored to genesis
+    path = _sessions_file(tmp_path)
+    second = {"event": "session.start", "session": "B", "ts": "t",
+              "prev": genesis_hash(path)}  # a second independent root
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(second) + "\n")
+    result = audit_file(path)
+    assert result["verdict"] == "GREEN"
+    assert result["forks"] == 1
+
+
+def test_cli_audit_strict_exit_code(tmp_path, capsys):
+    _union_merge_fork(tmp_path)
+    assert main(["--root", str(tmp_path), "audit"]) == 0
+    capsys.readouterr()
+    assert main(["--root", str(tmp_path), "audit", "--strict"]) == 2
+
+
+def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
+    # A hostile ledger must report, never raise: numbers, objects, and arrays
+    # in prev are all breaks (unhashable values would crash a naive set lookup).
+    for bad_prev in (12345, {}, ["x"]):
+        record_claim(tmp_path, "s", "one")
+        path = _claims_file(tmp_path)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"session": "s", "ts": "t", "claim": "x",
+                                "prev": bad_prev}) + "\n")
+        result = audit_file(path)
+        assert result["verdict"] == "RED", bad_prev
+        assert result["break_at"] == 2, bad_prev
+        path.unlink()

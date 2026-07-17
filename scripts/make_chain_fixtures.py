@@ -93,6 +93,39 @@ def main() -> None:
     expected["comments.jsonl"] = {"verdict": "GREEN", "break_at": None,
                                   "chained": 2}
 
+    # 9/10. forked: two concurrent branches re-anchor to the same parent line,
+    #    exactly as a git union-merge of two sessions produces. The chain is
+    #    intact (no tampering); it is simply not linear. `prev` is genesis-
+    #    anchored per file, so each fixture is built under its own name.
+    def build_forked(name: str) -> list[str]:
+        target = OUT / name
+        parent = dict(rec(1, "parent")); parent["prev"] = genesis_hash(target)
+        p_line = json.dumps(parent, ensure_ascii=False)
+        a1 = dict(rec(2, "A-one")); a1["prev"] = line_hash(p_line)
+        a1_line = json.dumps(a1, ensure_ascii=False)
+        b1 = dict(rec(3, "B-one")); b1["prev"] = line_hash(p_line)  # re-anchors to parent
+        b1_line = json.dumps(b1, ensure_ascii=False)
+        b2 = dict(rec(4, "B-two")); b2["prev"] = line_hash(b1_line)
+        return [p_line, a1_line, b1_line, json.dumps(b2, ensure_ascii=False)]
+
+    write("forked.jsonl", build_forked("forked.jsonl"))
+    expected["forked.jsonl"] = {"verdict": "GREEN", "break_at": None,
+                                "chained": 4, "pre_chain": 0, "forks": 1}
+
+    # forked then tampered: altering the shared parent breaks the first record
+    # that anchored to it — tamper-evidence survives forks.
+    tampered_fork = build_forked("forked-tampered.jsonl")
+    tampered_fork[0] = tampered_fork[0].replace('"parent"', '"p4rent"')
+    write("forked-tampered.jsonl", tampered_fork)
+    expected["forked-tampered.jsonl"] = {"verdict": "RED", "break_at": 2}
+
+    # 11. hostile prev that is not a string (an object): a break, never a crash
+    lines = chain(OUT / "nonstring-prev.jsonl", base[:1])
+    hostile = dict(rec(2, "hostile")); hostile["prev"] = {}
+    lines.append(json.dumps(hostile, ensure_ascii=False))
+    write("nonstring-prev.jsonl", lines)
+    expected["nonstring-prev.jsonl"] = {"verdict": "RED", "break_at": 2}
+
     (OUT / "expected.json").write_text(
         json.dumps(expected, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {len(expected)} fixtures + expected.json to {OUT}")
