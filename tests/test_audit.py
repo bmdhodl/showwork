@@ -223,11 +223,15 @@ def test_cli_audit_strict_exit_code(tmp_path, capsys):
 
 
 def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
-    record_claim(tmp_path, "s", "one")
-    path = _claims_file(tmp_path)
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"session": "s", "ts": "t", "claim": "x",
-                            "prev": 12345}) + "\n")
-    result = audit_file(path)  # a hostile ledger must report, never raise
-    assert result["verdict"] == "RED"
-    assert result["break_at"] == 2
+    # A hostile ledger must report, never raise: numbers, objects, and arrays
+    # in prev are all breaks (unhashable values would crash a naive set lookup).
+    for bad_prev in (12345, {}, ["x"]):
+        record_claim(tmp_path, "s", "one")
+        path = _claims_file(tmp_path)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"session": "s", "ts": "t", "claim": "x",
+                                "prev": bad_prev}) + "\n")
+        result = audit_file(path)
+        assert result["verdict"] == "RED", bad_prev
+        assert result["break_at"] == 2, bad_prev
+        path.unlink()

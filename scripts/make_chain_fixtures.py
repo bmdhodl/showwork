@@ -119,6 +119,13 @@ def main() -> None:
     write("forked-tampered.jsonl", tampered_fork)
     expected["forked-tampered.jsonl"] = {"verdict": "RED", "break_at": 2}
 
+    # 11. hostile prev that is not a string (an object): a break, never a crash
+    lines = chain(OUT / "nonstring-prev.jsonl", base[:1])
+    hostile = dict(rec(2, "hostile")); hostile["prev"] = {}
+    lines.append(json.dumps(hostile, ensure_ascii=False))
+    write("nonstring-prev.jsonl", lines)
+    expected["nonstring-prev.jsonl"] = {"verdict": "RED", "break_at": 2}
+
     (OUT / "expected.json").write_text(
         json.dumps(expected, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {len(expected)} fixtures + expected.json to {OUT}")

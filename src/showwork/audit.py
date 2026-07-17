@@ -79,7 +79,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
             out["chained"] += 1
             if prev == expected:
                 pass  # linear step: anchors to the immediate predecessor
-            elif prev in seen:
+            elif isinstance(prev, str) and prev in seen:
                 # Anchors to an earlier line (or a second genesis root): a fork,
                 # not a break. This is what a legitimate concurrent merge looks
                 # like once git has union-concatenated the two branches.

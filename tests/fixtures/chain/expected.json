@@ -48,5 +48,9 @@
   "forked-tampered.jsonl": {
     "verdict": "RED",
     "break_at": 2
+  },
+  "nonstring-prev.jsonl": {
+    "verdict": "RED",
+    "break_at": 2
   }
 }
