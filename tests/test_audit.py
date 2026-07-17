@@ -235,3 +235,18 @@ def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
         assert result["verdict"] == "RED", bad_prev
         assert result["break_at"] == 2, bad_prev
         path.unlink()
+
+
+def test_invalid_utf8_ledger_is_red_not_a_crash(tmp_path):
+    """Binary / non-UTF-8 ledger bytes must not raise UnicodeDecodeError.
+
+    Integrity audit has to report a non-GREEN verdict so a corrupt file cannot
+    take down the auditor or silently skip the file.
+    """
+    record_claim(tmp_path, "s", "one")
+    path = _claims_file(tmp_path)
+    with path.open("ab") as f:
+        f.write(b"\xff\xfe not utf-8\n")
+    result = audit_file(path)
+    assert result["verdict"] == "RED"
+    assert "utf-8" in result["detail"].lower() or "utf8" in result["detail"].lower()

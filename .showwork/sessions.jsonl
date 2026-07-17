@@ -37,3 +37,5 @@
 {"event": "session.finish", "session": "review-fixes-fork-audit", "ts": "2026-07-16T22:46:15", "status": "ok", "claims_verdict": "GREEN", "prev": "4dfd27190fa94ca0cabb0c8506b37bba13ea340fe69717b2a9c8b4e1e4eeabdc"}
 {"event": "session.start", "session": "hostile-prev-hardening", "ts": "2026-07-17T09:11:16", "agent": "claude-code", "note": "adversarial verify finding: unhashable prev crashed the auditor", "prev": "510261745323d08613b181699472becf01ee42572ee699437f8b3ee0d814f8fa"}
 {"event": "session.finish", "session": "hostile-prev-hardening", "ts": "2026-07-17T09:11:19", "status": "ok", "claims_verdict": "GREEN", "prev": "ddb5aaaa3f3ba504d91c7302f3d03cbdb36be24c1f1cd35029133eeca75d1a93"}
+{"event": "session.start", "session": "showwork-harden-utf8-ledger-decode", "ts": "2026-07-17T11:25:05", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
+{"event": "session.finish", "session": "showwork-harden-utf8-ledger-decode", "ts": "2026-07-17T11:25:08", "status": "ok", "claims_verdict": "GREEN", "prev": "0681cb3492c77afee68cfd6a15d7b616dbafea78bb3570552275669db441a07b"}

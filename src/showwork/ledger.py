@@ -67,14 +67,28 @@ def genesis_hash(path: Path) -> str:
     return hashlib.sha256((GENESIS_PREFIX + path.name).encode("utf-8")).hexdigest()
 
 
+def _ledger_raw_lines(path: Path) -> list[bytes]:
+    """Byte lines of a ledger file (BOM stripped). Split before decoding so a
+    single corrupt line cannot prevent reading the rest of the file."""
+    raw = path.read_bytes()
+    if raw.startswith(b"\xef\xbb\xbf"):
+        raw = raw[3:]
+    return raw.splitlines()
+
+
 def _record_lines(path: Path) -> list[str]:
     """The record lines of a ledger file: BOM-safe, blank and comment lines
-    skipped, exactly the framing the reader uses."""
+    skipped, exactly the framing the reader uses. Invalid UTF-8 lines are
+    skipped here (append hashing only needs well-formed prior records); the
+    claim reader surfaces them as YELLOW parse errors instead."""
     if not path.is_file():
         return []
     lines = []
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        stripped = line.strip()
+    for raw in _ledger_raw_lines(path):
+        try:
+            stripped = raw.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            continue
         if stripped and not stripped.startswith("#"):
             lines.append(stripped)
     return lines
@@ -93,14 +107,22 @@ def _append(path: Path, record: dict) -> None:
 
 
 def _read_jsonl(path: Path) -> list[dict]:
-    """BOM-safe, comment-tolerant JSONL reader. Unparseable lines become
-    YELLOW records instead of being silently dropped."""
+    """BOM-safe, comment-tolerant JSONL reader. Unparseable lines and invalid
+    UTF-8 lines become YELLOW records instead of being silently dropped or
+    raising UnicodeDecodeError."""
     if not path.is_file():
         return []
     records: list[dict] = []
-    for i, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
+    for i, raw in enumerate(_ledger_raw_lines(path), 1):
+        if not raw.strip() or raw.lstrip().startswith(b"#"):
+            continue
+        try:
+            line = raw.decode("utf-8").strip()
+        except UnicodeDecodeError as e:
+            records.append({"claim": f"(unreadable line {i} in {path.name})",
+                            "check": None,
+                            "_parse_error": f"not valid UTF-8: {e}",
+                            "severity": "YELLOW"})
             continue
         try:
             records.append(json.loads(line))

@@ -93,6 +93,35 @@ def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
     assert run(tmp_path, "verify", "--no-report") == 3  # YELLOW, never silently GREEN
 
 
+def test_invalid_utf8_ledger_is_yellow_not_crash(tmp_path, capsys):
+    """Non-UTF-8 ledger bytes must not raise UnicodeDecodeError out of verify.
+
+    SPEC: parse errors are visible non-GREEN results, never silent and never a
+    crash that takes down the exit path. Binary / wrong-encoding corruption is
+    a file-level parse failure.
+    """
+    run(tmp_path, "claim", "--session", "s-utf8", "--claim", "good",
+        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
+    capsys.readouterr()  # flush "claim recorded"
+    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    with ledger.open("ab") as f:
+        f.write(b"\xff\xfe not utf-8\n")
+    # Date-scoped verify includes every line in the day file (session filter
+    # would drop an encoding-error synthetic record that has no session).
+    code = run(tmp_path, "verify", "--no-report", "--json")
+    assert code == 3  # YELLOW
+    state = json.loads(capsys.readouterr().out)
+    assert state["verdict"] == "YELLOW"
+    assert any(
+        r["status"] == "error" and (
+            "utf-8" in r["detail"].lower()
+            or "utf8" in r["detail"].lower()
+            or "unreadable" in r["detail"].lower()
+        )
+        for r in state["results"]
+    )
+
+
 def test_check_json_passthrough(tmp_path):
     (tmp_path / "x.txt").write_text("hello", encoding="utf-8")
     check = json.dumps({"type": "file_contains", "path": "x.txt", "pattern": "hello"})

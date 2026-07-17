@@ -62,7 +62,17 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     prev_line: str | None = None
     chain_started = False
     line_no = 0
-    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as e:
+        out["verdict"] = "RED"
+        out["detail"] = f"ledger file is not valid UTF-8: {e}"
+        return out
+    except FileNotFoundError:
+        out["verdict"] = "YELLOW"
+        out["detail"] = "ledger file missing: nothing to anchor"
+        return out
+    for raw in text.splitlines():
         line_no += 1
         line = raw.strip()
         if not line or line.startswith("#"):
