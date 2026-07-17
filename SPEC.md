@@ -11,10 +11,19 @@ package.
 
 ## Storage and framing
 
-Claims are UTF-8 JSON Lines. Each non-empty line is one complete JSON object.
-Writers MUST [test: tests/test_spec_conformance.py::test_claims_are_jsonl_records]
-append records without rewriting earlier lines. Readers SHOULD tolerate a UTF-8
-BOM and blank or comment lines. A parse error MUST [test:
+Claims are UTF-8 JSON Lines. Records are separated by a line feed (`\n`) or a
+carriage-return/line-feed pair (`\r\n`): a reader MUST [test:
+tests/test_audit.py::test_line_boundaries_are_lf_or_crlf_only] split on `\r?\n`
+and treat no other Unicode separator — U+2028, U+2029, U+0085, vertical tab,
+form feed, the FS/GS/RS/US controls, or a lone carriage return — as a record
+boundary, so one of them inside a JSON string keeps the record whole. Each
+non-empty line is one complete JSON object in strict JSON; the bare tokens
+`NaN`, `Infinity`, and `-Infinity` are not valid JSON, and a reader MUST [test:
+tests/test_audit.py::test_nonstandard_json_constants_are_parse_errors] treat
+such a line as a parse error rather than a live record. Writers MUST [test:
+tests/test_spec_conformance.py::test_claims_are_jsonl_records] append records
+without rewriting earlier lines. Readers SHOULD tolerate a UTF-8 BOM and blank
+or comment lines. A parse error MUST [test:
 tests/test_cli.py::test_unparseable_ledger_line_is_yellow_not_dropped] become a
 visible non-GREEN result instead of disappearing.
 

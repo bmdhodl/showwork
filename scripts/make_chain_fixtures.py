@@ -126,6 +126,61 @@ def main() -> None:
     write("nonstring-prev.jsonl", lines)
     expected["nonstring-prev.jsonl"] = {"verdict": "RED", "break_at": 2}
 
+    # --- cross-implementation dialect fixtures (2026-07-17) -----------------
+    # These freeze the JSON dialect and line-segmentation rules so the Python
+    # reference and js/showwork-audit stay bound on hostile/degenerate input.
+    # Each was a real divergence before the fix; the bytes are written raw
+    # because json.dumps cannot emit them.
+
+    # 12. bare NaN is not valid JSON. json.loads used to accept it (making the
+    #     record a live one with a float `prev` -> RED); JSON.parse rejects it.
+    #     Now both treat the line as unparseable: one pre-chain record, YELLOW.
+    nonfinite = ('{"session": "fx", "ts": "2026-07-16T00:00:01", '
+                 '"claim": "nonfinite", "severity": "RED", "prev": NaN}')
+    (OUT / "nonfinite-constant.jsonl").write_bytes((nonfinite + "\n").encode("utf-8"))
+    expected["nonfinite-constant.jsonl"] = {"verdict": "YELLOW", "break_at": None,
+                                            "chained": 0, "pre_chain": 1}
+
+    # 13. a raw U+2028 inside a JSON string is part of that string, not a line
+    #     break. str.splitlines() split it (cutting the JSON in two -> RED);
+    #     \r?\n keeps the record whole, so the chain stays intact (GREEN).
+    target = OUT / "u2028-in-string.jsonl"
+    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a_line = json.dumps(a, ensure_ascii=False)
+    b = dict(rec(2, "line\u2028break")); b["prev"] = line_hash(a_line)
+    b_line = json.dumps(b, ensure_ascii=False)  # ensure_ascii=False keeps U+2028 raw
+    (OUT / "u2028-in-string.jsonl").write_bytes((a_line + "\n" + b_line + "\n").encode("utf-8"))
+    expected["u2028-in-string.jsonl"] = {"verdict": "GREEN", "break_at": None,
+                                         "chained": 2, "pre_chain": 0}
+
+    # 14. a lone CR is not a record separator under \r?\n: the whole file is one
+    #     physical line (invalid JSON -> one unparseable pre-chain record,
+    #     YELLOW). str.splitlines() would have split it into two chained records.
+    target = OUT / "lone-cr.jsonl"
+    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a_line = json.dumps(a, ensure_ascii=False)
+    b = dict(rec(2, "two")); b["prev"] = line_hash(a_line)
+    b_line = json.dumps(b, ensure_ascii=False)
+    (OUT / "lone-cr.jsonl").write_bytes((a_line + "\r" + b_line + "\n").encode("utf-8"))
+    expected["lone-cr.jsonl"] = {"verdict": "YELLOW", "break_at": None,
+                                 "chained": 0, "pre_chain": 1}
+
+    # 15. break_at line numbering: records separated by \n\r, with record 2
+    #     tampered so record 3's prev dangles. splitlines() counts the stray CR
+    #     as its own blank line and reports the break at line 5; \r?\n reports
+    #     it at line 3, matching the JS auditor.
+    target = OUT / "nlcr-break-numbering.jsonl"
+    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a_line = json.dumps(a, ensure_ascii=False)
+    b = dict(rec(2, "two")); b["prev"] = line_hash(a_line)
+    b_line = json.dumps(b, ensure_ascii=False)
+    c = dict(rec(3, "three")); c["prev"] = line_hash(b_line)
+    c_line = json.dumps(c, ensure_ascii=False)
+    b_tampered = b_line.replace('"two"', '"2wo"')  # record 3's prev no longer resolves
+    (OUT / "nlcr-break-numbering.jsonl").write_bytes(
+        (a_line + "\n\r" + b_tampered + "\n\r" + c_line + "\n").encode("utf-8"))
+    expected["nlcr-break-numbering.jsonl"] = {"verdict": "RED", "break_at": 3}
+
     (OUT / "expected.json").write_text(
         json.dumps(expected, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {len(expected)} fixtures + expected.json to {OUT}")

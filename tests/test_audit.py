@@ -222,6 +222,63 @@ def test_cli_audit_strict_exit_code(tmp_path, capsys):
     assert main(["--root", str(tmp_path), "audit", "--strict"]) == 2
 
 
+# ---------- cross-implementation dialect: framing must match js/showwork-audit ----------
+
+
+def test_line_boundaries_are_lf_or_crlf_only(tmp_path):
+    # str.splitlines() breaks on U+2028 and a lone CR; a JSON.parse-based reader
+    # (js/showwork-audit) does not. Splitting on \r?\n keeps the two in step.
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    path = ledger / "claims-2026-01-01.jsonl"
+    r1 = {"session": "s", "ts": "t", "claim": "one", "prev": genesis_hash(path)}
+    l1 = json.dumps(r1, ensure_ascii=False)
+    # a raw U+2028 sits inside record 2's JSON string; it is not a line break
+    r2 = {"session": "s", "ts": "t", "claim": "a\u2028b", "prev": line_hash(l1)}
+    l2 = json.dumps(r2, ensure_ascii=False)
+    path.write_bytes((l1 + "\n" + l2 + "\n").encode("utf-8"))
+    intact = audit_file(path)
+    assert intact["records"] == 2       # U+2028 stayed inside record 2
+    assert intact["verdict"] == "GREEN"
+    # a lone CR is not a separator: one physical line, which is invalid JSON, so
+    # a single unparseable pre-chain record — never two chained records.
+    path.write_bytes((l1 + "\r" + l2 + "\n").encode("utf-8"))
+    lone_cr = audit_file(path)
+    assert lone_cr["records"] == 1
+    assert lone_cr["verdict"] == "YELLOW"
+
+
+def test_nonstandard_json_constants_are_parse_errors(tmp_path):
+    # json.loads accepts bare NaN/Infinity/-Infinity; JSON.parse rejects them.
+    # The reader must too, so such a line is an unparseable pre-chain record
+    # (YELLOW), never a live record whose `prev` is a float.
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    path = ledger / "claims-2026-01-01.jsonl"
+    for literal in ("NaN", "Infinity", "-Infinity"):
+        line = '{"session": "s", "ts": "t", "claim": "x", "prev": ' + literal + "}"
+        path.write_bytes((line + "\n").encode("utf-8"))
+        result = audit_file(path)
+        assert result["records"] == 1, literal
+        assert result["chained"] == 0, literal
+        assert result["pre_chain"] == 1, literal
+        assert result["verdict"] == "YELLOW", literal
+
+
+def test_ledger_reader_rejects_nonfinite_constants(tmp_path):
+    # The verification reader (_read_jsonl) shares the strict dialect: a bare
+    # Infinity becomes the visible unparseable placeholder, not a live record.
+    from showwork.ledger import load_claims
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    (ledger / "claims-2026-01-01.jsonl").write_bytes(
+        b'{"session": "s", "ts": "t", "claim": "x", "value": Infinity}\n')
+    records = load_claims(tmp_path, "2026-01-01")
+    assert len(records) == 1
+    assert records[0]["severity"] == "YELLOW"
+    assert "_parse_error" in records[0]
+
+
 def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
     # A hostile ledger must report, never raise: numbers, objects, and arrays
     # in prev are all breaks (unhashable values would crash a naive set lookup).
