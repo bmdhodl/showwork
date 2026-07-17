@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from .audit import audit_root, render_audit
 from .checks import EXIT_BY_VERDICT, render_report
@@ -83,6 +84,30 @@ def _req(args: argparse.Namespace, name: str):
         flag = "--" + name.replace("_", "-")
         raise SystemExit(f"check type {args.type!r} requires {flag}")
     return val
+
+
+def _audit_report_path(ledger: Path, label: str) -> Path:
+    """Build audit-<label>.md as a single path segment under the ledger dir.
+
+    Session ids and date labels are attacker-controlled strings in some
+    workflows. Replacing only spaces left '/', '\\\\', and '..' intact, so
+    joining the label into the report path could resolve outside `.showwork/`.
+    """
+    stem = str(label).replace(" ", "-")
+    for bad in ("/", "\\", "\0", ":"):
+        stem = stem.replace(bad, "_")
+    while ".." in stem:
+        stem = stem.replace("..", "_")
+    if not stem or stem in (".", "_"):
+        stem = "unknown"
+    report = (ledger / f"audit-{stem}.md").resolve()
+    try:
+        report.relative_to(ledger.resolve())
+    except ValueError as exc:
+        raise SystemExit(
+            f"refusing to write audit report outside ledger dir: {report}"
+        ) from exc
+    return report
 
 
 def _print_state(state: dict, as_json: bool) -> None:
@@ -193,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             state = verify_date(root, args.date)
         if not args.no_report:
-            report = ledger_dir(root) / f"audit-{state['label'].replace(' ', '-')}.md"
+            report = _audit_report_path(ledger_dir(root), state["label"])
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(render_report(state), encoding="utf-8")
         _print_state(state, args.json)

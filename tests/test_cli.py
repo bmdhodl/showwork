@@ -84,6 +84,29 @@ def test_verify_date_json_and_report(tmp_path, capsys):
     assert reports, "verify should write a markdown audit report"
 
 
+def test_verify_report_stays_under_ledger_dir(tmp_path):
+    """Session labels with path separators must not escape .showwork/.
+
+    verify writes audit-<label>.md under the ledger dir. A label containing
+    '..' / '\\' / '/' was joined into a multi-segment path, so the report
+    could be created outside .showwork/ (e.g. project root or beyond).
+    """
+    # Enough .. segments to leave .showwork/ when treated as path parts.
+    session = "..\\..\\..\\escaped-report"
+    run(tmp_path, "claim", "--session", session, "--claim", "x",
+        "--type", "file_exists", "--path", "nope.txt")
+    assert run(tmp_path, "verify", "--session", session) == 2
+    ledger = (tmp_path / ".showwork").resolve()
+    # Report must exist under the ledger dir as a single file, not outside.
+    reports = list(ledger.glob("audit-*.md"))
+    assert reports, "expected a sanitized audit report under .showwork/"
+    for report in reports:
+        report.resolve().relative_to(ledger)
+    # Must not have written the escape target at project root.
+    assert not (tmp_path / "escaped-report.md").exists()
+    assert not list(tmp_path.glob("escaped-report*"))
+
+
 def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
     run(tmp_path, "claim", "--session", "s8", "--claim", "good",
         "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
