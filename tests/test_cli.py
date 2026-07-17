@@ -99,3 +99,21 @@ def test_check_json_passthrough(tmp_path):
     assert run(tmp_path, "claim", "--session", "s9", "--claim", "x says hello",
                "--check-json", check) == 0
     assert run(tmp_path, "verify", "--session", "s9", "--no-report") == 0
+
+
+def test_invalid_check_json_is_clean_error(tmp_path):
+    """Malformed --check-json must not raise an uncaught JSONDecodeError.
+
+    Agents and shell wrappers feed --check-json; a traceback is a vacuous
+    failure (exit path unclear, message buried). Match other CLI validation:
+    SystemExit with a clear message naming the flag.
+    """
+    try:
+        run(tmp_path, "claim", "--session", "s-bad-json", "--claim", "x",
+            "--check-json", "{not valid json")
+    except SystemExit as e:
+        msg = str(e)
+        assert "--check-json" in msg
+        assert "valid JSON" in msg or "not valid" in msg.lower()
+    else:
+        raise AssertionError("expected SystemExit for malformed --check-json")

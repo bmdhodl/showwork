@@ -42,7 +42,10 @@ CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
 
 def _build_check(args: argparse.Namespace) -> dict | None:
     if args.check_json:
-        check = json.loads(args.check_json)
+        try:
+            check = json.loads(args.check_json)
+        except json.JSONDecodeError as e:
+            raise SystemExit(f"--check-json is not valid JSON: {e}") from e
         if not isinstance(check, dict):
             raise SystemExit("--check-json must be a JSON object")
         return check
