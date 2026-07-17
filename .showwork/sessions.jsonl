@@ -51,3 +51,5 @@
 {"event": "session.finish", "session": "showwork-harden-frontmatter-bool-equals", "ts": "2026-07-17T11:27:55", "status": "ok", "claims_verdict": "GREEN", "prev": "8cd8c2998354558569684a3341843113cf9393a571621578200c4abea2b210e6"}
 {"event": "session.start", "session": "showwork-harden-finish-status-case", "ts": "2026-07-17T11:29:02", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
 {"event": "session.finish", "session": "showwork-harden-finish-status-case", "ts": "2026-07-17T11:29:05", "status": "ok", "claims_verdict": "GREEN", "prev": "b887319439207ffaa91891d70df78d21f9174977d11189a3c1d5250cf303649b"}
+{"event": "session.start", "session": "showwork-harden-claims-date-path-escape", "ts": "2026-07-17T11:30:03", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
+{"event": "session.finish", "session": "showwork-harden-claims-date-path-escape", "ts": "2026-07-17T11:30:08", "status": "ok", "claims_verdict": "GREEN", "prev": "106bfeb26b0678c46060687b14ff68ca969e7cf33290524ba807518eb131b258"}

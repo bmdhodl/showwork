@@ -24,6 +24,9 @@ from .checks import evaluate_records
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
 GENESIS_PREFIX = "showwork:genesis:"
+# Ledger day files are claims-YYYY-MM-DD.jsonl only. Reject anything else so a
+# hostile --date cannot turn claims_path into a multi-segment escape.
+_CLAIMS_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def resolve_root(root: str | Path | None = None) -> Path:
@@ -48,7 +51,21 @@ def _now() -> str:
 
 
 def claims_path(root: Path, date_str: str | None = None) -> Path:
-    return ledger_dir(root) / f"claims-{date_str or _today()}.jsonl"
+    """Path to a day's claims file. ``date_str`` MUST be YYYY-MM-DD when set.
+
+    Unvalidated dates were joined as ``claims-{date}.jsonl``; values containing
+    ``..`` / separators resolved outside ``.showwork/``.
+    """
+    label = date_str if date_str is not None else _today()
+    if not _CLAIMS_DATE_RE.fullmatch(str(label)):
+        raise ValueError(f"claims date must be YYYY-MM-DD, got {date_str!r}")
+    base = ledger_dir(root).resolve()
+    path = (base / f"claims-{label}.jsonl").resolve()
+    try:
+        path.relative_to(base)
+    except ValueError as exc:
+        raise ValueError(f"claims path escapes ledger dir: {date_str!r}") from exc
+    return path
 
 
 def sessions_path(root: Path) -> Path:

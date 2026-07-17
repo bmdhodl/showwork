@@ -216,7 +216,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.session:
             state = verify_session(root, args.session)
         else:
-            state = verify_date(root, args.date)
+            try:
+                state = verify_date(root, args.date)
+            except ValueError as e:
+                raise SystemExit(str(e)) from e
         if not args.no_report:
             report = _audit_report_path(ledger_dir(root), state["label"])
             report.parent.mkdir(parents=True, exist_ok=True)
