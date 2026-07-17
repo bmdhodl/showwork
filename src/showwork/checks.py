@@ -147,14 +147,20 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     op = c["op"]
     want = int(c["n"])
-    pattern_path = Path(str(c["pattern"]))
+    pattern = c.get("pattern")
+    if not isinstance(pattern, str) or pattern == "":
+        return ("error", "glob pattern must be a non-empty string")
+    pattern_path = Path(pattern)
     if pattern_path.is_absolute() or ".." in pattern_path.parts:
-        return ("fail", f"glob escapes project root: {c['pattern']}")
+        return ("fail", f"glob escapes project root: {pattern}")
     # Reject counts that are always true regardless of the glob result: a count
     # is never negative, so `>= 0` / `> -1` verify nothing.
     if (op == ">=" and want <= 0) or (op == ">" and want < 0):
         return ("error", f"count {op} {want} is always true (vacuous check); tighten it")
-    n = sum(1 for _ in root.glob(c["pattern"]))
+    try:
+        n = sum(1 for _ in root.glob(pattern))
+    except ValueError as e:
+        return ("error", f"invalid glob pattern {pattern!r}: {e}")
     ok = {
         "==": n == want, ">=": n >= want, "<=": n <= want,
         ">": n > want, "<": n < want,

@@ -187,6 +187,18 @@ def test_glob_count_rejects_escape(tmp_path):
     assert r["status"] == "error"
 
 
+def test_glob_count_rejects_empty_pattern(tmp_path):
+    """Empty glob pattern must be a clear error, not a pathlib traceback phrase.
+
+    Pre-fix, pattern '' became WindowsPath('.') and raised
+    'Unacceptable pattern', wrapped as 'checker raised: ...'.
+    """
+    r = verify_claim(claim({"type": "glob_count", "pattern": "", "op": ">=", "n": 1}), tmp_path)
+    assert r["status"] == "error"
+    assert "checker raised" not in r["detail"]
+    assert "pattern" in r["detail"].lower()
+
+
 # ---------- command (locked) ----------
 
 def test_command_happy_path(tmp_path):
