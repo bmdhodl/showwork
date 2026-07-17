@@ -56,6 +56,26 @@ def test_file_checks_reject_evidence_outside_project_root(tmp_path):
         assert "escapes project root" in result["detail"]
 
 
+def test_path_args_must_be_strings(tmp_path):
+    """Non-string path fields must not raise TypeError from Path join.
+
+    Pre-fix, path/from/to of None or int produced
+    'checker raised: unsupported operand type(s) for /: WindowsPath and NoneType'.
+    """
+    cases = [
+        {"type": "file_exists", "path": None},
+        {"type": "file_contains", "path": 1, "pattern": "x"},
+        {"type": "frontmatter", "path": None, "field": "a", "equals": "b"},
+        {"type": "path_moved", "from": None, "to": "a.txt"},
+        {"type": "path_moved", "from": "a.txt", "to": 2},
+    ]
+    for check in cases:
+        r = verify_claim(claim(check), tmp_path)
+        assert r["status"] == "error", check
+        assert "checker raised" not in r["detail"], r
+        assert "string" in r["detail"].lower() or "path" in r["detail"].lower(), r
+
+
 # ---------- file_contains ----------
 
 def test_file_contains_pass_and_fail(tmp_path):

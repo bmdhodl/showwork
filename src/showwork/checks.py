@@ -58,6 +58,8 @@ class PathEscapeError(ValueError):
 
 
 def _resolve(root: Path, path_str: str) -> Path:
+    if not isinstance(path_str, str):
+        raise TypeError(f"path must be a string, got {type(path_str).__name__}")
     resolved_root = root.resolve()
     resolved = (resolved_root / path_str).resolve()
     try:
@@ -276,6 +278,9 @@ def verify_claim(record: dict, root: Path) -> dict:
         status, detail = "fail", str(e)
     except KeyError as e:
         status, detail = "error", f"missing arg {e}"
+    except TypeError as e:
+        # Bad field types (non-string paths, etc.) — surface the message cleanly.
+        status, detail = "error", str(e)
     except Exception as e:  # noqa: BLE001
         status, detail = "error", f"checker raised: {e}"
     return {**base, "type": ctype, "status": status, "detail": detail}
