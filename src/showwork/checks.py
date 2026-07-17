@@ -210,12 +210,19 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
                               timeout=120, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")
-    expect = int(c.get("expect_exit", 0))
+    try:
+        expect = int(c.get("expect_exit", 0))
+    except (TypeError, ValueError) as e:
+        return ("error", f"expect_exit must be an integer: {e}")
     if proc.returncode != expect:
         return ("fail", f"exit {proc.returncode}, expected {expect}")
     needle = c.get("stdout_contains")
-    if needle and needle not in proc.stdout:
-        return ("fail", f"stdout missing {needle!r}")
+    if needle is not None and needle != "":
+        if not isinstance(needle, str):
+            return ("error",
+                    f"stdout_contains must be a string, got {type(needle).__name__}")
+        if needle not in proc.stdout:
+            return ("fail", f"stdout missing {needle!r}")
     return ("pass", f"exit {proc.returncode}"
             + (f", stdout has {needle!r}" if needle else ""))
 
