@@ -240,9 +240,12 @@ def verify_claim(record: dict, root: Path) -> dict:
         reason = str(record.get("retraction_reason", "claim retracted")).strip()
         return {**base, "type": None, "status": "skipped",
                 "detail": f"retracted: {reason or 'claim retracted'}"}
-    if not check:
+    if check is None:
         return {**base, "type": None, "status": "skipped",
                 "detail": "no check spec (non-falsifiable); recorded only"}
+    if not isinstance(check, dict):
+        return {**base, "type": None, "status": "error",
+                "detail": f"check must be a JSON object, got {type(check).__name__}"}
     ctype = check.get("type")
     fn = CHECKERS.get(ctype)
     if fn is None:

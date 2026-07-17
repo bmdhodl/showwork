@@ -242,6 +242,20 @@ def test_unknown_type_errors(tmp_path):
     assert r["status"] == "error"
 
 
+def test_non_dict_check_is_error_not_crash(tmp_path):
+    """Hostile check values must not AttributeError in verify_claim.
+
+    A ledger can hold check as a string/array/number. Pre-fix, verify_claim
+    called check.get without ensuring check is a dict.
+    """
+    for bad in ("file_exists", ["file_exists"], 42, True):
+        rec = {"session": "t", "claim": "bad check shape", "severity": "RED",
+               "check": bad}
+        r = verify_claim(rec, tmp_path)
+        assert r["status"] == "error", bad
+        assert "object" in r["detail"].lower(), r
+
+
 def test_inline_retraction_skipped(tmp_path):
     rec = claim({"type": "file_exists", "path": "missing.txt"})
     rec["retracted"] = True
