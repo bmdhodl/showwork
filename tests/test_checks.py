@@ -88,6 +88,17 @@ def test_file_contains_invalid_regex_errors(tmp_path):
     assert r["status"] == "error"
 
 
+def test_file_contains_pattern_must_be_string(tmp_path):
+    """Non-string pattern must error clearly, not re.error/TypeError noise."""
+    (tmp_path / "a.md").write_text("x", encoding="utf-8")
+    for bad in (None, ["x"], 12):
+        r = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": bad}),
+                         tmp_path)
+        assert r["status"] == "error", bad
+        assert "checker raised" not in r["detail"], r
+        assert "pattern" in r["detail"].lower(), r
+
+
 def test_file_contains_bom_safe(tmp_path):
     (tmp_path / "a.md").write_bytes(b"\xef\xbb\xbfneedle here")
     r = verify_claim(claim({"type": "file_contains", "path": "a.md", "pattern": "needle"}), tmp_path)
