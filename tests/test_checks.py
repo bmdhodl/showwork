@@ -94,6 +94,15 @@ def test_file_contains_bom_safe(tmp_path):
     assert r["status"] == "pass"
 
 
+def test_file_contains_directory_is_not_missing(tmp_path):
+    """A directory must not be reported as a missing file for file_contains."""
+    (tmp_path / "d").mkdir()
+    r = verify_claim(claim({"type": "file_contains", "path": "d", "pattern": "x"}), tmp_path)
+    assert r["status"] == "fail"
+    assert "missing" not in r["detail"]
+    assert "regular file" in r["detail"] or "not a file" in r["detail"].lower()
+
+
 # ---------- path_moved ----------
 
 def test_path_moved(tmp_path):

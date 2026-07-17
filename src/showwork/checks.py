@@ -79,6 +79,8 @@ def chk_file_exists(c: dict, root: Path) -> tuple[str, str]:
 def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:
     p = _resolve(root, c["path"])
     if not p.is_file():
+        if p.exists():
+            return ("fail", f"{c['path']} is not a regular file")
         return ("fail", f"{c['path']} missing")
     pattern = c["pattern"]
     want_absent = bool(c.get("absent"))
@@ -129,6 +131,8 @@ def _frontmatter_equals_str(value) -> str:
 def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
     p = _resolve(root, c["path"])
     if not p.is_file():
+        if p.exists():
+            return ("fail", f"{c['path']} is not a regular file")
         return ("fail", f"{c['path']} missing")
     text = p.read_text(encoding="utf-8-sig")
     if not text.startswith("---"):
