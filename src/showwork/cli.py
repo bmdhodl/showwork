@@ -150,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--strict", action="store_true",
+                   help="forbid forks: a concurrent branch is RED, not an accepted merge")
 
     p = sub.add_parser("run", help="wrap any command in a session: start, run, record the verdict")
     p.add_argument("--session", required=True)
@@ -208,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         return code
 
     if args.cmd == "audit":
-        state = audit_root(root)
+        state = audit_root(root, strict=args.strict)
         if args.json:
             print(json.dumps(state, indent=2))
         else:

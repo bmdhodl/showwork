@@ -42,6 +42,13 @@ fleet; adapt freely.
 - **Working trees you must not disturb** (long-lived feature branches, crash
   recovery, running daemons): wire the repo through `git worktree add` off the
   default branch instead of switching branches in the live checkout.
+- **Concurrent sessions share one ledger.** Two agents running at once in
+  separate worktrees both append to `.showwork/`, and a plain git merge of the
+  JSONL breaks the chain (a fork). Ship a `.gitattributes` with
+  `.showwork/**/*.jsonl merge=union` so concurrent appends concatenate cleanly;
+  the audit is fork-tolerant and reports the branches. Full detail:
+  [concurrency.md](concurrency.md). We hit this in production on 2026-07-16
+  before the audit tolerated forks.
 - **Default branches differ** across old repos (`master` vs `main`); pass the
   base explicitly when scripting PR creation.
 

@@ -18,6 +18,6 @@ def test_fixture_verdicts_match_contract(name):
     got = audit_file(FIXTURES / name)
     assert got["verdict"] == want["verdict"], name
     assert got["break_at"] == want["break_at"], name
-    for key in ("chained", "pre_chain"):
+    for key in ("chained", "pre_chain", "forks"):
         if key in want:
             assert got[key] == want[key], f"{name}: {key}"

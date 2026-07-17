@@ -1,0 +1,4 @@
+{"session": "fx", "ts": "2026-07-16T00:00:01", "claim": "parent", "severity": "RED", "prev": "c9f1feb17dde4385aee9d830b211e552c4d564c5aaafa84681dc1f71fcf6e7e8"}
+{"session": "fx", "ts": "2026-07-16T00:00:02", "claim": "A-one", "severity": "RED", "prev": "f6baeb3a781eabc05047e0b0281d7f72168d9534dd8e8461caccfc1a8cadaebe"}
+{"session": "fx", "ts": "2026-07-16T00:00:03", "claim": "B-one", "severity": "RED", "prev": "f6baeb3a781eabc05047e0b0281d7f72168d9534dd8e8461caccfc1a8cadaebe"}
+{"session": "fx", "ts": "2026-07-16T00:00:04", "claim": "B-two", "severity": "RED", "prev": "e49152deefbc0a784ee4c5a5e698276359e8e76e479a4aa0205483713fb70388"}

@@ -37,5 +37,16 @@
     "verdict": "GREEN",
     "break_at": null,
     "chained": 2
+  },
+  "forked.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null,
+    "chained": 4,
+    "pre_chain": 0,
+    "forks": 1
+  },
+  "forked-tampered.jsonl": {
+    "verdict": "RED",
+    "break_at": 2
   }
 }

@@ -2,3 +2,10 @@
 # chain hash is EOL-agnostic, but keeping bytes stable avoids noise.
 .showwork/** -text
 tests/fixtures/** -text
+
+# Concurrent sessions in separate worktrees each append to the ledger. Union
+# merge concatenates both branches instead of writing conflict markers; it
+# preserves each side's line order, so every block's internal chain stays
+# intact and the fork-tolerant audit accepts the result. See docs/concurrency.md.
+.showwork/**/*.jsonl merge=union
+.showwork/*.jsonl merge=union

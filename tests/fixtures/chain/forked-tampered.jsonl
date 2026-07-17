@@ -1,0 +1,4 @@
+{"session": "fx", "ts": "2026-07-16T00:00:01", "claim": "p4rent", "severity": "RED", "prev": "5543e6f5bc581dc91270557296bad1f144115bad68269b408d9d278ec73f91ae"}
+{"session": "fx", "ts": "2026-07-16T00:00:02", "claim": "A-one", "severity": "RED", "prev": "6213b52b3ed94ebc9f41537c7136dab58d81c65605a73560a7db71ad0260acb8"}
+{"session": "fx", "ts": "2026-07-16T00:00:03", "claim": "B-one", "severity": "RED", "prev": "6213b52b3ed94ebc9f41537c7136dab58d81c65605a73560a7db71ad0260acb8"}
+{"session": "fx", "ts": "2026-07-16T00:00:04", "claim": "B-two", "severity": "RED", "prev": "701ca982cc6bfb79cb33f7195431385e8d74397c226947ca24b05c08f2f6a93b"}

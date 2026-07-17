@@ -24,6 +24,7 @@ for (const [name, want] of Object.entries(expected)) {
     assert.equal(got.break_at, want.break_at, `${name}: break_at`);
     if (want.chained !== undefined) assert.equal(got.chained, want.chained);
     if (want.pre_chain !== undefined) assert.equal(got.pre_chain, want.pre_chain);
+    if (want.forks !== undefined) assert.equal(got.forks, want.forks);
   });
 }
 
