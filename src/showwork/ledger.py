@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -67,13 +68,61 @@ def genesis_hash(path: Path) -> str:
     return hashlib.sha256((GENESIS_PREFIX + path.name).encode("utf-8")).hexdigest()
 
 
+# --- record framing (shared with showwork.audit and js/showwork-audit) ---
+#
+# All three readers must agree byte-for-byte on where one record ends and the
+# next begins, so the split rule and the JSON dialect live here and nowhere
+# else. See SPEC.md, "Storage and framing".
+
+_RECORD_SEP = re.compile(r"\r?\n")
+
+
+def read_record_text(path: Path) -> str:
+    r"""Read a ledger file as text with the BOM stripped and newlines left
+    untranslated. ``Path.read_text`` opens in universal-newline mode, which
+    folds a lone CR (and CRLF) into ``\n`` *before* any split runs — silently
+    re-introducing the very segmentation divergence ``split_record_lines``
+    exists to kill, since the JS auditor reads raw bytes and never translates.
+    Reading bytes and decoding with ``utf-8-sig`` strips the BOM and keeps
+    every ``\r`` and ``\n`` intact, so ``\r?\n`` is the *only* boundary rule."""
+    return path.read_bytes().decode("utf-8-sig")
+
+
+def split_record_lines(text: str) -> list[str]:
+    r"""Segment a ledger file into physical lines on LF or CRLF only, matching
+    the JS auditor's ``text.split(/\r?\n/)``. Deliberately *not*
+    ``str.splitlines()``: that also breaks on U+2028, U+2029, U+0085, VT, FF,
+    the FS/GS/RS/US controls, and a lone CR — none of which a ``JSON.parse``
+    reader treats as a boundary. Splitting on those would cut a JSON string
+    that legitimately contains one, so the implementations would disagree on
+    record counts, head hashes, and the line a break is reported at.
+    Feed it text from ``read_record_text`` so newlines are untranslated."""
+    return _RECORD_SEP.split(text)
+
+
+def _reject_nonfinite(literal: str) -> float:
+    """``json.loads`` calls this for the bare tokens ``NaN``, ``Infinity``, and
+    ``-Infinity``. They are not valid JSON and ``JSON.parse`` rejects them, so
+    raise to make both implementations treat such a line as a parse error (a
+    pre-chain/YELLOW record), never a live record with a numeric ``prev``."""
+    raise ValueError(f"non-standard JSON constant {literal!r}")
+
+
+def strict_json_loads(line: str):
+    """Parse one record line in the strict JSON dialect the JS auditor enforces:
+    ``NaN``/``Infinity``/``-Infinity`` are parse errors, not values. Raises
+    ``ValueError`` (``json.JSONDecodeError`` is a subclass) on any
+    non-conforming line."""
+    return json.loads(line, parse_constant=_reject_nonfinite)
+
+
 def _record_lines(path: Path) -> list[str]:
     """The record lines of a ledger file: BOM-safe, blank and comment lines
     skipped, exactly the framing the reader uses."""
     if not path.is_file():
         return []
     lines = []
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
+    for line in split_record_lines(read_record_text(path)):
         stripped = line.strip()
         if stripped and not stripped.startswith("#"):
             lines.append(stripped)
@@ -98,13 +147,13 @@ def _read_jsonl(path: Path) -> list[dict]:
     if not path.is_file():
         return []
     records: list[dict] = []
-    for i, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+    for i, line in enumerate(split_record_lines(read_record_text(path)), 1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
         try:
-            records.append(json.loads(line))
-        except json.JSONDecodeError as e:
+            records.append(strict_json_loads(line))
+        except ValueError as e:
             records.append({"claim": f"(unparseable line {i} in {path.name})",
                             "check": None, "_parse_error": str(e),
                             "severity": "YELLOW"})

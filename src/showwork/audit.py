@@ -28,10 +28,16 @@ Verdicts follow the house algebra:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from .ledger import genesis_hash, ledger_dir, line_hash
+from .ledger import (
+    genesis_hash,
+    ledger_dir,
+    line_hash,
+    read_record_text,
+    split_record_lines,
+    strict_json_loads,
+)
 
 
 def audit_file(path: Path, strict: bool = False) -> dict:
@@ -62,7 +68,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     prev_line: str | None = None
     chain_started = False
     line_no = 0
-    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+    for raw in split_record_lines(read_record_text(path)):
         line_no += 1
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -70,8 +76,8 @@ def audit_file(path: Path, strict: bool = False) -> dict:
         out["records"] += 1
         expected = line_hash(prev_line) if prev_line is not None else genesis
         try:
-            rec = json.loads(line)
-        except json.JSONDecodeError:
+            rec = strict_json_loads(line)
+        except ValueError:
             rec = None
         prev = rec.get("prev") if isinstance(rec, dict) else None
         if prev is not None:

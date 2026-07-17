@@ -52,5 +52,27 @@
   "nonstring-prev.jsonl": {
     "verdict": "RED",
     "break_at": 2
+  },
+  "nonfinite-constant.jsonl": {
+    "verdict": "YELLOW",
+    "break_at": null,
+    "chained": 0,
+    "pre_chain": 1
+  },
+  "u2028-in-string.jsonl": {
+    "verdict": "GREEN",
+    "break_at": null,
+    "chained": 2,
+    "pre_chain": 0
+  },
+  "lone-cr.jsonl": {
+    "verdict": "YELLOW",
+    "break_at": null,
+    "chained": 0,
+    "pre_chain": 1
+  },
+  "nlcr-break-numbering.jsonl": {
+    "verdict": "RED",
+    "break_at": 3
   }
 }

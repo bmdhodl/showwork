@@ -4,6 +4,20 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Cross-implementation dialect freeze**: the Python reference auditor and
+  `js/showwork-audit` diverged on hostile/degenerate input because they used
+  different JSON and line-segmentation dialects. Python `json.loads` accepted
+  the bare tokens `NaN`/`Infinity`/`-Infinity` (which `JSON.parse` rejects), and
+  `str.splitlines()` split on U+2028/U+2029/U+0085/VT/FF/FS-RS and a lone CR
+  (which a `JSON.parse`-based reader never treats as a line boundary). A record
+  with a raw U+2028 inside a JSON string, or non-strict number literals, audited
+  to different verdicts in each implementation. Both now split on `\r?\n` only
+  and reject non-standard JSON constants as parse errors (`audit.py` and
+  `ledger.py` share `split_record_lines`/`strict_json_loads`). Four new frozen
+  conformance fixtures (`nonfinite-constant`, `u2028-in-string`, `lone-cr`,
+  `nlcr-break-numbering`) bind both implementations verdict-for-verdict; SPEC.md
+  "Storage and framing" now specifies the split rule and the strict dialect. No
+  record-format change; well-formed linear ledgers audit identically.
 - **Fork-tolerant audit**: concurrent sessions appending in separate git
   worktrees and merging produce a *fork* — two record blocks chaining off the
   same parent line — which a linear walk mis-read as a chain break (RED). The

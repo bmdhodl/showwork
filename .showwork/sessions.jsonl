@@ -37,3 +37,7 @@
 {"event": "session.finish", "session": "review-fixes-fork-audit", "ts": "2026-07-16T22:46:15", "status": "ok", "claims_verdict": "GREEN", "prev": "4dfd27190fa94ca0cabb0c8506b37bba13ea340fe69717b2a9c8b4e1e4eeabdc"}
 {"event": "session.start", "session": "hostile-prev-hardening", "ts": "2026-07-17T09:11:16", "agent": "claude-code", "note": "adversarial verify finding: unhashable prev crashed the auditor", "prev": "510261745323d08613b181699472becf01ee42572ee699437f8b3ee0d814f8fa"}
 {"event": "session.finish", "session": "hostile-prev-hardening", "ts": "2026-07-17T09:11:19", "status": "ok", "claims_verdict": "GREEN", "prev": "ddb5aaaa3f3ba504d91c7302f3d03cbdb36be24c1f1cd35029133eeca75d1a93"}
+{"event": "session.finish", "session": "c74d8f03-69ed-4e67-aef0-f1c7cf429645", "ts": "2026-07-17T11:20:18", "status": "ok", "observed_by": "stop-hook", "claims_verdict": "GREEN", "claims_unverified": [], "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
+{"event": "session.start", "session": "dialect-freeze", "ts": "2026-07-17T11:22:09", "agent": "claude-code", "prev": "d354a3bf9b9ecb9150a71d2ac22e14615cbaf6d64114819b514ae84243ed4212"}
+{"event": "session.finish", "session": "dialect-freeze", "ts": "2026-07-17T11:22:42", "status": "ok", "claims_verdict": "YELLOW", "prev": "d18c7dd6b556b4636e4ce71c3295c0d1b34a321c4f04ec873be542d162cb4f04"}
+{"event": "session.finish", "session": "dialect-freeze", "ts": "2026-07-17T11:23:26", "status": "ok", "claims_verdict": "GREEN", "prev": "4502ef0f47012d77fcec5ef1cb2c135801ea4f5ff9f5eaf9fdc4a3f966b9515f"}
