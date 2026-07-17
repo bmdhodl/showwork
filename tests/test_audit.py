@@ -220,3 +220,14 @@ def test_cli_audit_strict_exit_code(tmp_path, capsys):
     assert main(["--root", str(tmp_path), "audit"]) == 0
     capsys.readouterr()
     assert main(["--root", str(tmp_path), "audit", "--strict"]) == 2
+
+
+def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
+    record_claim(tmp_path, "s", "one")
+    path = _claims_file(tmp_path)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"session": "s", "ts": "t", "claim": "x",
+                            "prev": 12345}) + "\n")
+    result = audit_file(path)  # a hostile ledger must report, never raise
+    assert result["verdict"] == "RED"
+    assert result["break_at"] == 2

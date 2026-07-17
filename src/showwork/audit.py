@@ -58,6 +58,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     # `prev` outside it is tampering — the anchored bytes changed or vanished.
     seen: set[str] = {genesis}
     referenced: set[str] = set()  # hashes used as some record's prev
+    record_hashes: list[str] = []  # hash of every record line, in file order
     prev_line: str | None = None
     chain_started = False
     line_no = 0
@@ -94,7 +95,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
                 out["verdict"] = "RED"
                 out["break_at"] = line_no
                 out["detail"] = (f"chain break at line {line_no}: prev is "
-                                 f"{prev[:12]}..., matches no earlier line "
+                                 f"{str(prev)[:12]}..., matches no earlier line "
                                  f"(expected {expected[:12]}...)")
                 return out
             referenced.add(prev)
@@ -106,15 +107,17 @@ def audit_file(path: Path, strict: bool = False) -> dict:
                                  f"chain started: append-only cannot be shown")
                 return out
             out["pre_chain"] += 1
-        seen.add(line_hash(line))
+        h = line_hash(line)
+        seen.add(h)
+        record_hashes.append(h)
         prev_line = line
     if prev_line is not None:
-        out["head"] = line_hash(prev_line)
+        out["head"] = record_hashes[-1]
     # Heads are tip lines: record-line hashes nothing else anchored to. One per
     # branch. Only meaningful once a chain exists; a pre-chain-only file has no
     # provable tips to publish.
     if out["chained"]:
-        out["heads"] = [h for h in _record_hashes(path) if h not in referenced]
+        out["heads"] = [h for h in record_hashes if h not in referenced]
     if out["records"] == 0:
         out["verdict"] = "YELLOW"
         out["detail"] = "empty ledger file: nothing to anchor"
@@ -131,16 +134,6 @@ def audit_file(path: Path, strict: bool = False) -> dict:
                        f"branch head(s); publish heads to anchor the tips")
         out["detail"] = detail
     return out
-
-
-def _record_hashes(path: Path) -> list[str]:
-    """Hash of every record line, in file order (blank/comment lines skipped)."""
-    hashes: list[str] = []
-    for raw in path.read_text(encoding="utf-8-sig").splitlines():
-        line = raw.strip()
-        if line and not line.startswith("#"):
-            hashes.append(line_hash(line))
-    return hashes
 
 
 def audit_root(root: Path, strict: bool = False) -> dict:
