@@ -123,6 +123,26 @@ def test_frontmatter_no_block(tmp_path):
     assert r["status"] == "fail"
 
 
+def test_frontmatter_json_bool_equals_yaml_true(tmp_path):
+    """--check-json booleans must match YAML true/false scalars.
+
+    JSON true becomes Python True; str(True) is 'True', which never equals the
+    frontmatter scalar 'true'. Agents using --check-json with equals:true then
+    get a permanent RED fail despite a correct file.
+    """
+    (tmp_path / "task.md").write_text("---\npublished: true\n---\nbody", encoding="utf-8")
+    ok = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                             "field": "published", "equals": True}), tmp_path)
+    assert ok["status"] == "pass", ok
+    bad = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                              "field": "published", "equals": False}), tmp_path)
+    assert bad["status"] == "fail"
+    # String form still works (CLI --equals always passes strings).
+    assert verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                               "field": "published", "equals": "true"}),
+                        tmp_path)["status"] == "pass"
+
+
 # ---------- glob_count ----------
 
 def test_glob_count(tmp_path):
