@@ -242,7 +242,15 @@ def finish_session(root: Path, session: str, status: str = "ok",
     """Close a session. A clean close (`status=ok`) verifies this session's own
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
     ledger is not done. `status=blocked` or `no_verify=True` closes without
-    gating, and the bypass is stamped on the event as a durable residual."""
+    gating, and the bypass is stamped on the event as a durable residual.
+
+    Status is matched case-insensitively (`OK` == `ok`) so the Python API cannot
+    silently skip the gate with a capitalization variant.
+    """
+    status_norm = str(status or "").strip().lower()
+    if status_norm not in ("ok", "blocked"):
+        raise ValueError(f"status must be 'ok' or 'blocked', got {status!r}")
+    status = status_norm
     state = None
     verdict = None
     if status == "ok" and not no_verify:
