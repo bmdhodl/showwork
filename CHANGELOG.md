@@ -4,6 +4,61 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-18
+
+Adds the enforcement half. The ledger proved what an agent claimed; this stops
+the agent before it does damage worth proving.
+
+- **`showwork.guards`** - stuck detection over the tool-call stream. Three
+  signatures: `repeat` (identical call, unchanged args), `alternation` (A-B-A-B
+  that never converges), `no_progress` (consecutive calls that mutate nothing).
+  Every trip returns a `StuckVerdict` carrying the evidence that justified it.
+- **`showwork.control`** - Claude Code adapters. `PreToolUse` approval gates for
+  risky actions (CI workflows, secrets, migrations, force-push, recursive force
+  delete, publishing) and `PostToolUse` stuck-halt. Deterministic patterns, not
+  a model judging a model.
+- **`showwork.budgets`** - `RunBudget`: wall-clock, total tool-call, and
+  per-tool rate ceilings, with an injectable clock so budgets are testable
+  without sleeping.
+- **`showwork.dashboard`** + `showwork dashboard [--serve]` - static runs /
+  status / interventions / proof-of-work view. No service, no signup, no
+  database. Serving binds loopback only; it renders real session ids and tool
+  arguments.
+- **`showwork guard --event pre|post`** - the hook entry point. One
+  `settings.json` entry enables live enforcement; see `docs/live-enforcement.md`.
+- **`scripts/replay_transcripts.py`** - replay recorded sessions through the
+  detector to calibrate thresholds against your own workload.
+
+### Calibration
+
+Defaults come from replaying **4,674 recorded Claude Code sessions** (2,757 with
+tool calls), not from fixtures:
+
+| signature | flagged | read |
+|---|---|---|
+| `repeat` (3, window 12) | 14 (0.5%) | plausible true positives |
+| `no_progress` (6) | 2,281 (82.7%) | noise |
+| `alternation` (3) | 0 | never fired |
+
+`no_progress` was written with a default of 6 and would have killed four out of
+five real sessions - reading a dozen files before an edit is ordinary work, not
+a stall. It is **off by default**, pinned by `test_no_progress_is_off_by_default`.
+Every synthetic test passed while that default was wrong.
+
+A mutation clears the detector window, so `edit -> test -> edit -> test` is never
+killed: repeating a command after a real change is convergent work, repeating it
+with nothing changed in between is a loop. That distinction is what a
+dollar-metering gateway structurally cannot see.
+
+### Deliberately absent
+
+No token or cost budgets. Claude Code hooks receive no usage data
+(anthropics/claude-code#11008), and Anthropic's gateway and Cloudflare AI Gateway
+both enforce spend natively and for free.
+
+The guard fails open on its own internal errors. A guard that crashes the agent
+it protects is a worse outage than the loop it watched for.
+
 - **Cross-implementation dialect freeze**: the Python reference auditor and
   `js/showwork-audit` diverged on hostile/degenerate input because they used
   different JSON and line-segmentation dialects. Python `json.loads` accepted
