@@ -101,8 +101,16 @@ def read_record_text(path: Path) -> str:
     re-introducing the very segmentation divergence ``split_record_lines``
     exists to kill, since the JS auditor reads raw bytes and never translates.
     Reading bytes and decoding with ``utf-8-sig`` strips the BOM and keeps
-    every ``\r`` and ``\n`` intact, so ``\r?\n`` is the *only* boundary rule."""
-    return path.read_bytes().decode("utf-8-sig")
+    every ``\r`` and ``\n`` intact, so ``\r?\n`` is the *only* boundary rule.
+
+    Raises ``ValueError`` (not bare ``UnicodeDecodeError``) when the file is
+    not valid UTF-8 so verify/audit/append can surface a clear non-GREEN result
+    or a clear write failure instead of an uncaught codec exception.
+    """
+    try:
+        return path.read_bytes().decode("utf-8-sig")
+    except UnicodeDecodeError as e:
+        raise ValueError(f"ledger file {path.name} is not valid UTF-8: {e}") from e
 
 
 def split_record_lines(text: str) -> list[str]:
@@ -160,11 +168,18 @@ def _append(path: Path, record: dict) -> None:
 
 def _read_jsonl(path: Path) -> list[dict]:
     """BOM-safe, comment-tolerant JSONL reader. Unparseable lines become
-    YELLOW records instead of being silently dropped."""
+    YELLOW records instead of being silently dropped. Invalid UTF-8 becomes a
+    single YELLOW error record instead of raising."""
     if not path.is_file():
         return []
+    try:
+        text = read_record_text(path)
+    except ValueError as e:
+        return [{"claim": f"(unreadable ledger file {path.name})",
+                 "check": None, "_parse_error": str(e),
+                 "severity": "YELLOW"}]
     records: list[dict] = []
-    for i, line in enumerate(split_record_lines(read_record_text(path)), 1):
+    for i, line in enumerate(split_record_lines(text), 1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
