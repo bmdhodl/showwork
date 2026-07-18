@@ -43,3 +43,5 @@
 {"event": "session.finish", "session": "dialect-freeze", "ts": "2026-07-17T11:23:26", "status": "ok", "claims_verdict": "GREEN", "prev": "4502ef0f47012d77fcec5ef1cb2c135801ea4f5ff9f5eaf9fdc4a3f966b9515f"}
 {"event": "session.start", "session": "showwork-harden-reclaim-after-retract", "ts": "2026-07-17T11:21:08", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
 {"event": "session.finish", "session": "showwork-harden-reclaim-after-retract", "ts": "2026-07-17T11:21:11", "status": "ok", "claims_verdict": "GREEN", "prev": "1118c9d615b912f81842509b2a815a0a64d0ad78c8f293a36b1d159ce3192140"}
+{"event": "session.start", "session": "showwork-harden-invalid-check-json", "ts": "2026-07-17T11:23:17", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
+{"event": "session.finish", "session": "showwork-harden-invalid-check-json", "ts": "2026-07-17T11:23:20", "status": "ok", "claims_verdict": "GREEN", "prev": "887ef6243ab589630b60ab582d35901e8d772f0d71cac5852911bdd27380c1d8"}
