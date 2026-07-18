@@ -223,6 +223,20 @@ def test_command_exit_code_mismatch(tmp_path):
     assert r["status"] == "fail"
 
 
+def test_command_stdout_contains_requires_string(tmp_path):
+    """Non-string stdout_contains must error clearly, not raise TypeError.
+
+    Pre-fix, needle and `not in proc.stdout` with an int left operand
+    produced: checker raised: 'in <string>' requires string as left operand.
+    """
+    (tmp_path / "ok.py").write_text("print('hi')", encoding="utf-8")
+    r = verify_claim(claim({"type": "command", "argv": ["python", "ok.py"],
+                            "stdout_contains": 1}), tmp_path)
+    assert r["status"] == "error"
+    assert "checker raised" not in r["detail"]
+    assert "stdout_contains" in r["detail"]
+
+
 def test_command_lock_rejects_shell_meta(tmp_path):
     r = verify_claim(claim({"type": "command", "argv": ["python", "a.py;rm"]}), tmp_path)
     assert r["status"] == "error"
