@@ -138,6 +138,29 @@ def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
     assert run(tmp_path, "verify", "--no-report") == 3  # YELLOW, never silently GREEN
 
 
+def test_verify_date_rejects_path_escape(tmp_path):
+    """--date must be YYYY-MM-DD; path segments must not escape .showwork/.
+
+    claims_path was `claims-{date}.jsonl` with no validation, so a date like
+    `..\\..\\passwd` resolved outside the ledger directory.
+    """
+    from showwork.ledger import claims_path
+
+    try:
+        claims_path(tmp_path, "..\\..\\passwd")
+    except ValueError as e:
+        assert "YYYY-MM-DD" in str(e) or "date" in str(e).lower()
+    else:
+        raise AssertionError("expected ValueError for path-like date")
+
+    try:
+        run(tmp_path, "verify", "--date", "..\\..\\passwd", "--no-report")
+    except SystemExit as e:
+        assert "date" in str(e).lower() or "YYYY-MM-DD" in str(e)
+    else:
+        raise AssertionError("expected SystemExit for hostile --date")
+
+
 def test_check_json_passthrough(tmp_path):
     (tmp_path / "x.txt").write_text("hello", encoding="utf-8")
     check = json.dumps({"type": "file_contains", "path": "x.txt", "pattern": "hello"})
