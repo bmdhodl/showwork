@@ -63,3 +63,5 @@
 {"event": "session.finish", "session": "showwork-harden-file-contains-directory-detail", "ts": "2026-07-17T11:34:53", "status": "ok", "claims_verdict": "GREEN", "prev": "d60fe27b8cf6df063534deb92d21750debdc4d2427ed45b4f79e5572d5f6861c"}
 {"event": "session.start", "session": "showwork-harden-command-stdout-contains-type", "ts": "2026-07-17T11:35:56", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-command-stdout-contains-type", "ts": "2026-07-17T11:35:59", "status": "ok", "claims_verdict": "GREEN", "prev": "8fea7ed982f714c454fcfa182760cdc65df81ca4faf8cd0170d96fac96a88859"}
+{"event": "session.start", "session": "showwork-harden-file-contains-pattern-type", "ts": "2026-07-17T11:37:18", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
+{"event": "session.finish", "session": "showwork-harden-file-contains-pattern-type", "ts": "2026-07-17T11:37:21", "status": "ok", "claims_verdict": "GREEN", "prev": "3da8cf23487219812d361099b2e818895527c9a73fccc27cf0ba3dbaa2de65fd"}

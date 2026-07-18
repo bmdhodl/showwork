@@ -83,6 +83,8 @@ def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:
             return ("fail", f"{c['path']} is not a regular file")
         return ("fail", f"{c['path']} missing")
     pattern = c["pattern"]
+    if not isinstance(pattern, str):
+        return ("error", f"pattern must be a string, got {type(pattern).__name__}")
     want_absent = bool(c.get("absent"))
     # A pattern that matches the empty string (e.g. "", "^", "$", ".*") matches
     # ANY text, so a positive file_contains claim using it always passes. It
