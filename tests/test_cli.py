@@ -138,6 +138,19 @@ def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
     assert run(tmp_path, "verify", "--no-report") == 3  # YELLOW, never silently GREEN
 
 
+
+def test_non_object_ledger_line_is_yellow_not_crash(tmp_path):
+    """JSONL lines that parse as non-objects must not AttributeError."""
+    run(tmp_path, "claim", "--session", "s-nonobj", "--claim", "good",
+        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
+    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    with ledger.open("a", encoding="utf-8") as f:
+        f.write('"just a string"\n')
+        f.write("[1, 2]\n")
+        f.write("42\n")
+    assert run(tmp_path, "verify", "--no-report") == 3  # YELLOW
+
+
 def test_verify_date_rejects_path_escape(tmp_path):
     """--date must be YYYY-MM-DD; path segments must not escape .showwork/.
 

@@ -184,11 +184,21 @@ def _read_jsonl(path: Path) -> list[dict]:
         if not line or line.startswith("#"):
             continue
         try:
-            records.append(strict_json_loads(line))
+            obj = strict_json_loads(line)
         except ValueError as e:
             records.append({"claim": f"(unparseable line {i} in {path.name})",
                             "check": None, "_parse_error": str(e),
                             "severity": "YELLOW"})
+            continue
+        if not isinstance(obj, dict):
+            records.append({
+                "claim": f"(non-object line {i} in {path.name})",
+                "check": None,
+                "_parse_error": f"expected JSON object, got {type(obj).__name__}",
+                "severity": "YELLOW",
+            })
+            continue
+        records.append(obj)
     return records
 
 
