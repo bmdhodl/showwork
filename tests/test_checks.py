@@ -247,6 +247,16 @@ def test_glob_count_rejects_vacuous(tmp_path):
     assert r["status"] == "error"
 
 
+
+def test_glob_count_n_must_be_integer(tmp_path):
+    """Non-integer n must error clearly, not TypeError from int(None)."""
+    for bad in (None, "nope", 1.5, []):
+        r = verify_claim(claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": bad}),
+                         tmp_path)
+        assert r["status"] == "error", bad
+        assert "checker raised" not in r["detail"], r
+        assert "n" in r["detail"].lower() or "integer" in r["detail"].lower(), r
+
 def test_glob_count_rejects_escape(tmp_path):
     outside = tmp_path.parent / "outside.md"
     outside.write_text("x", encoding="utf-8")
