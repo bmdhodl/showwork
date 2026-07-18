@@ -71,3 +71,5 @@
 {"event": "session.finish", "session": "showwork-harden-readme-spec-version", "ts": "2026-07-17T11:40:33", "status": "ok", "claims_verdict": "GREEN", "prev": "4c0f475278bae265e0f3441f7f85ce64c875e2afe5004e3a8e72ddc8b4b2d6a3"}
 {"event": "session.start", "session": "showwork-harden-path-moved-empty-paths", "ts": "2026-07-17T19:49:52", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-path-moved-empty-paths", "ts": "2026-07-17T19:49:54", "status": "ok", "claims_verdict": "GREEN", "prev": "10d9d00d2c21d16d2ddd59f306011e0be931b25bad07b0394d26d85a7ee45a51"}
+{"event": "session.start", "session": "showwork-harden-audit-file-not-a-file", "ts": "2026-07-17T19:52:54", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
+{"event": "session.finish", "session": "showwork-harden-audit-file-not-a-file", "ts": "2026-07-17T19:52:56", "status": "ok", "claims_verdict": "GREEN", "prev": "6eac6179ca7778f320cb437f49f8d9654fc29445111e2e1b75025a1af5bb4f0d"}
