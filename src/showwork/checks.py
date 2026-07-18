@@ -165,7 +165,18 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
 
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     op = c["op"]
-    want = int(c["n"])
+    raw_n = c.get("n")
+    if isinstance(raw_n, bool) or raw_n is None:
+        return ("error", f"glob_count.n must be an integer, got {type(raw_n).__name__}")
+    if isinstance(raw_n, int):
+        want = raw_n
+    else:
+        try:
+            want = int(raw_n)
+            if isinstance(raw_n, float) and float(want) != float(raw_n):
+                return ("error", f"glob_count.n must be an integer, got {raw_n!r}")
+        except (TypeError, ValueError):
+            return ("error", f"glob_count.n must be an integer, got {raw_n!r}")
     pattern = c.get("pattern")
     if not isinstance(pattern, str) or pattern == "":
         return ("error", "glob pattern must be a non-empty string")
