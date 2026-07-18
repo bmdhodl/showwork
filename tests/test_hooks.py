@@ -47,3 +47,15 @@ def test_stop_hook_malformed_payload_never_breaks_shutdown(tmp_path, monkeypatch
     monkeypatch.setattr(sys, "stdin", io.StringIO("not-json"))
     assert main(["--root", str(tmp_path), "stop-hook"]) == 0
     assert "showwork stop-hook" in capsys.readouterr().err
+
+
+def test_payload_session_id_rejects_non_scalar_types():
+    """Lists/dicts/bools must not become str()-mangled session names."""
+    from showwork.hooks import payload_session_id
+
+    assert payload_session_id({"session_id": ["a", "b"]}) == "unknown-session"
+    assert payload_session_id({"sessionId": {"x": 1}}) == "unknown-session"
+    assert payload_session_id({"session_id": True}) == "unknown-session"
+    assert payload_session_id({"session_id": "ok"}) == "ok"
+    assert payload_session_id({"session_id": 42}) == "42"
+    assert payload_session_id({}) == "unknown-session"

@@ -23,9 +23,22 @@ def read_stop_payload(stream: TextIO) -> dict:
 
 
 def payload_session_id(payload: dict) -> str:
-    """Accept the session-id spellings used by common coding-agent hooks."""
-    raw = payload.get("session_id") or payload.get("sessionId")
-    return str(raw or "unknown-session").strip() or "unknown-session"
+    """Accept the session-id spellings used by common coding-agent hooks.
+
+    Only string (or int/float) ids are used. Lists/dicts/bools must not become
+    session names like ``\"['a']\"`` or ``\"True\"`` via str() — that pollutes
+    the ledger and mis-attributes verify results.
+    """
+    raw = payload.get("session_id")
+    if raw is None:
+        raw = payload.get("sessionId")
+    if isinstance(raw, bool) or raw is None:
+        # bool is a subclass of int; never accept True/False as session ids.
+        return "unknown-session"
+    if isinstance(raw, (str, int, float)):
+        text = str(raw).strip()
+        return text or "unknown-session"
+    return "unknown-session"
 
 
 def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, dict]:
