@@ -108,6 +108,13 @@ def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:
 
 
 def chk_path_moved(c: dict, root: Path) -> tuple[str, str]:
+    # Empty path strings resolve to the project root under Path join, so a
+    # claim like {from: "gone", to: ""} would pass whenever the root exists.
+    # That is a vacuous false proof — reject empty from/to before resolve.
+    for key in ("from", "to"):
+        val = c.get(key)
+        if not isinstance(val, str) or val.strip() == "":
+            return ("error", f"path_moved.{key} must be a non-empty path string")
     src = _resolve(root, c["from"])
     dst = _resolve(root, c["to"])
     if src.exists():
@@ -115,6 +122,7 @@ def chk_path_moved(c: dict, root: Path) -> tuple[str, str]:
     if not dst.exists():
         return ("fail", f"destination missing: {c['to']}")
     return ("pass", f"{c['from']} -> {c['to']}")
+
 
 
 def _frontmatter_equals_str(value) -> str:
