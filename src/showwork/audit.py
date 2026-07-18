@@ -75,7 +75,13 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     prev_line: str | None = None
     chain_started = False
     line_no = 0
-    for raw in split_record_lines(read_record_text(path)):
+    try:
+        text = read_record_text(path)
+    except ValueError as e:
+        out["verdict"] = "RED"
+        out["detail"] = str(e)
+        return out
+    for raw in split_record_lines(text):
         line_no += 1
         line = raw.strip()
         if not line or line.startswith("#"):

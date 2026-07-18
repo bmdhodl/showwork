@@ -185,3 +185,39 @@ def test_invalid_check_json_is_clean_error(tmp_path):
         assert "valid JSON" in msg or "not valid" in msg.lower()
     else:
         raise AssertionError("expected SystemExit for malformed --check-json")
+
+def test_invalid_utf8_ledger_verify_is_yellow_not_crash(tmp_path, capsys):
+    """Non-UTF-8 ledger bytes must not raise UnicodeDecodeError from verify."""
+    run(tmp_path, "claim", "--session", "s-utf8", "--claim", "good",
+        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
+    capsys.readouterr()
+    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    with ledger.open("ab") as f:
+        f.write(b"\xff\xfe not utf-8\n")
+    code = run(tmp_path, "verify", "--no-report", "--json")
+    assert code == 3  # YELLOW
+    state = json.loads(capsys.readouterr().out)
+    assert state["verdict"] == "YELLOW"
+    assert any(
+        r["status"] == "error" and "utf-8" in r["detail"].lower()
+        for r in state["results"]
+    )
+
+
+
+def test_invalid_utf8_blocks_append_with_clear_error(tmp_path):
+    """Append after binary corruption must raise ValueError, not UnicodeDecodeError."""
+    from showwork.ledger import record_claim
+
+    record_claim(tmp_path, "s", "first")
+    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    with ledger.open("ab") as f:
+        f.write(b"\xff\xfe\n")
+    try:
+        record_claim(tmp_path, "s", "second")
+    except ValueError as e:
+        assert "utf-8" in str(e).lower()
+    else:
+        raise AssertionError("expected ValueError for non-UTF-8 ledger on append")
+
+

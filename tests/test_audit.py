@@ -308,3 +308,14 @@ def test_non_string_prev_is_a_break_not_a_crash(tmp_path):
         assert result["verdict"] == "RED", bad_prev
         assert result["break_at"] == 2, bad_prev
         path.unlink()
+
+
+def test_invalid_utf8_ledger_audit_is_red_not_crash(tmp_path):
+    """Binary / non-UTF-8 ledger must audit RED, not raise UnicodeDecodeError."""
+    record_claim(tmp_path, "s", "one")
+    path = _claims_file(tmp_path)
+    with path.open("ab") as f:
+        f.write(b"\xff\xfe not utf-8\n")
+    result = audit_file(path)
+    assert result["verdict"] == "RED"
+    assert "utf-8" in result["detail"].lower()
