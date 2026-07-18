@@ -297,6 +297,17 @@ def test_command_exit_code_mismatch(tmp_path):
     assert r["status"] == "fail"
 
 
+
+def test_command_expect_exit_must_be_integer(tmp_path):
+    """Bad expect_exit must error clearly."""
+    (tmp_path / "ok.py").write_text("print('hi')", encoding="utf-8")
+    for bad in ("nope", None, 1.5, True, []):
+        r = verify_claim(claim({"type": "command", "argv": ["python", "ok.py"],
+                                "expect_exit": bad}), tmp_path)
+        assert r["status"] == "error", bad
+        assert "checker raised" not in r["detail"], r
+        assert "expect_exit" in r["detail"], r
+
 def test_command_stdout_contains_requires_string(tmp_path):
     """Non-string stdout_contains must error clearly, not raise TypeError.
 

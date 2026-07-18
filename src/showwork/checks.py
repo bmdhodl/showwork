@@ -229,6 +229,16 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
         return ("error", f"script must live under the project root: {argv[1]}")
     if not script.is_file():
         return ("error", f"script not found: {argv[1]}")
+    raw_expect = c.get("expect_exit", 0)
+    if isinstance(raw_expect, bool) or (
+        not isinstance(raw_expect, int)
+        and not (isinstance(raw_expect, str) and raw_expect.strip().lstrip("-").isdigit())
+    ):
+        return ("error", f"expect_exit must be an integer, got {raw_expect!r}")
+    try:
+        expect = int(raw_expect)
+    except (TypeError, ValueError):
+        return ("error", f"expect_exit must be an integer, got {raw_expect!r}")
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
     try:
@@ -236,10 +246,6 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
                               timeout=120, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")
-    try:
-        expect = int(c.get("expect_exit", 0))
-    except (TypeError, ValueError) as e:
-        return ("error", f"expect_exit must be an integer: {e}")
     if proc.returncode != expect:
         return ("fail", f"exit {proc.returncode}, expected {expect}")
     needle = c.get("stdout_contains")
