@@ -8,7 +8,7 @@ Observability tools log what an agent *did*. showwork verifies what an agent *cl
 
 Zero dependencies. Stdlib only. One append-only ledger.
 
-[Read the portable `spec-v0.1` ledger specification](SPEC.md) or install the
+[Read the portable `spec-v0.2` ledger specification](SPEC.md) or install the
 [Claude Code Stop-hook adapter](docs/claude-code.md).
 
 ## The problem

@@ -67,3 +67,5 @@
 {"event": "session.finish", "session": "showwork-harden-file-contains-pattern-type", "ts": "2026-07-17T11:37:21", "status": "ok", "claims_verdict": "GREEN", "prev": "3da8cf23487219812d361099b2e818895527c9a73fccc27cf0ba3dbaa2de65fd"}
 {"event": "session.start", "session": "showwork-harden-path-moved-path-types", "ts": "2026-07-17T11:38:31", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-path-moved-path-types", "ts": "2026-07-17T11:38:34", "status": "ok", "claims_verdict": "GREEN", "prev": "feac0bf04e1a6d395425ce2e69c7e34ba7a23d13708f687c6c0e5e376a6c0886"}
+{"event": "session.start", "session": "showwork-harden-readme-spec-version", "ts": "2026-07-17T11:40:30", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
+{"event": "session.finish", "session": "showwork-harden-readme-spec-version", "ts": "2026-07-17T11:40:33", "status": "ok", "claims_verdict": "GREEN", "prev": "4c0f475278bae265e0f3441f7f85ce64c875e2afe5004e3a8e72ddc8b4b2d6a3"}

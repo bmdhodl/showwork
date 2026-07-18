@@ -32,3 +32,21 @@ def test_claims_are_jsonl_records(tmp_path):
         for record in records:
             stream.write(json.dumps(record) + "\n")
     assert [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] == records
+
+
+def test_readme_links_current_spec_version():
+    """User-facing docs must name the SPEC version actually declared in SPEC.md.
+
+    Pre-fix, README and case-study still said spec-v0.1 while SPEC.md header
+    was already spec-v0.2 — wrong onboarding pointer after the v0.2 ship.
+    """
+    spec = (ROOT / "SPEC.md").read_text(encoding="utf-8")
+    m = re.search(r"Specification version:\*\*\s*`([^`]+)`", spec)
+    if not m:
+        m = re.search(r"Specification version:\s*`([^`]+)`", spec)
+    assert m, "SPEC.md must declare Specification version"
+    version = m.group(1)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert f"`{version}`" in readme, f"README must link {version}"
+    case = (ROOT / "docs" / "case-study.md").read_text(encoding="utf-8")
+    assert f"`{version}`" in case, f"case-study must link {version}"
