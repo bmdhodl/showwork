@@ -79,3 +79,5 @@
 {"event": "session.finish", "session": "showwork-harden-invalid-severity-defaults-red", "ts": "2026-07-17T19:56:10", "status": "ok", "claims_verdict": "GREEN", "prev": "4b0190d139d49ff5b8665c63a5b9a22cd4bae8c7a4723ea923c16efb0d3403b7"}
 {"event": "session.start", "session": "showwork-harden-hook-session-id-type", "ts": "2026-07-17T19:56:56", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-hook-session-id-type", "ts": "2026-07-17T19:56:58", "status": "ok", "claims_verdict": "GREEN", "prev": "84f4536b39e221fb750c39fc58e0e3174f12da7bf8658914e45354bca95b21b3"}
+{"event": "session.start", "session": "qw-20260718-11-create-architecture-md", "ts": "2026-07-18T02:59:00", "agent": "queue-worker", "prev": "4e9309cffc544b8d6e2ecdc0a0353ded5c953bc3856ba9504d7932b623b0b0a0"}
+{"event": "session.finish", "session": "qw-20260718-11-create-architecture-md", "ts": "2026-07-18T03:04:37", "status": "ok", "claims_verdict": "GREEN", "prev": "7e4b33269783671ca77fa66a6b3719507d83b8bca657a22653cfe8619476cee6"}
