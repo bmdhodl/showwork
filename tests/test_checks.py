@@ -227,6 +227,38 @@ def test_append_only_retraction(tmp_path):
     assert state["results"][0]["status"] == "skipped"
 
 
+def test_reclaim_after_retraction_is_active(tmp_path):
+    """A later re-claim with the same text must be verified, not left skipped.
+
+    Retraction is append-only suppression of *prior* targets. If an agent
+    retracts a false claim, fixes reality, and records the same claim text
+    again, that new record is a live claim — not permanently killed by the
+    earlier retraction. Otherwise finish can GREEN without ever checking the
+    re-asserted outcome.
+    """
+    bad = claim({"type": "file_exists", "path": "a.txt"}, text="I made a file")
+    retraction = {"session": "t", "retracted": True,
+                  "retracts": {"session": "t", "claim": "I made a file"},
+                  "retraction_reason": "never happened"}
+    # Reality is fixed; agent re-asserts the same claim text.
+    (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+    reclaimed = claim({"type": "file_exists", "path": "a.txt"}, text="I made a file")
+    state = evaluate_records([bad, retraction, reclaimed], tmp_path, label="t")
+    assert state["total"] == 2  # original + re-claim; marker is not a claim
+    assert state["results"][0]["status"] == "skipped"
+    assert state["results"][1]["status"] == "pass"
+    assert state["verdict"] == "GREEN"
+    assert state["passed"] == 1
+
+    # Re-claim that still fails must keep the exit gate RED.
+    still_missing = claim(
+        {"type": "file_exists", "path": "still-missing.txt"}, text="I made a file"
+    )
+    red = evaluate_records([bad, retraction, still_missing], tmp_path, label="t")
+    assert red["results"][1]["status"] == "fail"
+    assert red["verdict"] == "RED"
+
+
 def test_verdict_red_yellow_green(tmp_path):
     (tmp_path / "real.txt").write_text("x", encoding="utf-8")
     good = claim({"type": "file_exists", "path": "real.txt"})

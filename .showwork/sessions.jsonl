@@ -41,3 +41,5 @@
 {"event": "session.start", "session": "dialect-freeze", "ts": "2026-07-17T11:22:09", "agent": "claude-code", "prev": "d354a3bf9b9ecb9150a71d2ac22e14615cbaf6d64114819b514ae84243ed4212"}
 {"event": "session.finish", "session": "dialect-freeze", "ts": "2026-07-17T11:22:42", "status": "ok", "claims_verdict": "YELLOW", "prev": "d18c7dd6b556b4636e4ce71c3295c0d1b34a321c4f04ec873be542d162cb4f04"}
 {"event": "session.finish", "session": "dialect-freeze", "ts": "2026-07-17T11:23:26", "status": "ok", "claims_verdict": "GREEN", "prev": "4502ef0f47012d77fcec5ef1cb2c135801ea4f5ff9f5eaf9fdc4a3f966b9515f"}
+{"event": "session.start", "session": "showwork-harden-reclaim-after-retract", "ts": "2026-07-17T11:21:08", "agent": "grok", "prev": "cc24178a9af53f8b175e4e3433f7320e308cdb7da91e6ef9194eb84173dcb72e"}
+{"event": "session.finish", "session": "showwork-harden-reclaim-after-retract", "ts": "2026-07-17T11:21:11", "status": "ok", "claims_verdict": "GREEN", "prev": "1118c9d615b912f81842509b2a815a0a64d0ad78c8f293a36b1d159ce3192140"}
