@@ -63,6 +63,28 @@ def test_blocked_close_does_not_gate(tmp_path):
     assert run(tmp_path, "finish", "--session", "s5", "--status", "blocked") == 0
 
 
+def test_finish_status_ok_is_case_insensitive_gate(tmp_path):
+    """Python API status='OK' must still run the exit gate.
+
+    CLI choices only allow lowercase ok|blocked, but finish_session is public.
+    Pre-fix, status == 'ok' was case-sensitive, so status='OK' skipped
+    verification, wrote session.finish with exit 0, and left no verify_bypassed
+    stamp — a silent clean close over RED claims.
+    """
+    from showwork.ledger import finish_session, record_claim, start_session
+
+    start_session(tmp_path, "s-case")
+    record_claim(tmp_path, "s-case", "made a file",
+                 check={"type": "file_exists", "path": "never-created.txt"})
+    code, state = finish_session(tmp_path, "s-case", status="OK")
+    assert code == 2
+    assert state is not None and state["verdict"] == "RED"
+    events = [json.loads(l) for l in
+              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    assert events[-1]["event"] == "session.finish.refused"
+    assert events[-1]["status"] == "ok"
+
+
 def test_prose_claim_records_but_does_not_verify(tmp_path, capsys):
     run(tmp_path, "start", "--session", "s6")
     assert run(tmp_path, "claim", "--session", "s6",
