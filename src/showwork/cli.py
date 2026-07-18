@@ -21,6 +21,15 @@ from pathlib import Path
 
 from .audit import audit_root, render_audit
 from .checks import EXIT_BY_VERDICT, render_report
+from .dashboard import render as render_dashboard
+from .control import (
+    RiskPolicy,
+    call_from_payload,
+    evaluate_pre_tool_use,
+    render_post_tool_use,
+    render_pre_tool_use,
+)
+from .guards import StuckDetector, ToolCall
 from .hooks import observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
@@ -192,6 +201,28 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("stop-hook", help="observe a coding-agent Stop hook; never gates")
     p.add_argument("--status", default="ok")
 
+    p = sub.add_parser(
+        "dashboard",
+        help="render runs/status/interventions/proof-of-work; optionally serve it",
+    )
+    p.add_argument("--replay", type=Path, required=True,
+                   help="replay_transcripts.py --json output")
+    p.add_argument("--out", type=Path, default=Path("showwork-dashboard.html"))
+    p.add_argument("--serve", type=int, metavar="PORT", nargs="?", const=8787,
+                   help="serve on localhost after rendering (default port 8787)")
+
+    p = sub.add_parser(
+        "guard",
+        help="PreToolUse/PostToolUse hook: gate risky actions, halt stuck runs",
+    )
+    p.add_argument("--event", choices=["pre", "post"], required=True,
+                   help="pre = approval gate; post = stuck detection")
+    p.add_argument("--behavior", choices=["ask", "deny"], default="ask",
+                   help="what a matched risk rule does (deny suits unattended runs)")
+    p.add_argument("--repeat-threshold", type=int, default=3)
+    p.add_argument("--state", default=".showwork/guard-state.json",
+                   help="where PostToolUse keeps its rolling call window")
+
     args = ap.parse_args(argv)
     root = resolve_root(args.root)
 
@@ -291,7 +322,113 @@ def main(argv: list[str] | None = None) -> int:
             print(f"showwork stop-hook: {exc}", file=sys.stderr)
         return 0
 
+    if args.cmd == "dashboard":
+        if not args.replay.exists():
+            print(f"no replay data at {args.replay}", file=sys.stderr)
+            return 2
+        data = json.loads(args.replay.read_text(encoding="utf-8"))
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(render_dashboard(data), encoding="utf-8")
+        print(f"wrote {args.out} ({args.out.stat().st_size:,} bytes)")
+
+        if args.serve:
+            # Bound to loopback on purpose. This renders real session ids,
+            # project paths, and tool arguments; it is not something to expose
+            # on a network interface by accident.
+            import http.server
+            import socketserver
+
+            directory = str(args.out.parent.resolve())
+            name = args.out.name
+
+            class Handler(http.server.SimpleHTTPRequestHandler):
+                def __init__(self, *a, **kw):
+                    super().__init__(*a, directory=directory, **kw)
+
+                def log_message(self, *a):  # quiet
+                    pass
+
+            with socketserver.TCPServer(("127.0.0.1", args.serve), Handler) as httpd:
+                print(f"serving http://127.0.0.1:{args.serve}/{name}  (ctrl-c to stop)")
+                try:
+                    httpd.serve_forever()
+                except KeyboardInterrupt:
+                    print("\nstopped")
+        return 0
+
+    if args.cmd == "guard":
+        # Unlike stop-hook, this one CAN refuse. It still fails open on its own
+        # internal errors: a guard that crashes the agent it protects is a
+        # worse outage than the loop it was watching for.
+        try:
+            payload = json.load(sys.stdin)
+            if not isinstance(payload, dict):
+                raise ValueError("hook payload must be a JSON object")
+        except Exception as exc:  # noqa: BLE001
+            print(f"showwork guard: unreadable payload: {exc}", file=sys.stderr)
+            return 0
+
+        try:
+            if args.event == "pre":
+                decision = evaluate_pre_tool_use(
+                    payload, RiskPolicy(behavior=args.behavior)
+                )
+                print(render_pre_tool_use(decision))
+                return 0
+
+            state_path = Path(args.state)
+            window = _load_guard_window(state_path)
+            detector = StuckDetector(repeat_threshold=args.repeat_threshold)
+            call = call_from_payload(payload)
+            verdict = detector.observe_all(
+                [ToolCall(**item) for item in window] + [call]
+            )
+            _save_guard_window(state_path, window, call, verdict.stuck)
+            print(render_post_tool_use(verdict))
+            # Exit 2 halts the agentic loop before the next model call.
+            return 2 if verdict.stuck else 0
+        except Exception as exc:  # noqa: BLE001
+            print(f"showwork guard: {exc}", file=sys.stderr)
+            return 0
+
     return 2  # unreachable
+
+
+def _load_guard_window(path: Path, limit: int = 24) -> list[dict]:
+    """Read the rolling tool-call window.
+
+    A PostToolUse hook is a fresh process per call, so the window has to live on
+    disk or every call looks like the first one. Any read failure yields an
+    empty window: the guard then under-detects for a few calls, which is the
+    safe direction to fail.
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        calls = data.get("calls", [])
+        if not isinstance(calls, list):
+            return []
+        return [c for c in calls if isinstance(c, dict)][-limit:]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def _save_guard_window(
+    path: Path, window: list[dict], call: ToolCall, tripped: bool, limit: int = 24
+) -> None:
+    """Persist the window. Clears once tripped so a killed run starts clean."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        calls = [] if tripped else (window + [
+            {
+                "tool_name": call.tool_name,
+                "tool_input": call.tool_input,
+                "mutated": call.mutated,
+            }
+        ])[-limit:]
+        path.write_text(json.dumps({"calls": calls}), encoding="utf-8")
+    except (OSError, TypeError, ValueError):
+        # Losing the window degrades detection; it must never break the agent.
+        pass
 
 
 if __name__ == "__main__":
