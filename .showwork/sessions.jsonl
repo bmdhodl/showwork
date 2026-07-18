@@ -57,3 +57,5 @@
 {"event": "session.finish", "session": "showwork-harden-file-exists-directory-detail", "ts": "2026-07-17T11:32:08", "status": "ok", "claims_verdict": "GREEN", "prev": "42872068bd1d70f59581be673654dc052df8acf09a3b80c6ec5dbaa90a421c92"}
 {"event": "session.start", "session": "showwork-harden-non-dict-check-field", "ts": "2026-07-17T11:33:09", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-non-dict-check-field", "ts": "2026-07-17T11:33:13", "status": "ok", "claims_verdict": "GREEN", "prev": "85382b8d65ebcaa21925e57d97d1c00f483a0a97dbf780eca5b0b8fbeacf2b45"}
+{"event": "session.start", "session": "showwork-harden-empty-glob-pattern", "ts": "2026-07-17T11:33:43", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
+{"event": "session.finish", "session": "showwork-harden-empty-glob-pattern", "ts": "2026-07-17T11:33:46", "status": "ok", "claims_verdict": "GREEN", "prev": "61d852c4f224ebe10340c5af7f0b65d4adfea70f193d10a36cccbf710a4db35f"}
