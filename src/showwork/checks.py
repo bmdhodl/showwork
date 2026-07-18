@@ -254,7 +254,12 @@ CHECKERS = {
 
 def verify_claim(record: dict, root: Path) -> dict:
     claim = record.get("claim", "(no description)")
-    severity = str(record.get("severity", "RED")).upper()
+    # SPEC: severity is RED or YELLOW. Anything else (empty, GREEN, typos)
+    # must not demote a failed claim out of the exit gate — default to RED.
+    raw_sev = record.get("severity", "RED")
+    severity = str(raw_sev if raw_sev is not None else "RED").upper().strip()
+    if severity not in ("RED", "YELLOW"):
+        severity = "RED"
     check = record.get("check")
     base = {"claim": claim, "session": record.get("session", ""),
             "severity": severity}
