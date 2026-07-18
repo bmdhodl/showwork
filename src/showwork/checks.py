@@ -107,6 +107,21 @@ def chk_path_moved(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", f"{c['from']} -> {c['to']}")
 
 
+def _frontmatter_equals_str(value) -> str:
+    """Normalize a check `equals` value for scalar comparison.
+
+    CLI `--equals` always supplies strings. `--check-json` may supply JSON
+    booleans/null; str(True) is 'True', which never matches YAML `true`.
+    Map bool/None to JSON/YAML-ish lowercase scalars; leave other values as
+    stripped strings (quotes trimmed for parity with the file side).
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    return str(value).strip().strip("\"'")
+
+
 def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
     p = _resolve(root, c["path"])
     if not p.is_file():
@@ -120,7 +135,7 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
     if not m:
         return ("fail", f"field `{c['field']}` not in frontmatter")
     actual = m.group(1).strip().strip("\"'")
-    want = str(c["equals"]).strip()
+    want = _frontmatter_equals_str(c["equals"])
     return ("pass", f"{c['field']}={actual}") if actual == want \
         else ("fail", f"{c['field']}={actual}, claimed {want}")
 
