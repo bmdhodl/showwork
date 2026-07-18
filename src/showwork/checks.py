@@ -151,13 +151,16 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
         return ("fail", f"{c['path']} has no frontmatter")
     end = text.find("\n---", 3)
     fm = text[3:end] if end != -1 else ""
-    m = re.search(rf"(?m)^{re.escape(c['field'])}\s*:\s*(.+?)\s*$", fm)
+    field = c["field"]
+    if not isinstance(field, str) or field == "":
+        return ("error", f"field must be a non-empty string, got {type(field).__name__}")
+    m = re.search(rf"(?m)^{re.escape(field)}\s*:\s*(.+?)\s*$", fm)
     if not m:
-        return ("fail", f"field `{c['field']}` not in frontmatter")
+        return ("fail", f"field `{field}` not in frontmatter")
     actual = m.group(1).strip().strip("\"'")
     want = _frontmatter_equals_str(c["equals"])
-    return ("pass", f"{c['field']}={actual}") if actual == want \
-        else ("fail", f"{c['field']}={actual}, claimed {want}")
+    return ("pass", f"{field}={actual}") if actual == want \
+        else ("fail", f"{field}={actual}, claimed {want}")
 
 
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
