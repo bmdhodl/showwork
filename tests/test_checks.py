@@ -155,6 +155,28 @@ def test_path_moved_rejects_evidence_outside_project_root(tmp_path):
     assert "escapes project root" in result["detail"]
 
 
+def test_path_moved_rejects_empty_paths(tmp_path):
+    """Empty from/to must not pass by resolving to the project root.
+
+    Pre-fix, Path(root / '') is the root directory, so a claim that a
+    missing source was 'moved' to '' passed whenever the project root existed
+    — a vacuous false proof.
+    """
+    # Source gone, empty destination → must NOT pass
+    r = verify_claim(claim({"type": "path_moved", "from": "gone.md", "to": ""}),
+                     tmp_path)
+    assert r["status"] in ("fail", "error")
+    assert r["status"] != "pass"
+    # Empty source / empty both
+    for check in (
+        {"type": "path_moved", "from": "", "to": "done.md"},
+        {"type": "path_moved", "from": "", "to": ""},
+    ):
+        r = verify_claim(claim(check), tmp_path)
+        assert r["status"] in ("fail", "error"), check
+        assert r["status"] != "pass", check
+
+
 # ---------- frontmatter ----------
 
 def test_frontmatter(tmp_path):
