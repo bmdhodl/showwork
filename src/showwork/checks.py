@@ -57,9 +57,15 @@ class PathEscapeError(ValueError):
     """A claim tried to use evidence outside the declared project root."""
 
 
+class PathArgError(ValueError):
+    """A claim path field is missing, empty, or not a string."""
+
+
 def _resolve(root: Path, path_str: str) -> Path:
-    if not isinstance(path_str, str):
-        raise TypeError(f"path must be a string, got {type(path_str).__name__}")
+    if not isinstance(path_str, str) or path_str.strip() == "":
+        raise PathArgError(
+            f"path must be a non-empty string, got {path_str!r}"
+        )
     resolved_root = root.resolve()
     resolved = (resolved_root / path_str).resolve()
     try:
@@ -309,6 +315,8 @@ def verify_claim(record: dict, root: Path) -> dict:
         status, detail = fn(check, root)
     except PathEscapeError as e:
         status, detail = "fail", str(e)
+    except PathArgError as e:
+        status, detail = "error", str(e)
     except KeyError as e:
         status, detail = "error", f"missing arg {e}"
     except TypeError as e:

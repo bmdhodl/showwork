@@ -28,6 +28,19 @@ def test_file_exists_fail(tmp_path):
     assert r["status"] == "fail"
 
 
+
+def test_empty_path_is_error_not_root_missing(tmp_path):
+    """Empty path strings must not resolve to project root as 'missing'."""
+    for check in (
+        {"type": "file_exists", "path": ""},
+        {"type": "file_exists", "path": "   "},
+        {"type": "file_contains", "path": "", "pattern": "x"},
+        {"type": "frontmatter", "path": "", "field": "a", "equals": "b"},
+    ):
+        r = verify_claim(claim(check), tmp_path)
+        assert r["status"] == "error", check
+        assert "non-empty" in r["detail"] or "empty" in r["detail"].lower(), r
+
 def test_file_exists_directory_is_not_missing(tmp_path):
     """A present directory must fail as not-a-file, not as 'missing'.
 
