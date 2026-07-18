@@ -199,6 +199,17 @@ def test_frontmatter_no_block(tmp_path):
     assert r["status"] == "fail"
 
 
+
+def test_frontmatter_field_must_be_string(tmp_path):
+    """Non-string frontmatter field names must error clearly."""
+    (tmp_path / "task.md").write_text("---\nstatus: done\n---\nbody", encoding="utf-8")
+    for bad in (None, 1, ["status"]):
+        r = verify_claim(claim({"type": "frontmatter", "path": "task.md",
+                                "field": bad, "equals": "done"}), tmp_path)
+        assert r["status"] == "error", bad
+        assert "checker raised" not in r["detail"], r
+        assert "field" in r["detail"].lower(), r
+
 def test_frontmatter_json_bool_equals_yaml_true(tmp_path):
     """--check-json booleans must match YAML true/false scalars.
 
