@@ -57,6 +57,13 @@ def audit_file(path: Path, strict: bool = False) -> dict:
         "detail": "",
         "verdict": "GREEN",
     }
+    if not path.is_file():
+        # Public API must report, not raise: missing path, directory, or
+        # unreadable non-file input is integrity unprovable, never a crash.
+        out["verdict"] = "YELLOW"
+        kind = "directory" if path.is_dir() else "missing path"
+        out["detail"] = f"not a ledger file ({kind}): nothing to anchor"
+        return out
     genesis = genesis_hash(path)
     # Every hash an anchor may legitimately point back at: the genesis anchor,
     # plus each record line already seen. A `prev` in this set is either the

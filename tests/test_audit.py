@@ -222,6 +222,22 @@ def test_cli_audit_strict_exit_code(tmp_path, capsys):
     assert main(["--root", str(tmp_path), "audit", "--strict"]) == 2
 
 
+def test_audit_file_missing_or_directory_is_yellow_not_crash(tmp_path):
+    """audit_file must not raise FileNotFoundError/PermissionError on bad paths.
+
+    The public auditor is called with ledger paths that may be missing or a
+    directory. Pre-fix, read_record_text raised; callers (and mistaken CLI
+    paths) crashed instead of getting a YELLOW unprovable result.
+    """
+    missing = audit_file(tmp_path / "no-such.jsonl")
+    assert missing["verdict"] == "YELLOW"
+    assert "not a ledger file" in missing["detail"] or "missing" in missing["detail"].lower()
+
+    directory = audit_file(tmp_path)
+    assert directory["verdict"] == "YELLOW"
+    assert "not a ledger file" in directory["detail"] or "directory" in directory["detail"].lower()
+
+
 # ---------- cross-implementation dialect: framing must match js/showwork-audit ----------
 
 
