@@ -69,7 +69,11 @@ def _resolve(root: Path, path_str: str) -> Path:
 
 def chk_file_exists(c: dict, root: Path) -> tuple[str, str]:
     p = _resolve(root, c["path"])
-    return ("pass", f"{c['path']} exists") if p.is_file() else ("fail", f"{c['path']} missing")
+    if p.is_file():
+        return ("pass", f"{c['path']} exists")
+    if p.exists():
+        return ("fail", f"{c['path']} is not a regular file")
+    return ("fail", f"{c['path']} missing")
 
 
 def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:

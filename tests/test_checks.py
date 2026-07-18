@@ -28,6 +28,20 @@ def test_file_exists_fail(tmp_path):
     assert r["status"] == "fail"
 
 
+def test_file_exists_directory_is_not_missing(tmp_path):
+    """A present directory must fail as not-a-file, not as 'missing'.
+
+    SPEC: pass only when path is a regular file. Pre-fix used only is_file(),
+    so a directory produced detail 'd missing' — false and misleading when
+    agents debug path_moved / wrong check type mistakes.
+    """
+    (tmp_path / "d").mkdir()
+    r = verify_claim(claim({"type": "file_exists", "path": "d"}), tmp_path)
+    assert r["status"] == "fail"
+    assert "missing" not in r["detail"]
+    assert "regular file" in r["detail"] or "not a file" in r["detail"].lower()
+
+
 def test_file_checks_reject_evidence_outside_project_root(tmp_path):
     outside = tmp_path.parent / "outside-proof.txt"
     outside.write_text("secret proof", encoding="utf-8")
