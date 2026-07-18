@@ -75,3 +75,5 @@
 {"event": "session.finish", "session": "showwork-harden-audit-file-not-a-file", "ts": "2026-07-17T19:52:56", "status": "ok", "claims_verdict": "GREEN", "prev": "6eac6179ca7778f320cb437f49f8d9654fc29445111e2e1b75025a1af5bb4f0d"}
 {"event": "session.start", "session": "showwork-harden-utf8-read-no-crash", "ts": "2026-07-17T19:54:39", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
 {"event": "session.finish", "session": "showwork-harden-utf8-read-no-crash", "ts": "2026-07-17T19:54:41", "status": "ok", "claims_verdict": "GREEN", "prev": "a671006f05531788d980d99c852270c7378364c3b849d742319032e26830688d"}
+{"event": "session.start", "session": "showwork-harden-invalid-severity-defaults-red", "ts": "2026-07-17T19:56:08", "agent": "grok", "prev": "489c9078aed2591b4c7d272bb977de650555482d8b44db790cd5fc600c1e4abe"}
+{"event": "session.finish", "session": "showwork-harden-invalid-severity-defaults-red", "ts": "2026-07-17T19:56:10", "status": "ok", "claims_verdict": "GREEN", "prev": "4b0190d139d49ff5b8665c63a5b9a22cd4bae8c7a4723ea923c16efb0d3403b7"}

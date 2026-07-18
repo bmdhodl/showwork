@@ -405,6 +405,26 @@ def test_verdict_red_yellow_green(tmp_path):
     assert evaluate_records([good, red_fail], tmp_path)["verdict"] == "RED"
 
 
+def test_invalid_severity_on_fail_is_red_not_yellow(tmp_path):
+    """Invalid/empty severity must not demote a failed claim out of RED.
+
+    SPEC allows only RED|YELLOW. Pre-fix, severity '' or 'GREEN' became a
+    non-RED label, so a failed claim produced YELLOW and finish --status ok
+    could close over a real gap without refusal.
+    """
+    for sev in ("", "GREEN", "blue", None):
+        rec = {"session": "t", "claim": "gap", "check": {"type": "file_exists",
+                                                          "path": "nope.txt"}}
+        if sev is not None:
+            rec["severity"] = sev
+        else:
+            # omit key — defaults should stay RED
+            pass
+        state = evaluate_records([rec], tmp_path)
+        assert state["verdict"] == "RED", (sev, state)
+        assert state["results"][0]["severity"] == "RED", sev
+
+
 def test_checker_error_is_yellow(tmp_path):
     err = claim({"type": "glob_count", "pattern": "*.md", "op": ">=", "n": 0})
     assert evaluate_records([err], tmp_path)["verdict"] == "YELLOW"
