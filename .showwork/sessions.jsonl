@@ -92,3 +92,6 @@
 {"event": "session.start", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:43:14", "agent": "claude-code", "prev": "5554b149b3fa15f79b375d77bc0a9087709d21704e23073bf8ad18b19288eaf7"}
 {"event": "session.finish", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:44:48", "status": "ok", "claims_verdict": "YELLOW", "prev": "12188daa399a7ae28d613d2d24ba2a4dac8231c7e5e2101f71bdb217ce3aa9f3"}
 {"event": "session.finish", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:45:16", "status": "ok", "claims_verdict": "GREEN", "prev": "a280d9863848b581d41ea35ba744570429a89647a6bddf6183e03c4fabb5c252"}
+{"event": "session.start", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:22:15", "agent": "queue-worker", "prev": "1e2686acf1b814bf82d631d83f36c9c8207fb047fe83c9ba82d30fe078924ca2"}
+{"event": "session.finish", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:22:37", "status": "ok", "claims_verdict": "GREEN", "prev": "bb4ac11acbe86fec62847c66c4adb26959e211516c702674f04b923ca49bd2e3"}
+{"event": "session.finish", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:24:10", "status": "ok", "claims_verdict": "GREEN", "prev": "cd71f79ee80d7176282da2c19c838f0564068109d7f418f4dc61dc4a3735973f"}
