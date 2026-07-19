@@ -170,6 +170,17 @@ malformed line instead of dropping it. Its captured audit was RED at 54/60
 verified, because failed proof remains visible rather than becoming a green
 marketing number.
 
+## Where this sits
+
+The 2026 survey [*Code as Agent Harness*](https://arxiv.org/abs/2605.18747) (Ning et al., UIUC / Meta / Stanford) argues that code has become the runtime medium agents operate inside rather than the artifact they produce, and it names the layer showwork implements. Its §3.4.4, "Verification through Deterministic Sensors," states the rule plainly: deterministic sensors are "reproducible enough to serve as control signals," and agentic critics "should interpret sensor outputs rather than replace them." Same commitment as *no LLM judges an LLM*, reached from a literature review instead of from an incident.
+
+Two of the survey's open problems are the ones this package exists for:
+
+- **§5.2.1 Harness-Level Evaluation and Oracle Adequacy.** End-task success "conflates the capabilities of the base model, the quality of the harness, the reliability of tools, the informativeness of feedback, and the difficulty of the environment." The [False Done Rate](docs/false-done-rate.md) measures the substrate rather than the model.
+- **§5.2.5 Human-in-the-Loop Safety and Accountability as Harness State.** Safety "cannot be delegated to the base model or encoded only as a natural-language instruction." An append-only ledger with a refusing exit gate makes accountability a piece of harness state instead of a sentence in a prompt.
+
+The survey predates this package and does not cite it. It is context for the problem, not an endorsement of the solution.
+
 ## What showwork is not
 
 - Not observability. Traces show what happened; showwork proves what was *claimed* to have happened.
