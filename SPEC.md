@@ -282,3 +282,32 @@ report the rest as errors rather than silently skipping them.
 
 Implementations SHOULD publish their conformance suite and the specification
 version they target.
+
+## Background (non-normative)
+
+Nothing in this section is a requirement. It records why the format is shaped
+the way it is, for implementers deciding whether the constraints are arbitrary.
+
+Three design choices carry the weight, and each is a deliberate refusal:
+
+1. **A claim without a `check` is never proof.** Natural-language completion
+   reports are the failure mode this format exists to catch. They are recorded
+   for context and excluded from the verdict.
+2. **No model evaluates the record.** Every checker is deterministic and
+   re-executable by a third party who does not trust the writer. A verdict that
+   requires inference to reproduce is not audit-grade.
+3. **The exit gate refuses rather than warns.** A gate that reports a problem
+   and closes anyway trains everyone to ignore it.
+
+The 2026 survey [*Code as Agent Harness*](https://arxiv.org/abs/2605.18747)
+(Ning et al., arXiv:2605.18747) describes the same boundary from the research
+side. Its §3.4.4 treats compiler, runtime, and test signals as "deterministic
+sensors" that are "reproducible enough to serve as control signals," and holds
+that agentic critique "should interpret sensor outputs rather than replace
+them." Choice 2 above is that rule applied to an agent's self-reported
+completion. Its §5.2.5 argues that safety and accountability belong in harness
+state rather than in a model's instructions, which is what an append-only
+ledger with a refusing gate provides.
+
+The survey predates this specification and does not reference it; it is cited
+as independent framing for the problem, not as endorsement.
