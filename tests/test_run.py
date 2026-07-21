@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 from pathlib import Path
 
 from showwork.cli import main
@@ -56,5 +57,39 @@ def test_run_missing_command_errors(tmp_path):
         main(["--root", str(tmp_path), "run", "--session", "w", "--"])
     except SystemExit as e:
         assert "requires a command" in str(e)
+    else:
+        raise AssertionError("expected SystemExit")
+
+
+def test_run_records_wall_clock_budget(tmp_path):
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "2", "--", sys.executable, "-c", "print('ok')"])
+    assert code == 0
+    finish = _sessions(tmp_path)[-1]
+    assert finish["budget_max_seconds"] == 2.0
+    assert finish["budget_exceeded"] is False
+    assert finish["budget_elapsed_seconds"] >= 0
+
+
+def test_run_halts_when_wall_clock_budget_expires(tmp_path, capsys):
+    started = time.monotonic()
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "0.05", "--", sys.executable, "-c",
+                 "import time; time.sleep(2)"])
+    assert code == 2
+    assert time.monotonic() - started < 1
+    finish = _sessions(tmp_path)[-1]
+    assert finish["status"] == "budget_exceeded"
+    assert finish["budget_exceeded"] is True
+    assert finish["budget_reason"] == "time"
+    assert "BUDGET:" in capsys.readouterr().err
+
+
+def test_run_rejects_non_positive_wall_clock_budget(tmp_path):
+    try:
+        main(["--root", str(tmp_path), "run", "--session", "w",
+              "--max-seconds", "0", "--", sys.executable, "-c", "print('x')"])
+    except SystemExit as exc:
+        assert "--max-seconds must be > 0" in str(exc)
     else:
         raise AssertionError("expected SystemExit")

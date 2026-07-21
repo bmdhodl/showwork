@@ -92,3 +92,5 @@
 {"event": "session.start", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:43:14", "agent": "claude-code", "prev": "5554b149b3fa15f79b375d77bc0a9087709d21704e23073bf8ad18b19288eaf7"}
 {"event": "session.finish", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:44:48", "status": "ok", "claims_verdict": "YELLOW", "prev": "12188daa399a7ae28d613d2d24ba2a4dac8231c7e5e2101f71bdb217ce3aa9f3"}
 {"event": "session.finish", "session": "showwork-docs-harness-citation", "ts": "2026-07-19T12:45:16", "status": "ok", "claims_verdict": "GREEN", "prev": "a280d9863848b581d41ea35ba744570429a89647a6bddf6183e03c4fabb5c252"}
+{"event": "session.start", "session": "ownership-run-budget-cli", "ts": "2026-07-20T22:15:45", "agent": "codex", "prev": "1e2686acf1b814bf82d631d83f36c9c8207fb047fe83c9ba82d30fe078924ca2"}
+{"event": "session.finish", "session": "ownership-run-budget-cli", "ts": "2026-07-20T22:16:49", "status": "ok", "claims_verdict": "GREEN", "prev": "80adb82acdb80d8df1585e844167d06b728949285adff82eb0c1d518fd8bc4f1"}

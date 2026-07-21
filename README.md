@@ -128,6 +128,17 @@ showwork run --session fix-123 --gate -- codex exec "fix the failing test"
 Observe mode is exit-transparent; `--gate` exits 2 when the command reports
 success but the receipts are RED ([docs/adapters.md](docs/adapters.md)).
 
+Bound an unattended command by wall clock:
+
+```bash
+showwork run --session fix-123 --gate --max-seconds 1800 -- codex exec "fix the failing test"
+```
+
+The wrapper terminates the child and records `budget_exceeded` when the time
+envelope trips. Tool-call ceilings remain an integration concern because a
+generic subprocess wrapper cannot see an agent's internal tool stream; use the
+`showwork.RunBudget` API or the live hook adapter for that dimension.
+
 ## The False Done Rate
 
 Receipts make a new number measurable: **how often agents claim work that is

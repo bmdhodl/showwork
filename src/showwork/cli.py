@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from .audit import audit_root, render_audit
+from .budgets import RunBudget
 from .checks import EXIT_BY_VERDICT, render_report
 from .dashboard import render as render_dashboard
 from .control import (
@@ -195,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--agent")
     p.add_argument("--gate", action="store_true",
                    help="exit 2 when the command succeeds but this session's claims are RED")
+    p.add_argument("--max-seconds", type=float,
+                   help="halt the wrapped command after this wall-clock budget")
     p.add_argument("command", nargs=argparse.REMAINDER,
                    help="the command to wrap, after --")
 
@@ -285,23 +288,52 @@ def main(argv: list[str] | None = None) -> int:
             cmd = cmd[1:]
         if not cmd:
             raise SystemExit("run requires a command after --")
+        if args.max_seconds is not None and args.max_seconds <= 0:
+            raise SystemExit("--max-seconds must be > 0")
+        budget = RunBudget(max_seconds=args.max_seconds)
+        budget.start()
         start_session(root, args.session, agent=args.agent,
-                      note="wrapped: " + " ".join(cmd))
+                      note="wrapped: " + " ".join(cmd) +
+                           (f"; max_seconds={args.max_seconds:g}" if args.max_seconds else ""))
         # The wrapped process inherits the session and root, so anything it
         # runs can record claims without extra plumbing.
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
         try:
-            proc_code = subprocess.run(cmd, cwd=str(root), env=env).returncode
+            proc_code = subprocess.run(
+                cmd, cwd=str(root), env=env, timeout=args.max_seconds
+            ).returncode
+        except subprocess.TimeoutExpired:
+            verdict = budget.check()
+            state = verify_session(root, args.session)
+            record_event(
+                root, "session.finish", args.session,
+                status="budget_exceeded", claims_verdict=state["verdict"],
+                command_exit=124, observed_by="run-wrapper",
+                budget_max_seconds=args.max_seconds,
+                budget_elapsed_seconds=round(budget.elapsed, 3),
+                budget_exceeded=True, budget_reason="time",
+            )
+            print(
+                f"BUDGET: wrapped command exceeded {args.max_seconds:g}s wall clock "
+                f"({budget.elapsed:.1f}s elapsed).",
+                file=sys.stderr,
+            )
+            return 2
         except FileNotFoundError as exc:
             record_event(root, "session.finish", args.session, status="error",
                          observed_by="run-wrapper", note=f"command not found: {exc}")
             print(f"showwork run: command not found: {cmd[0]}", file=sys.stderr)
             return 127
         state = verify_session(root, args.session)
+        verdict = budget.check()
         record_event(root, "session.finish", args.session,
                      status=("ok" if proc_code == 0 else "error"),
                      claims_verdict=state["verdict"], command_exit=proc_code,
-                     observed_by="run-wrapper")
+                     observed_by="run-wrapper",
+                     budget_max_seconds=args.max_seconds,
+                     budget_elapsed_seconds=round(budget.elapsed, 3),
+                     budget_exceeded=verdict.exceeded,
+                     budget_reason=verdict.reason)
         print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
               f"({state['passed']}/{state['total']} verified)")
         if args.gate and proc_code == 0 and state["verdict"] == "RED":
