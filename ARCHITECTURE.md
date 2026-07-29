@@ -484,7 +484,8 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 - `SPEC.md`, the portable `spec-v0.2` ledger format. Every normative
   requirement names a behavioral test beside it, and reader-only conformance
   is defined there for auditors like `js/showwork-audit`.
-- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@main`.
+- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.0`.
+  `docs/ci.md` covers pinning.
 - `docs/`: adapters, CI gating, the Claude Code Stop hook, fleet adoption,
   concurrency rationale, compliance mapping, live enforcement, the False Done
   Rate methodology, and the sanitized case study with derived metrics.
