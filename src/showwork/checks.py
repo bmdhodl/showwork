@@ -27,6 +27,7 @@ checker at all.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -84,6 +85,53 @@ def chk_file_exists(c: dict, root: Path) -> tuple[str, str]:
     return ("fail", f"{c['path']} missing")
 
 
+# A fork PR controls both the `pattern` of a file_contains claim and the file
+# text it runs against. Python's `re` has no timeout, and a thread stuck in
+# catastrophic backtracking cannot be killed, so the match runs in a child
+# process we CAN kill. Measured: `(a+)+$` against forty 'a' characters and one
+# non-matching byte does not finish. Forty bytes, one pinned CPU, until the job
+# times out.
+REGEX_TIMEOUT_S = 5
+MAX_SCAN_BYTES = 4 * 1024 * 1024
+
+# Runs in a bare child. It imports nothing from showwork on purpose: with the
+# spawn start method a child re-imports __main__, and re-entering our own CLI
+# to evaluate a regex is a trap. Pattern and text go over stdin, never argv.
+_SEARCH_CHILD = """\
+import json, re, sys
+d = json.loads(sys.stdin.read())
+try:
+    sys.stdout.write(json.dumps({"found": re.search(d["p"], d["t"]) is not None}))
+except re.error as e:
+    sys.stdout.write(json.dumps({"error": str(e)}))
+"""
+
+
+def _search_bounded(pattern: str, text: str) -> tuple[str, object]:
+    """`re.search` with a hard wall-clock bound.
+
+    Returns ("ok", bool) | ("error", msg) | ("timeout", None).
+    """
+    payload = json.dumps({"p": pattern, "t": text})
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", _SEARCH_CHILD],
+            input=payload, capture_output=True, text=True,
+            timeout=REGEX_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return ("timeout", None)
+    if proc.returncode != 0:
+        return ("error", f"regex evaluation failed: {proc.stderr.strip()[:200]}")
+    try:
+        out = json.loads(proc.stdout)
+    except ValueError:
+        return ("error", "regex evaluation returned no verdict")
+    if "error" in out:
+        return ("error", out["error"])
+    return ("ok", bool(out["found"]))
+
+
 def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:
     p = _resolve(root, c["path"])
     if not p.is_file():
@@ -104,8 +152,18 @@ def chk_file_contains(c: dict, root: Path) -> tuple[str, str]:
         return ("error", f"invalid regex /{pattern}/: {e}")
     if matches_empty and not want_absent:
         return ("error", f"pattern /{pattern}/ matches any text (vacuous check); tighten it")
+    if p.stat().st_size > MAX_SCAN_BYTES:
+        return ("error",
+                f"{c['path']} is larger than the {MAX_SCAN_BYTES} byte scan cap")
     text = p.read_text(encoding="utf-8-sig")  # BOM-safe
-    found = re.search(pattern, text) is not None
+    status, result = _search_bounded(pattern, text)
+    if status == "timeout":
+        return ("error",
+                f"/{c['pattern']}/ did not finish in {REGEX_TIMEOUT_S}s against "
+                f"{c['path']}; treating an unbounded pattern as a bad claim")
+    if status == "error":
+        return ("error", str(result))
+    found = bool(result)
     if want_absent:
         return ("pass", f"/{c['pattern']}/ absent as claimed") if not found \
             else ("fail", f"/{c['pattern']}/ present but claimed absent")
