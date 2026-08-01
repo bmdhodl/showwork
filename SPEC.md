@@ -87,6 +87,17 @@ empty string MUST [test:
 tests/test_checks.py::test_file_contains_rejects_vacuous_pattern] return an
 error, never proof.
 
+Evaluation is bounded. A pattern that does not finish inside the time limit
+MUST [test:
+tests/test_checks.py::test_file_contains_catastrophic_pattern_cannot_hang]
+return an error, and a file above the scan cap MUST [test:
+tests/test_checks.py::test_file_contains_rejects_oversize_file] return an error.
+Both are errors rather than failures, because a pattern that never finishes
+proves nothing either way. This exists because the party that supplies the
+pattern is sometimes the party that supplies the file: on a fork pull request,
+an expression like `(a+)+$` against a wall of `a` characters would otherwise pin
+a CPU on the verification host until the job timed out.
+
 ### `path_moved`
 
 ```json

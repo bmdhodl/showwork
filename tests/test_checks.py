@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from showwork import checks
 from showwork.checks import evaluate_records, verify_claim
 
 
@@ -495,3 +496,67 @@ def test_command_disabled_by_no_commands_env(tmp_path, monkeypatch):
     monkeypatch.delenv(NO_COMMANDS_ENV)
     status, _ = chk_command(check, tmp_path)
     assert status == "pass"
+
+
+def test_file_contains_catastrophic_pattern_cannot_hang(tmp_path):
+    """REGRESSION: a fork PR controls both the pattern and the file it runs
+    against, and `re` has no timeout. Before the bound, `(a+)+$` against a wall
+    of 'a' with one non-matching byte pinned a CPU on the verification host
+    until the job timed out. Forty bytes was enough.
+
+    The check must come back with a verdict rather than run forever. It is an
+    `error` (a bad claim), never a `pass`: an unbounded pattern proves nothing.
+    """
+    (tmp_path / "a.md").write_text("a" * 40 + "!", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                            "pattern": "(a+)+$"}), tmp_path)
+    assert r["status"] == "error"
+    assert "did not finish" in r["detail"]
+
+
+def test_file_contains_rejects_oversize_file(tmp_path):
+    """A fork also controls file size. Reading an arbitrarily large file into
+    memory to hand it to a regex is the other half of the same denial of
+    service, so the scan is capped."""
+    big = tmp_path / "big.md"
+    big.write_text("x" * (checks.MAX_SCAN_BYTES + 1), encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "big.md",
+                            "pattern": "x"}), tmp_path)
+    assert r["status"] == "error"
+    assert "scan cap" in r["detail"]
+
+
+def test_file_contains_still_matches_normal_patterns(tmp_path):
+    """The bound must not change ordinary verdicts. This is the guard against
+    'fixed' meaning 'everything errors now'."""
+    (tmp_path / "a.md").write_text("alpha beta\ngamma\n", encoding="utf-8")
+    hit = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                              "pattern": "beta"}), tmp_path)
+    miss = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                               "pattern": "delta"}), tmp_path)
+    absent = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                 "pattern": "delta", "absent": True}), tmp_path)
+    assert hit["status"] == "pass"
+    assert miss["status"] == "fail"
+    assert absent["status"] == "pass"
+
+    # Flags and anchoring must survive the trip through the child process.
+    # `^gamma$` without MULTILINE does not match mid-string; with the inline
+    # flag it does. Getting these backwards would quietly change the verdict on
+    # every claim already in every ledger.
+    plain = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                "pattern": r"^gamma$"}), tmp_path)
+    multiline = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                    "pattern": r"(?m)^gamma$"}), tmp_path)
+    assert plain["status"] == "fail"
+    assert multiline["status"] == "pass"
+
+
+def test_file_contains_reports_invalid_regex_not_timeout(tmp_path):
+    """A malformed pattern must still read as a regex error. The child process
+    reports `re.error` back rather than dying and looking like a hang."""
+    (tmp_path / "a.md").write_text("alpha", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                            "pattern": "transition-[color,transform]x["}), tmp_path)
+    assert r["status"] == "error"
+    assert "did not finish" not in r["detail"]
