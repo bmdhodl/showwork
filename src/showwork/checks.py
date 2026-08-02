@@ -352,11 +352,11 @@ def verify_claim(record: dict, root: Path) -> dict:
         return {**base, "type": None, "status": "error",
                 "detail": f"unparseable ledger line: {record['_parse_error']}"}
     if record.get("_append_retraction_reason"):
-        return {**base, "type": None, "status": "skipped",
+        return {**base, "type": None, "status": "skipped", "retracted": True,
                 "detail": f"retracted: {record['_append_retraction_reason']}"}
     if record.get("retracted"):
         reason = str(record.get("retraction_reason", "claim retracted")).strip()
-        return {**base, "type": None, "status": "skipped",
+        return {**base, "type": None, "status": "skipped", "retracted": True,
                 "detail": f"retracted: {reason or 'claim retracted'}"}
     if check is None:
         return {**base, "type": None, "status": "skipped",
@@ -460,8 +460,12 @@ def evaluate_records(records: list[dict], root: Path, label: str = "") -> dict:
     gaps = [{"claim": r["claim"], "severity": r["severity"], "status": r["status"],
              "detail": r["detail"], "type": r["type"]}
             for r in results if r["status"] in ("fail", "error")]
-    passed = sum(1 for r in results if r["status"] == "pass")
-    return {"label": label, "verdict": verdict, "total": len(results),
+    # A retracted claim is withdrawn, not outstanding. It can never pass, so
+    # counting it in the denominator makes a clean run look incomplete. It is
+    # still rendered; it just is not scored.
+    scored = [r for r in results if not r.get("retracted")]
+    passed = sum(1 for r in scored if r["status"] == "pass")
+    return {"label": label, "verdict": verdict, "total": len(scored),
             "passed": passed, "results": results, "gaps": gaps}
 
 
@@ -474,8 +478,12 @@ def render_report(state: dict) -> str:
         return "\n".join(lines)
     mark = {"pass": "OK", "fail": "XX", "error": "!!", "skipped": ".."}
     for r in state["results"]:
+        # Severity says how bad a FAILURE would be and defaults to RED, so it
+        # is only meaningful where the row actually failed. Printed on a pass it
+        # is noise that reads as a failure.
+        sev = f", {r['severity']}" if r["status"] in ("fail", "error") else ""
         lines.append(f"- {mark.get(r['status'], '??')} **{r['claim']}** "
-                     f"(`{r['type']}`, {r['severity']})")
+                     f"(`{r['type']}`{sev})")
         lines.append(f"    - {r['detail']}")
     lines.append("")
     if state["gaps"]:
