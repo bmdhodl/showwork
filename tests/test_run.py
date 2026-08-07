@@ -1,12 +1,15 @@
 """The universal wrapper: showwork run --session S -- <command>."""
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
 
+import pytest
+
 from showwork.cli import main
-from showwork.ledger import record_claim
+from showwork.ledger import record_claim, resolve_root, start_session
 
 
 def _sessions(root: Path) -> list[dict]:
@@ -93,3 +96,33 @@ def test_run_rejects_non_positive_wall_clock_budget(tmp_path):
         assert "--max-seconds must be > 0" in str(exc)
     else:
         raise AssertionError("expected SystemExit")
+
+
+def test_linked_worktree_receipt_is_written_to_origin(tmp_path):
+    try:
+        subprocess.run(["git", "--version"], check=True,
+                       capture_output=True, text=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pytest.skip("git is required for the linked-worktree receipt test")
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init"], cwd=origin, check=True,
+                   capture_output=True, text=True)
+    (origin / "README.md").write_text("origin\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=origin, check=True)
+    subprocess.run([
+        "git", "-c", "user.name=showwork-test", "-c",
+        "user.email=showwork-test@example.invalid", "commit", "-m", "init",
+    ], cwd=origin, check=True, capture_output=True, text=True)
+    worktree = tmp_path / "scratch-worktree"
+    subprocess.run(["git", "worktree", "add", str(worktree), "HEAD"],
+                   cwd=origin, check=True, capture_output=True, text=True)
+    try:
+        assert resolve_root(worktree) == origin.resolve()
+        start_session(worktree, "linked-worktree-test")
+        assert (origin / ".showwork" / "sessions.jsonl").is_file()
+        assert not (worktree / ".showwork" / "sessions.jsonl").exists()
+    finally:
+        subprocess.run(["git", "worktree", "remove", "--force", str(worktree)],
+                       cwd=origin, check=False, capture_output=True, text=True)
