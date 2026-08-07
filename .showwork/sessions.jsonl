@@ -97,3 +97,5 @@
 {"event": "session.start", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:22:15", "agent": "queue-worker", "prev": "1e2686acf1b814bf82d631d83f36c9c8207fb047fe83c9ba82d30fe078924ca2"}
 {"event": "session.finish", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:22:37", "status": "ok", "claims_verdict": "GREEN", "prev": "bb4ac11acbe86fec62847c66c4adb26959e211516c702674f04b923ca49bd2e3"}
 {"event": "session.finish", "session": "showwork-docs-architecture", "ts": "2026-07-19T16:24:10", "status": "ok", "claims_verdict": "GREEN", "prev": "cd71f79ee80d7176282da2c19c838f0564068109d7f418f4dc61dc4a3735973f"}
+{"event": "session.start", "session": "showwork-p3-ci-version-pin", "ts": "2026-07-29T02:58:55", "agent": "queue-worker", "prev": "7eae401afd66c7c32c5474af3d031bd06ee86d12a01e28df3a6f8a7e5875085f"}
+{"event": "session.finish", "session": "showwork-p3-ci-version-pin", "ts": "2026-07-29T03:06:15", "status": "ok", "claims_verdict": "GREEN", "prev": "7bf894dc4ae3f847152b19459f8d278469fe0077675b8e0b2118d42b646cb4d5"}

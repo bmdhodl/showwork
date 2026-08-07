@@ -110,7 +110,7 @@ conflict markers. Repos that forbid concurrency can enforce single history with
 ## Gate your CI on receipts
 
 ```yaml
-- uses: bmdhodl/showwork/actions/verify@main
+- uses: bmdhodl/showwork/actions/verify@v0.3.0
   with:
     session: my-agent-session
 ```

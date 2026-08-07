@@ -13,13 +13,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bmdhodl/showwork/actions/verify@main
+      - uses: bmdhodl/showwork/actions/verify@v0.3.0
         with:
           session: my-agent-session     # omit to audit the chain only
 ```
 
 The action installs showwork from its own ref — no PyPI dependency, and the
 verifier version always matches the action version you pinned.
+
+## Pinning the version
+
+The install step reads `${GITHUB_ACTION_PATH}/../..`, so the ref is the only
+version knob.
+
+| ref | when to use it |
+|---|---|
+| `@v0.3.0` | Default. A release tag, readable in the diff, upgraded on purpose. |
+| `@ba862dcc115fdb9c4a88b5778227c4717cdacbb2` | Highest assurance. The full SHA behind `v0.3.0`. Tags move; SHAs do not. |
+| `@main` | Testing unreleased changes. |
+
+Do not run `@main` in a gate you trust. With a floating ref the verifier can
+change between two runs of the same workflow, and no diff shows it. A
+verification gate is the worst place to break the supply-chain rule for
+third-party actions.
+
+To upgrade, bump the ref in one place and read the [CHANGELOG](../CHANGELOG.md)
+for verdict-affecting changes. A stricter verifier can turn a GREEN repo RED,
+which is the gate working, so upgrade deliberately rather than continuously.
+
+Fleets running the gate across several repos should pin every repo to the same
+ref. Mixed refs produce verdicts you cannot compare across repos.
 
 ## Inputs
 
