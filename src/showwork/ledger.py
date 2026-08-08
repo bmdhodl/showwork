@@ -48,6 +48,8 @@ def resolve_root(root: str | Path | None = None) -> Path:
         return candidate
 
     git_marker = candidate / ".git"
+    if not git_marker.exists():
+        return candidate
     try:
         show_top = _git_value(candidate, "--show-toplevel")
         git_dir = _git_value(candidate, "--git-dir")

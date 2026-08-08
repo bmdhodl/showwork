@@ -126,3 +126,15 @@ def test_linked_worktree_receipt_is_written_to_origin(tmp_path):
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(worktree)],
                        cwd=origin, check=False, capture_output=True, text=True)
+
+
+def test_nested_non_git_root_stays_isolated(tmp_path):
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init"], cwd=origin, check=True,
+                   capture_output=True, text=True)
+    isolated = origin / "isolated"
+    isolated.mkdir()
+
+    assert not (isolated / ".git").exists()
+    assert resolve_root(isolated) == isolated.resolve()
