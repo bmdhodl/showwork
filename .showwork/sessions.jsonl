@@ -101,3 +101,5 @@
 {"event": "session.finish", "session": "codex-pr37-ci-repair-20260807", "ts": "2026-08-07T21:52:11", "status": "ok", "claims_verdict": "GREEN", "prev": "76864e07c502414f8d2a64b08bb4f8e6e12769e423688b38526adc29a9a1a6ce"}
 {"event": "session.start", "session": "showwork-p3-ci-version-pin", "ts": "2026-07-29T02:58:55", "agent": "queue-worker", "prev": "7eae401afd66c7c32c5474af3d031bd06ee86d12a01e28df3a6f8a7e5875085f"}
 {"event": "session.finish", "session": "showwork-p3-ci-version-pin", "ts": "2026-07-29T03:06:15", "status": "ok", "claims_verdict": "GREEN", "prev": "7bf894dc4ae3f847152b19459f8d278469fe0077675b8e0b2118d42b646cb4d5"}
+{"event": "session.start", "session": "codex-pr37-runner-portability-20260807", "ts": "2026-08-07T22:05:49", "agent": "codex", "prev": "697fb5d38afd9a28ec7714308ad8b4cca04098f9c572ee1de8056457a72e5b67"}
+{"event": "session.finish", "session": "codex-pr37-runner-portability-20260807", "ts": "2026-08-07T22:06:25", "status": "ok", "claims_verdict": "GREEN", "prev": "04a1d381047d1cda7100e8701d529dd936d0a7c1d0141f10c7d21d84edc24921"}
