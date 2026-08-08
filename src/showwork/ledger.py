@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -30,16 +31,83 @@ _CLAIMS_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def resolve_root(root: str | Path | None = None) -> Path:
+    """Resolve a project root, anchoring linked worktrees to their origin.
+
+    A linked worktree has a worktree-specific ``git-dir`` but shares its
+    ``git-common-dir`` with the origin checkout. Receipts must live in the
+    origin checkout so deleting the worktree cannot delete the audit trail.
+    Non-git temporary directories remain valid roots for isolated tests and
+    standalone use cases.
+    """
     if root:
-        return Path(root).resolve()
-    env = os.environ.get(ROOT_ENV)
-    if env:
-        return Path(env).resolve()
-    return Path.cwd().resolve()
+        candidate = Path(root).resolve()
+    else:
+        env = os.environ.get(ROOT_ENV)
+        candidate = Path(env).resolve() if env else Path.cwd().resolve()
+    if not candidate.exists():
+        return candidate
+
+    git_marker = candidate / ".git"
+    if not git_marker.exists():
+        return candidate
+    try:
+        show_top = _git_value(candidate, "--show-toplevel")
+        git_dir = _git_value(candidate, "--git-dir")
+        common_dir = _git_value(candidate, "--git-common-dir")
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError) as exc:
+        # Preserve non-git roots such as pytest's tmp_path. A linked worktree
+        # has a .git file; if Git cannot resolve it, fail before writing.
+        if git_marker.is_file():
+            raise RuntimeError(
+                f"cannot resolve origin repository for worktree {candidate}: {exc}"
+            ) from exc
+        return candidate
+
+    top = Path(show_top).resolve()
+    git_dir_path = _resolve_git_path(git_dir, top)
+    common_dir_path = _resolve_git_path(common_dir, top)
+    if git_dir_path == common_dir_path:
+        return top
+
+    origin = common_dir_path.parent.resolve()
+    if not origin.is_dir():
+        raise RuntimeError(
+            f"origin repository is unavailable for worktree {candidate}: {origin}"
+        )
+    try:
+        origin_top = Path(_git_value(origin, "--show-toplevel")).resolve()
+    except (FileNotFoundError, subprocess.CalledProcessError, OSError) as exc:
+        raise RuntimeError(
+            f"origin repository is unavailable for worktree {candidate}: {origin}"
+        ) from exc
+    if origin_top != origin:
+        raise RuntimeError(
+            f"origin repository path mismatch for worktree {candidate}: "
+            f"expected {origin}, got {origin_top}"
+        )
+    return origin
+
+
+def _git_value(root: Path, flag: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", flag],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = result.stdout.strip()
+    if not value:
+        raise RuntimeError(f"git rev-parse {flag} returned no path for {root}")
+    return value
+
+
+def _resolve_git_path(value: str, base: Path) -> Path:
+    path = Path(value)
+    return path.resolve() if path.is_absolute() else (base / path).resolve()
 
 
 def ledger_dir(root: Path) -> Path:
-    return root / LEDGER_DIRNAME
+    return resolve_root(root) / LEDGER_DIRNAME
 
 
 def _today() -> str:
