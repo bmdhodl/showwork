@@ -405,7 +405,10 @@ def test_append_only_retraction(tmp_path):
                   "retraction_reason": "never happened"}
     state = evaluate_records([bad, retraction], tmp_path, label="t")
     assert state["verdict"] == "GREEN"
-    assert state["total"] == 1  # the retraction marker itself is not a claim
+    # The marker is not a claim, and the claim it retracted is withdrawn rather
+    # than outstanding, so nothing is left to score. The row is still rendered.
+    assert state["total"] == 0
+    assert len(state["results"]) == 1
     assert state["results"][0]["status"] == "skipped"
 
 
@@ -426,7 +429,10 @@ def test_reclaim_after_retraction_is_active(tmp_path):
     (tmp_path / "a.txt").write_text("x", encoding="utf-8")
     reclaimed = claim({"type": "file_exists", "path": "a.txt"}, text="I made a file")
     state = evaluate_records([bad, retraction, reclaimed], tmp_path, label="t")
-    assert state["total"] == 2  # original + re-claim; marker is not a claim
+    # Only the live re-claim is scored. The marker is not a claim and the
+    # retracted original is withdrawn, but both still appear in the report.
+    assert state["total"] == 1
+    assert len(state["results"]) == 2
     assert state["results"][0]["status"] == "skipped"
     assert state["results"][1]["status"] == "pass"
     assert state["verdict"] == "GREEN"
@@ -560,3 +566,46 @@ def test_file_contains_reports_invalid_regex_not_timeout(tmp_path):
                             "pattern": "transition-[color,transform]x["}), tmp_path)
     assert r["status"] == "error"
     assert "did not finish" not in r["detail"]
+
+
+# ---------- report rendering ----------
+
+
+def test_passing_row_does_not_print_a_severity(tmp_path):
+    """REGRESSION: severity describes how bad a FAILURE would be, not the
+    outcome, and it defaults to RED when unset. Printing it on every row made a
+    clean run read as dirty - a passing claim that never set severity rendered
+    as `(file_exists, RED)`, so an audit whose live claims all passed still had
+    the word RED on every line."""
+    (tmp_path / "there.txt").write_text("x", encoding="utf-8")
+    rec = claim({"type": "file_exists", "path": "there.txt"})
+    del rec["severity"]  # unset -> defaults to RED
+    state = evaluate_records([rec], tmp_path, label="t")
+    assert state["verdict"] == "GREEN"
+    assert "RED" not in checks.render_report(state)
+
+
+def test_failing_row_still_prints_its_severity(tmp_path):
+    """The counterpart: on a failure the severity is the whole point, because
+    it decides whether the run is RED or YELLOW. It must not be lost."""
+    rec = claim({"type": "file_exists", "path": "missing.txt"}, severity="YELLOW")
+    report = checks.render_report(evaluate_records([rec], tmp_path, label="t"))
+    assert "YELLOW" in report
+
+
+def test_retracted_claims_leave_the_verified_ratio(tmp_path):
+    """REGRESSION: a retracted claim is skipped and can never pass, so counting
+    it in the denominator understates a clean run. Two live claims that both
+    pass must render 2/2, not 2/3."""
+    (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("x", encoding="utf-8")
+    live_a = claim({"type": "file_exists", "path": "a.txt"}, text="a")
+    live_b = claim({"type": "file_exists", "path": "b.txt"}, text="b")
+    dead = claim({"type": "file_exists", "path": "gone.txt"}, text="dead",
+                 retracted=True, retraction_reason="claimed the wrong file")
+    state = evaluate_records([live_a, live_b, dead], tmp_path, label="t")
+    assert state["verdict"] == "GREEN"
+    assert (state["passed"], state["total"]) == (2, 2)
+    assert "2/2 verified" in checks.render_report(state)
+    # The retracted claim is still shown, just not counted.
+    assert "dead" in checks.render_report(state)
