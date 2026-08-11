@@ -25,7 +25,7 @@ jobs:
           clean: false
 
       - name: Reset workspace and keep the Python environment
-        run: git clean -ffdx -e .venv
+        run: git clean -ffdx -e /.venv/
 
       - uses: actions/setup-python@v5
         with:
