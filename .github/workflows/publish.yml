@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, pc]
     environment: pypi
     permissions:
       contents: read
@@ -21,21 +21,31 @@ jobs:
       HAS_TOKEN: ${{ secrets.PYPI_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Reset workspace and keep the Python environment
+        run: git clean -ffdx -e .venv
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install build tools
-        run: python -m pip install --upgrade pip build
+      - name: Acquire the machine build slot
+        id: heavy-slot
+        shell: bash
+        run: |
+          token="$(/home/patri/actions-runners/bin/ci-heavy-slot acquire)"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies when inputs changed
+        run: bash scripts/ci/ensure-python-dependencies.sh
 
       - name: Run tests
-        run: |
-          python -m pip install -e . pytest
-          python -m pytest tests/ -q
+        run: .venv/bin/python -m pytest tests/ -q
 
       - name: Build package
-        run: python -m build
+        run: .venv/bin/python -m build
         env:
           SOURCE_DATE_EPOCH: "315532800"
 
@@ -51,3 +61,7 @@ jobs:
         with:
           packages-dir: dist/
           password: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Release the machine build slot
+        if: ${{ always() && steps.heavy-slot.outputs.token != '' }}
+        run: /home/patri/actions-runners/bin/ci-heavy-slot release "${{ steps.heavy-slot.outputs.token }}"

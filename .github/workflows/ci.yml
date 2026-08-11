@@ -8,18 +8,26 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, pc]
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          clean: false
 
-      - name: Create isolated Python environment
+      - name: Reset workspace and keep the Python environment
+        run: git clean -ffdx -e .venv
+
+      - name: Acquire the machine build slot
+        id: heavy-slot
+        shell: bash
         run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
+          token="$(/home/patri/actions-runners/bin/ci-heavy-slot acquire)"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
 
-      - name: Install showwork and test runner
-        run: .venv/bin/python -m pip install -e . pytest
+      - name: Install dependencies when inputs changed
+        run: bash scripts/ci/ensure-python-dependencies.sh
 
       - name: Run behavioral and conformance tests
         run: .venv/bin/python scripts/run_tests.py
@@ -27,8 +35,13 @@ jobs:
       - name: Verify the committed genesis receipt
         run: .venv/bin/showwork verify --session genesis --no-report
 
+      - name: Release the machine build slot
+        if: ${{ always() && steps.heavy-slot.outputs.token != '' }}
+        run: /home/patri/actions-runners/bin/ci-heavy-slot release "${{ steps.heavy-slot.outputs.token }}"
+
   conformance-js:
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, pc]
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -42,7 +55,8 @@ jobs:
         run: node js/showwork-audit/test.mjs
 
   receipts:
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, pc]
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
