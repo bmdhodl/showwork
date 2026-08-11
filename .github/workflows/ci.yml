@@ -17,7 +17,7 @@ jobs:
           clean: false
 
       - name: Reset workspace and keep the Python environment
-        run: git clean -ffdx -e .venv
+        run: git clean -ffdx -e /.venv/
 
       - name: Acquire the machine build slot
         id: heavy-slot
