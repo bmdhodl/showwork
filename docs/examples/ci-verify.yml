@@ -1,0 +1,49 @@
+# Example: GitHub Actions CI with showwork verify
+#
+# Add this to .github/workflows/ci.yml to gate your CI on showwork receipts.
+# The job fails when the chain is broken, when claims are RED, or when the
+# session closed with --no-verify.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Run tests
+        run: pytest tests/
+
+  # Verify the committed showwork receipts
+  receipts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Verify the integrity chain and one session's claims
+      - uses: bmdhodl/showwork/actions/verify@v0.3.0
+        with:
+          session: my-agent-session
+          # allow-commands: false (default, fork-safe)
+
+  # Chain audit only (no session check)
+  audit-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bmdhodl/showwork/actions/verify@v0.3.0
+        # Omit 'session' to audit the chain only

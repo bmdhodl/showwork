@@ -1,6 +1,7 @@
 # showwork
 
 [![CI](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml/badge.svg)](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/showwork.svg)](https://pypi.org/project/showwork/)
 
 **Make your AI agents show their work.**
 
