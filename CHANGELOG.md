@@ -4,6 +4,33 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+## 0.3.1 - 2026-08-14
+
+Correctness and security hardening, plus production hygiene on the self-hosted CI runner.
+
+- **`showwork run --max-seconds N`** - wall-clock ceiling for the run wrapper; the
+  child is terminated and `budget_exceeded` is recorded when the envelope trips
+  (commit e8fa3fc).
+- **ReDoS defense in `file_contains`** - regex evaluation is bounded against
+  catastrophic backtracking; patterns exceeding the safety limit are rejected
+  upfront (commit f8000bb).
+- **Audit-report coloring** - a GREEN session no longer paints RED in the report
+  header when the file also contains other sessions' retractions (commit d09027a).
+- **Worktree receipt persistence** - claims recorded from a git linked worktree now
+  persist correctly to the canonical `.showwork/` directory instead of the
+  worktree-local path (commit 0873ca3).
+- **CI runner optimization** - self-hosted WSL runner hygiene: cached workflow
+  directories are pruned, lightweight checks run outside the machine build slot,
+  and the local runner setup is optimized (commits 7e54596, a7013ea, 2d12d08).
+- **Documentation** - added ARCHITECTURE.md situating showwork's layers (commit
+  94a8348); pinned the verify action example to `@v0.3.0` instead of `@main`
+  (commit ae4fe94); and positioned showwork against the "Code as Agent Harness"
+  survey's verification problem (commit 59cb472).
+- **Public calibration dashboard** - sanitized aggregate metrics page (commit
+  5d6cb19).
+
+All changes are backward-compatible. The ledger format (spec-v0.2) is unchanged.
+
 ## 0.3.0 - 2026-07-18
 
 Adds the enforcement half. The ledger proved what an agent claimed; this stops

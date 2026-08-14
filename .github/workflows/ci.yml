@@ -28,6 +28,9 @@ jobs:
       - name: Verify the committed genesis receipt
         run: .venv/bin/showwork verify --session genesis --no-report
 
+      - name: Verify the integrity chain
+        run: .venv/bin/showwork verify
+
   conformance-js:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, x64, pc]

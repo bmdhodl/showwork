@@ -1,0 +1,17 @@
+{
+  "_comment": "Add this to .claude/settings.json to install the showwork Stop hook.",
+  "_comment2": "Claude Code sends the payload on standard input; showwork verifies the session and records the verdict.",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m showwork.cli stop-hook"
+          }
+        ]
+      }
+    ]
+  }
+}

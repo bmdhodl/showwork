@@ -108,3 +108,5 @@
 {"event": "session.start", "session": "wsl-runner-efficiency", "ts": "2026-08-10T21:48:54", "agent": "codex", "prev": "3d0c8ce7ecdaeeac14b357ee6cb63ac47e1da6ac6388db5482980bc36ed97a7c"}
 {"event": "session.finish.refused", "session": "wsl-runner-efficiency", "ts": "2026-08-10T23:23:20", "status": "ok", "claims_verdict": "RED", "note": "Local runner workflow and dependency reuse verified.", "prev": "73ad7ffb91ed52404bf7775110f88c658ce313c4ffdd3bfb46db1e6f4e31637c"}
 {"event": "session.finish", "session": "wsl-runner-efficiency", "ts": "2026-08-10T23:23:46", "status": "ok", "claims_verdict": "YELLOW", "note": "Local runner workflow and dependency reuse verified.", "prev": "5e74f1997a9c4be4c8f2490f23c627d8d898219968ec6b1be41dd4c5dd11e880"}
+{"event": "session.start", "session": "release-031-prep", "ts": "2026-08-14T02:54:16", "agent": "claude-code", "prev": "cd743a28f6357ea9b8f90d732ed411baf1ddd9f842dc866d67ff0dfa29f63ef0"}
+{"event": "session.finish", "session": "release-031-prep", "ts": "2026-08-14T02:56:33", "status": "ok", "claims_verdict": "GREEN", "prev": "c52d5d10df14bc1d76dcd554bce4ae472296705fe20500d13cfd88cb1b2ffd3c"}
