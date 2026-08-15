@@ -312,3 +312,5 @@
 {"event": "session.finish", "session": "evidence-pack-field-budget-crossover-r21-20260815", "ts": "2026-08-15T18:19:00", "status": "ok", "claims_verdict": "GREEN", "prev": "bb676fc4710d9f0aee41167521264dec4315477b99017eb51b099dfc5c745369"}
 {"event": "session.finish", "session": "public-proof-snippet-answerability-r21-20260815", "ts": "2026-08-15T18:19:00", "status": "ok", "claims_verdict": "GREEN", "prev": "c46287fa07db2c99d0164bcb8736b42714dc3438577357e7f29d0c3d57490bfd"}
 {"event": "session.finish", "session": "public-proof-traffic-signal-separation-r21-20260815", "ts": "2026-08-15T18:19:01", "status": "ok", "claims_verdict": "GREEN", "prev": "eb8fbb35ff3bee333d5dfbb9399fcfd2abb549b65e57536e748db207fdc576f5"}
+{"event": "session.start", "session": "release-workflow-action-pin-hardening-20260815", "ts": "2026-08-15T18:22:22", "agent": "codex", "prev": "c0d76c823e67fe8c0ade520f4108fd44d4c0fea912c60db45aa9bda2039f7964"}
+{"event": "session.finish", "session": "release-workflow-action-pin-hardening-20260815", "ts": "2026-08-15T18:24:12", "status": "ok", "claims_verdict": "GREEN", "prev": "7f92779d6203be7fd410942008f1b2d71e5d912e337db40b2dc622173a990f5b"}

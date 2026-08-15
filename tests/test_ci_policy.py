@@ -55,3 +55,17 @@ def test_ci_checkout_and_documentation_preserve_pin_boundary():
     docs = read_repo_file("docs", "ci.md")
     assert re.search(r"uses: actions/checkout@[0-9a-f]{40}", workflow)
     assert "Do not run `@main` in a gate you trust." in docs
+
+
+def test_publish_workflow_pins_external_actions():
+    workflow = read_repo_file(".github", "workflows", "publish.yml")
+    expected = {
+        "actions/checkout": "11bd71901bbe5b1630ceea73d27597364c9af683",
+        "actions/setup-python": "a26af69be951a213d495a4c3e4e4022e16d87065",
+        "pypa/gh-action-pypi-publish": "dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
+    }
+    for action, sha in expected.items():
+        assert f"{action}@{sha}" in workflow
+    assert not re.search(
+        r"^\s+uses:\s+[^@\s]+@(?:v\d|release/)", workflow, re.MULTILINE
+    )

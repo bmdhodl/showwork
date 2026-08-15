@@ -4,6 +4,10 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **PyPI publish workflow pinning** - pinned checkout, Python setup, and PyPI
+  publishing actions to audited commit SHAs; the owner-gated release path keeps
+  the same behavior while avoiding floating action refs.
+
 ## 0.3.1 - 2026-08-14
 
 Correctness and security hardening, plus production hygiene on the self-hosted CI runner.
