@@ -112,3 +112,5 @@
 {"event": "session.finish", "session": "release-031-prep", "ts": "2026-08-14T02:56:33", "status": "ok", "claims_verdict": "GREEN", "prev": "c52d5d10df14bc1d76dcd554bce4ae472296705fe20500d13cfd88cb1b2ffd3c"}
 {"event": "session.start", "session": "continuous-development-2026-08-15", "ts": "2026-08-15T12:12:37", "agent": "codex", "prev": "cd743a28f6357ea9b8f90d732ed411baf1ddd9f842dc866d67ff0dfa29f63ef0"}
 {"event": "session.finish", "session": "continuous-development-2026-08-15", "ts": "2026-08-15T12:21:44", "status": "ok", "claims_verdict": "GREEN", "prev": "8d2d50f0fd102577c921d2a342059eaef9aad980cb05206288012b2558f6856a"}
+{"event": "session.start", "session": "release-packaging-metadata-2026-08-15", "ts": "2026-08-15T12:29:12", "agent": "codex", "prev": "4c8f0c3319341bb32aec28784c51212cb1f9dadb7ad6df223f8603d191c9ea96"}
+{"event": "session.finish", "session": "release-packaging-metadata-2026-08-15", "ts": "2026-08-15T12:31:58", "status": "ok", "claims_verdict": "GREEN", "prev": "8e1079e876df0906d7972181e9a1c0190fbfcdb3f51ba08c40ee432e123fae2c"}
