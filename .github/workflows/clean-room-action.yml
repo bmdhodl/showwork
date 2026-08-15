@@ -1,0 +1,143 @@
+name: Clean-room action integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fixture:
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, linux, x64, pc]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: green receipt
+            case: green
+            session: clean-room-green
+            expected: success
+          - name: tampered receipt
+            case: tampered
+            session: clean-room-tampered
+            expected: failure
+          - name: red claim
+            case: red
+            session: clean-room-red
+            expected: failure
+          - name: missing finish
+            case: missing-close
+            session: clean-room-missing-close
+            expected: failure
+          - name: fork-safe command policy
+            case: fork-safe
+            session: clean-room-fork-safe
+            expected: success
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Build disposable fixture
+        id: fixture
+        shell: bash
+        env:
+          CASE: ${{ matrix.case }}
+          SESSION: ${{ matrix.session }}
+        run: |
+          set -euo pipefail
+          PY="$(command -v python || command -v python3)"
+          FIXTURE="${RUNNER_TEMP}/showwork-clean-room-${GITHUB_RUN_ID}-${CASE}"
+          rm -rf -- "$FIXTURE"
+          mkdir -p -- "$FIXTURE"
+          printf 'fixture=%s\n' "$FIXTURE" >> "$GITHUB_OUTPUT"
+          export PYTHONPATH="$GITHUB_WORKSPACE/src"
+
+          echo "fixture root: $FIXTURE"
+          echo "case: $CASE"
+          echo "session: $SESSION"
+          "$PY" -m showwork.cli --root "$FIXTURE" start --session "$SESSION" --agent codex
+
+          case "$CASE" in
+            green)
+              printf 'green\n' > "$FIXTURE/ready.txt"
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'ready fixture exists' --type file_exists --path ready.txt
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
+              ;;
+            tampered)
+              printf 'tamper\n' > "$FIXTURE/ready.txt"
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'tamper fixture exists' --type file_exists --path ready.txt
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
+              "$PY" - "$FIXTURE/.showwork/sessions.jsonl" <<'PY'
+          from pathlib import Path
+          import sys
+
+          ledger = Path(sys.argv[1])
+          text = ledger.read_text(encoding="utf-8")
+          needle = "tamper fixture exists"
+          assert text.count(needle) == 1
+          ledger.write_text(text.replace(needle, "tamper fixture altered", 1), encoding="utf-8")
+          print(f"tampered ledger: {ledger}")
+          PY
+              ;;
+            red)
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'missing fixture exists' --type file_exists --path missing.txt
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status blocked
+              ;;
+            missing-close)
+              printf 'no close\n' > "$FIXTURE/ready.txt"
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'unclosed fixture exists' --type file_exists --path ready.txt
+              ;;
+            fork-safe)
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'fork command is locked' --type command \
+                --command-arg "$PY" --command-arg -c --command-arg "print('ok')" \
+                --expect-exit 0 --stdout-contains ok
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
+              ;;
+            *)
+              echo "unknown case: $CASE" >&2
+              exit 2
+              ;;
+          esac
+
+          echo "ledger files:"
+          find "$FIXTURE/.showwork" -maxdepth 1 -type f -printf '%p\n' | sort
+
+      - name: Run the action against the fixture
+        id: gate
+        continue-on-error: true
+        uses: ./actions/verify
+        with:
+          root: ${{ steps.fixture.outputs.fixture }}
+          session: ${{ matrix.session }}
+
+      - name: Assert the expected gate result and print the summary
+        if: always()
+        shell: bash
+        env:
+          ACTUAL: ${{ steps.gate.outcome }}
+          EXPECTED: ${{ matrix.expected }}
+          FIXTURE: ${{ steps.fixture.outputs.fixture }}
+        run: |
+          set -euo pipefail
+          echo "action outcome: $ACTUAL"
+          echo "expected outcome: $EXPECTED"
+          test "$ACTUAL" = "$EXPECTED"
+          echo '--- action step summary ---'
+          cat "$GITHUB_STEP_SUMMARY"
+          echo '--- receipt paths ---'
+          find "$FIXTURE/.showwork" -maxdepth 1 -type f -printf '%p\n' | sort
+
+      - name: Prove fixture cleanup
+        if: always()
+        shell: bash
+        env:
+          FIXTURE: ${{ steps.fixture.outputs.fixture }}
+        run: |
+          set -euo pipefail
+          test -n "$FIXTURE"
+          rm -rf -- "$FIXTURE"
+          test ! -e "$FIXTURE"
+          echo "cleanup verified: $FIXTURE"
