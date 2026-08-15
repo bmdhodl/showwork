@@ -29,6 +29,14 @@ GENESIS_PREFIX = "showwork:genesis:"
 # hostile --date cannot turn claims_path into a multi-segment escape.
 _CLAIMS_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
+# Appends are usually serialized within one agent process. Cache the last
+# record hash for that hot path, while using file metadata to notice an append
+# from another process and fall back to the full, correctness-first scan.
+# The cache is an optimization only: audit remains the authority for ledger
+# integrity, and a changed file that is not noticed by the filesystem still
+# produces a broken chain on the next audit.
+_PREV_HASH_CACHE: dict[Path, tuple[int, int, str]] = {}
+
 
 def resolve_root(root: str | Path | None = None) -> Path:
     """Resolve a project root, anchoring linked worktrees to their origin.
@@ -223,15 +231,29 @@ def _record_lines(path: Path) -> list[str]:
 
 
 def _prev_hash(path: Path) -> str:
+    key = path.resolve()
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return genesis_hash(path)
+    cached = _PREV_HASH_CACHE.get(key)
+    fingerprint = (stat.st_size, stat.st_mtime_ns)
+    if cached and cached[:2] == fingerprint:
+        return cached[2]
     lines = _record_lines(path)
-    return line_hash(lines[-1]) if lines else genesis_hash(path)
+    previous = line_hash(lines[-1]) if lines else genesis_hash(path)
+    _PREV_HASH_CACHE[key] = (*fingerprint, previous)
+    return previous
 
 
 def _append(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     record["prev"] = _prev_hash(path)
+    line = json.dumps(record, ensure_ascii=False)
     with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        f.write(line + "\n")
+    stat = path.stat()
+    _PREV_HASH_CACHE[path.resolve()] = (stat.st_size, stat.st_mtime_ns, line_hash(line))
 
 
 def _read_jsonl(path: Path) -> list[dict]:

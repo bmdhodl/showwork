@@ -33,6 +33,37 @@ def test_append_adds_prev_hash(tmp_path):
     assert second["prev"] == line_hash(_lines(path)[0])
 
 
+def test_append_cache_reuses_last_hash(monkeypatch, tmp_path):
+    import showwork.ledger as ledger
+
+    record_claim(tmp_path, "s", "first")
+
+    def unexpected_full_scan(_path):
+        raise AssertionError("cached append unexpectedly rescanned the ledger")
+
+    monkeypatch.setattr(ledger, "_record_lines", unexpected_full_scan)
+    record_claim(tmp_path, "s", "second")
+
+
+def test_append_cache_invalidates_after_external_append(tmp_path):
+    record_claim(tmp_path, "s", "first")
+    path = _claims_file(tmp_path)
+    lines = _lines(path)
+    external = {
+        "session": "external",
+        "ts": "2026-01-01T00:00:00",
+        "claim": "external append",
+        "severity": "RED",
+        "prev": line_hash(lines[-1]),
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(external) + "\n")
+
+    record_claim(tmp_path, "s", "third")
+    records = [json.loads(line) for line in _lines(path)]
+    assert records[-1]["prev"] == line_hash(_lines(path)[-2])
+
+
 def test_audit_green_on_untampered_ledger(tmp_path):
     record_claim(tmp_path, "s", "one")
     record_event(tmp_path, "session.start", "s")
