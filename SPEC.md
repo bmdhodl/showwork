@@ -171,6 +171,26 @@ When `SHOWWORK_NO_NETWORK` is set, the checker MUST [test:
 tests/test_checks.py::test_http_probe_disabled_by_no_network_env] refuse the
 request and return an error.
 
+### `git_state`
+
+```json
+{"type":"git_state","clean":true,"branch":"main","commit":"1243490"}
+```
+
+The checker MUST [test: tests/test_checks.py::test_git_state_requires_non_vacuous_expectation]
+require at least one of `clean`, `branch`, or `commit`. It MUST [test:
+tests/test_checks.py::test_git_state_validates_fields] reject a non-boolean
+`clean`, an empty branch, and a commit value that is not a hexadecimal prefix
+of at least seven characters. A `clean` assertion MUST [test:
+tests/test_checks.py::test_git_state_detects_dirty_tree_and_mismatches] compare
+the working tree's tracked and untracked status exactly. A `branch` assertion
+MUST [test: tests/test_checks.py::test_git_state_detects_dirty_tree_and_mismatches]
+compare the current branch name exactly, and a `commit` assertion MUST [test:
+tests/test_checks.py::test_git_state_happy_path] pass when HEAD starts with the
+declared hexadecimal prefix. A non-repository root or failed Git query MUST
+[test: tests/test_checks.py::test_git_state_errors_outside_repository] return
+an error.
+
 ## Integrity chain (`spec-v0.2`)
 
 Append-only stops being a promise and becomes provable. Every record a
@@ -306,7 +326,7 @@ An implementation conforms to `spec-v0.2` when:
 - every appended record extends the integrity chain, and audits detect
   tampering, deletion, and unchained appends while accepting concurrent forks
   (a `prev` re-anchored to an earlier line) as GREEN and reporting them;
-- all seven checker semantics and anti-vacuous rules match this document;
+- all eight checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - parse and checker errors stay visible.
 

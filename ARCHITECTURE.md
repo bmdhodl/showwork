@@ -45,7 +45,7 @@ Three rules drive every design decision below:
 | File | Role |
 |---|---|
 | `src/showwork/ledger.py` | Append-only storage, record framing, hash chain writes, session lifecycle, the `finish` gate |
-| `src/showwork/checks.py` | The seven deterministic checkers, the verification driver, verdict algebra, retraction resolution |
+| `src/showwork/checks.py` | The eight deterministic checkers, the verification driver, verdict algebra, retraction resolution |
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
 | `src/showwork/cli.py` | Argument parsing and the ten subcommands; exit codes |
 | `src/showwork/hooks.py` | Stop-hook adapter. Observes, never gates |
@@ -194,7 +194,7 @@ whole file into one YELLOW record instead of raising.
 
 ## Check types
 
-All seven live in `checks.py` and are registered in the `CHECKERS` dict. Each
+All eight live in `checks.py` and are registered in the `CHECKERS` dict. Each
 returns `(status, detail)` where status is `pass`, `fail`, or `error`.
 
 `error` is not a synonym for `fail`. A failed check means the claim is false. A
@@ -208,7 +208,7 @@ empty path raises `PathArgError` (reported as `error`). A path that resolves
 outside the project root raises `PathEscapeError` (reported as `fail`, since a
 claim reaching outside the root is a bad claim, not an unevaluable one).
 
-### The seven
+### The eight
 
 | Type | Fields | Passes when |
 |---|---|---|
@@ -219,6 +219,7 @@ claim reaching outside the root is a bad claim, not an unevaluable one).
 | `glob_count` | `pattern`, `op`, `n` | `root.glob(pattern)` count satisfies `== >= <= > <` |
 | `command` | `argv`, `expect_exit?`, `stdout_contains?` | The locked command exits as expected and optional stdout text is present |
 | `http_probe` | `url`, `expect_status`, `body_contains?` | An HTTP(S) response has the exact status and optional UTF-8 body bytes; redirects are not followed |
+| `git_state` | `clean?`, `branch?`, `commit?` | At least one requested local Git assertion matches |
 
 `frontmatter` normalizes the expected value before comparing:
 `_frontmatter_equals_str()` maps JSON `true`/`false`/`null` to their lowercase
@@ -269,6 +270,14 @@ responses remain inspectable, which makes intentional 404/401 probes useful.
 `SHOWWORK_NO_NETWORK=1` disables requests and reports an error. The verify Action
 sets this by default; `allow-network: true` is an explicit opt-in for trusted
 same-repository workflows.
+
+### The Git state probe
+
+`chk_git_state()` makes only fixed `git status`, `git branch --show-current`,
+and `git rev-parse --verify HEAD` queries. It never accepts command arguments
+from the ledger and never invokes a shell. `clean` includes tracked changes and
+untracked files, `branch` is exact, and `commit` accepts a non-vacuous hex prefix
+of the current HEAD. A missing repository or failed query is an error.
 
 ## Verdict algebra and exit codes
 
@@ -576,7 +585,8 @@ Things that are absent on purpose, so nobody adds them back by accident:
 
 ## Tests
 
-`python -m pytest tests/ -q` is the gate. 203 tests as of v0.3.0, all
+`python -m pytest tests/ -q` is the gate. The current test count is recorded by
+the self-dogfood receipt, all
 behavioral. `scripts/run_tests.py` wraps the same run so the ledger can carry a
 locked `command` claim asserting the suite is green.
 

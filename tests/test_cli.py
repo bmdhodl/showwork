@@ -197,6 +197,21 @@ def test_http_probe_claim_flags_are_recorded(tmp_path):
     }
 
 
+def test_git_state_claim_flags_are_recorded(tmp_path):
+    assert run(
+        tmp_path,
+        "claim", "--session", "s-git", "--claim", "tree is clean",
+        "--type", "git_state", "--clean", "--branch", "main",
+        "--commit", "abcdef123456",
+    ) == 0
+    claims = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    record = json.loads(claims.read_text(encoding="utf-8").splitlines()[0])
+    assert record["check"] == {
+        "type": "git_state", "clean": True, "branch": "main",
+        "commit": "abcdef123456",
+    }
+
+
 def test_invalid_check_json_is_clean_error(tmp_path):
     """Malformed --check-json must not raise an uncaught JSONDecodeError.
 

@@ -48,7 +48,7 @@ from .ledger import (
 SESSION_ENV = "SHOWWORK_SESSION"
 
 CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
-               "glob_count", "command", "http_probe"]
+               "glob_count", "command", "http_probe", "git_state"]
 
 
 def _build_check(args: argparse.Namespace) -> dict | None:
@@ -90,6 +90,15 @@ def _build_check(args: argparse.Namespace) -> dict | None:
              "expect_status": _req(args, "expect_status")}
         if args.body_contains is not None:
             c["body_contains"] = args.body_contains
+        return c
+    if t == "git_state":
+        c = {"type": t}
+        if args.clean:
+            c["clean"] = True
+        if args.branch is not None:
+            c["branch"] = args.branch
+        if args.commit is not None:
+            c["commit"] = args.commit
         return c
     raise SystemExit(f"unknown check type {t!r}")
 
@@ -175,6 +184,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--url")
     p.add_argument("--expect-status", dest="expect_status", type=int)
     p.add_argument("--body-contains", dest="body_contains")
+    p.add_argument("--clean", action="store_true")
+    p.add_argument("--branch")
+    p.add_argument("--commit")
 
     p = sub.add_parser("retract", help="append-only retraction of an earlier claim")
     p.add_argument("--session", required=True)
