@@ -2,6 +2,7 @@
 
 import json
 import http.server
+import subprocess
 import threading
 from contextlib import contextmanager
 
@@ -47,6 +48,28 @@ def local_http_server():
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def make_git_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    git("init", "-b", "main")
+    git("config", "user.name", "showwork tests")
+    git("config", "user.email", "showwork-tests@example.invalid")
+    (repo / "README.md").write_text("clean repository\n", encoding="utf-8")
+    git("add", "README.md")
+    git("commit", "-m", "initial commit")
+    commit = git("rev-parse", "HEAD").stdout.strip()
+    return repo, commit
 
 
 def claim(check=None, severity="RED", **extra):
@@ -462,6 +485,63 @@ def test_http_probe_disabled_by_no_network_env(tmp_path, monkeypatch):
         )
     assert status == "error"
     assert "SHOWWORK_NO_NETWORK" in detail
+
+
+# ---------- git_state ----------
+
+def test_git_state_happy_path(tmp_path):
+    repo, commit = make_git_repo(tmp_path)
+    result = verify_claim(
+        claim({"type": "git_state", "clean": True, "branch": "main",
+               "commit": commit[:12]}),
+        repo,
+    )
+    assert result["status"] == "pass", result
+
+
+def test_git_state_detects_dirty_tree_and_mismatches(tmp_path):
+    repo, commit = make_git_repo(tmp_path)
+    (repo / "uncommitted.txt").write_text("not committed\n", encoding="utf-8")
+
+    dirty = verify_claim(claim({"type": "git_state", "clean": True}), repo)
+    wrong_branch = verify_claim(
+        claim({"type": "git_state", "branch": "release"}), repo
+    )
+    wrong_commit = verify_claim(
+        claim({"type": "git_state", "commit": "0" * 12}), repo
+    )
+    assert dirty["status"] == "fail"
+    assert wrong_branch["status"] == "fail"
+    assert wrong_commit["status"] == "fail"
+    assert commit
+
+
+def test_git_state_requires_non_vacuous_expectation(tmp_path):
+    repo, _ = make_git_repo(tmp_path)
+    result = verify_claim(claim({"type": "git_state"}), repo)
+    assert result["status"] == "error"
+    assert "at least one" in result["detail"]
+
+
+def test_git_state_validates_fields(tmp_path):
+    repo, _ = make_git_repo(tmp_path)
+    checks_to_reject = (
+        {"clean": 1},
+        {"branch": ""},
+        {"commit": "abc"},
+        {"commit": "not-a-commit"},
+    )
+    for fields in checks_to_reject:
+        result = verify_claim(claim({"type": "git_state", **fields}), repo)
+        assert result["status"] == "error", (fields, result)
+
+
+def test_git_state_errors_outside_repository(tmp_path):
+    result = verify_claim(
+        claim({"type": "git_state", "clean": True}),
+        tmp_path / "missing-git-root",
+    )
+    assert result["status"] == "error"
 
 
 # ---------- command (locked) ----------

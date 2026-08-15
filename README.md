@@ -78,12 +78,17 @@ showwork verify --session deploy-fix --json
 | `glob_count` | a glob's match count satisfies `== >= <= > <` |
 | `command` | a **locked** command exits as expected (`python <script under project root>` only — no shell, no metacharacters, no escape) |
 | `http_probe` | an HTTP(S) endpoint returns an exact status and optional body substring, with redirects disabled |
+| `git_state` | the local tree is clean/dirty, on an exact branch, or at a commit prefix |
 
 Vacuous checks are rejected, not blessed: a regex that matches the empty string, or a glob count that's always true (`>= 0`), returns an error instead of a pass. A checker that lets an agent record a bogus "done" is worse than no checker.
 
 `http_probe` uses a fixed timeout and response-size cap. Network checks are
 disabled by default in the GitHub Action for fork safety; enable them only for
 trusted same-repository workflows with `allow-network: true`.
+
+`git_state` runs fixed, non-shell Git queries against the declared project root.
+It accepts at least one of `clean`, `branch`, or a seven-plus-character commit
+prefix, so an empty check cannot pass as proof.
 
 ## Tamper-evident by construction (v0.2)
 
@@ -208,7 +213,7 @@ The survey predates this package and does not cite it. It is context for the pro
 
 - More coding-agent adapters (OpenAI Agents SDK / LangGraph middleware)
 - Event stream + point-in-time replay
-- More check types (git state)
+- More check types as real outcome gaps emerge
 - False Done Rate at study scale: controlled task sets, per-model corpora
 - Detached signing of ledger heads (external timestamp anchoring)
 

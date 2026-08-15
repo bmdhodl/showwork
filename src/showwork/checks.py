@@ -20,6 +20,8 @@ Check types:
                   # No shell, no metacharacters, no `..` escape, no PowerShell.
     http_probe    {url, expect_status, body_contains?: str}
                   # Fixed timeout, bounded response, no redirects, HTTP(S) only.
+    git_state     {clean?: bool, branch?: str, commit?: hex prefix}
+                  # Fixed git subcommands; at least one assertion is required.
 
 Vacuous checks are rejected, not blessed: a regex that matches the empty
 string proves nothing, and a glob count that is always true (>= 0) proves
@@ -59,6 +61,7 @@ NO_NETWORK_ENV = "SHOWWORK_NO_NETWORK"
 
 HTTP_TIMEOUT_S = 10
 MAX_HTTP_BODY_BYTES = 1024 * 1024
+GIT_TIMEOUT_S = 10
 
 EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 
@@ -428,6 +431,77 @@ def chk_http_probe(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", detail)
 
 
+def _run_git(root: Path, args: list[str]) -> tuple[str, str]:
+    """Run one fixed, non-shell Git query against the declared project root."""
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(root), "-c", "core.fsmonitor=false",
+             "--no-optional-locks", *args],
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return ("error", f"git_state command failed: {exc}")
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or "unknown Git error"
+        return ("error", f"git_state command failed: {detail[:300]}")
+    return ("pass", proc.stdout)
+
+
+def chk_git_state(c: dict, root: Path) -> tuple[str, str]:
+    """Verify selected local Git state without accepting claim-supplied argv."""
+    requested = {key for key in ("clean", "branch", "commit") if key in c}
+    if not requested:
+        return ("error", "git_state requires at least one assertion: clean, branch, or commit")
+
+    if "clean" in c and not isinstance(c["clean"], bool):
+        return ("error", "git_state.clean must be a boolean")
+    if "branch" in c and (not isinstance(c["branch"], str) or c["branch"] == ""):
+        return ("error", "git_state.branch must be a non-empty string")
+    expected_commit = c.get("commit")
+    if "commit" in c and (
+        not isinstance(expected_commit, str)
+        or re.fullmatch(r"[0-9a-fA-F]{7,64}", expected_commit) is None
+    ):
+        return ("error", "git_state.commit must be a hexadecimal prefix of at least 7 characters")
+
+    if "clean" in requested:
+        status, output = _run_git(root, ["status", "--porcelain=v1", "--untracked-files=all"])
+        if status == "error":
+            return (status, output)
+        actual_clean = output == ""
+        if actual_clean != c["clean"]:
+            state = "clean" if actual_clean else "dirty"
+            expected = "clean" if c["clean"] else "dirty"
+            return ("fail", f"working tree is {state}, expected {expected}")
+
+    if "branch" in requested:
+        status, output = _run_git(root, ["branch", "--show-current"])
+        if status == "error":
+            return (status, output)
+        actual_branch = output.strip()
+        if actual_branch != c["branch"]:
+            return ("fail", f"branch {actual_branch!r}, expected {c['branch']!r}")
+
+    if "commit" in requested:
+        status, output = _run_git(root, ["rev-parse", "--verify", "HEAD"])
+        if status == "error":
+            return (status, output)
+        actual_commit = output.strip().lower()
+        if not actual_commit.startswith(expected_commit.lower()):
+            return ("fail", f"commit {actual_commit[:12]!r}, expected prefix {expected_commit!r}")
+
+    details = []
+    if "clean" in requested:
+        details.append("clean" if c["clean"] else "dirty")
+    if "branch" in requested:
+        details.append(f"branch={c['branch']}")
+    if "commit" in requested:
+        details.append(f"commit={expected_commit}")
+    return ("pass", "Git state matches: " + ", ".join(details))
+
+
 CHECKERS = {
     "file_exists": chk_file_exists,
     "file_contains": chk_file_contains,
@@ -436,6 +510,7 @@ CHECKERS = {
     "glob_count": chk_glob_count,
     "command": chk_command,
     "http_probe": chk_http_probe,
+    "git_state": chk_git_state,
 }
 
 
