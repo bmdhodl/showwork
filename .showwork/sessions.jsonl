@@ -324,3 +324,5 @@
 {"event": "session.finish", "session": "evidence-pack-threshold-reproducibility-r22-20260815", "ts": "2026-08-15T18:29:19", "status": "ok", "claims_verdict": "GREEN", "prev": "7a9ec150720d0738052ec50fa9859094336a83ebbd7233c4363186e825c2fcb7"}
 {"event": "session.finish", "session": "public-install-intent-vs-adoption-r22-20260815", "ts": "2026-08-15T18:29:19", "status": "ok", "claims_verdict": "GREEN", "prev": "a130cd1c5e80b1e8ac498de9493c4a7d345087ab35c5658bae2d0e85bc55c605"}
 {"event": "session.finish", "session": "proof-surface-market-comparison-r22-20260815", "ts": "2026-08-15T18:29:19", "status": "ok", "claims_verdict": "GREEN", "prev": "594d99bfc6a4f8beab5afaa5363ffa820ad5047966509e1a93a64d6190c13610"}
+{"event": "session.start", "session": "release-candidate-build-verification-20260815", "ts": "2026-08-15T18:32:18", "agent": "codex", "prev": "73384102d48c659e65e1e2deff8ad7531255f13fcac8e5f50d306ec24f671034"}
+{"event": "session.finish", "session": "release-candidate-build-verification-20260815", "ts": "2026-08-15T18:35:24", "status": "ok", "claims_verdict": "GREEN", "prev": "3d7baa74c8563789a7d03ff79055bb0e62129d1e352e11e6ecc127dbc65c63c8"}
