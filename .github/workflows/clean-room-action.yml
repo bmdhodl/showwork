@@ -1,10 +1,12 @@
 name: Clean-room action integration
 
 on:
+  pull_request:
   workflow_dispatch:
 
 jobs:
   fixture:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: ${{ matrix.name }}
     runs-on: [self-hosted, linux, x64, pc]
     strategy:
