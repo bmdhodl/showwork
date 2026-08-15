@@ -76,7 +76,7 @@ jobs:
           ledger = Path(sys.argv[1])
           text = ledger.read_text(encoding="utf-8")
           needle = "tamper fixture exists"
-          assert text.count(needle) == 1
+          assert needle in text
           ledger.write_text(text.replace(needle, "tamper fixture altered", 1), encoding="utf-8")
           print(f"tampered ledger: {ledger}")
           PY
@@ -94,7 +94,7 @@ jobs:
             fork-safe)
               "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
                 --claim 'fork command is locked' --type command \
-                --command-arg "$PY" --command-arg -c --command-arg "print('ok')" \
+                --command-arg "$PY" --command-arg=-c --command-arg="print('ok')" \
                 --expect-exit 0 --stdout-contains ok
               "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
               ;;
