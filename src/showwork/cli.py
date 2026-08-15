@@ -48,7 +48,7 @@ from .ledger import (
 SESSION_ENV = "SHOWWORK_SESSION"
 
 CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
-               "glob_count", "command"]
+               "glob_count", "command", "http_probe"]
 
 
 def _build_check(args: argparse.Namespace) -> dict | None:
@@ -84,6 +84,12 @@ def _build_check(args: argparse.Namespace) -> dict | None:
             c["expect_exit"] = args.expect_exit
         if args.stdout_contains:
             c["stdout_contains"] = args.stdout_contains
+        return c
+    if t == "http_probe":
+        c = {"type": t, "url": _req(args, "url"),
+             "expect_status": _req(args, "expect_status")}
+        if args.body_contains is not None:
+            c["body_contains"] = args.body_contains
         return c
     raise SystemExit(f"unknown check type {t!r}")
 
@@ -166,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="repeat per argv token, e.g. --command-arg python --command-arg scripts/check.py")
     p.add_argument("--expect-exit", dest="expect_exit", type=int)
     p.add_argument("--stdout-contains", dest="stdout_contains")
+    p.add_argument("--url")
+    p.add_argument("--expect-status", dest="expect_status", type=int)
+    p.add_argument("--body-contains", dest="body_contains")
 
     p = sub.add_parser("retract", help="append-only retraction of an earlier claim")
     p.add_argument("--session", required=True)

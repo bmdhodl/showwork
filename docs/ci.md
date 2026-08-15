@@ -52,6 +52,7 @@ ref. Mixed refs produce verdicts you cannot compare across repos.
 | `session` | *(empty)* | session id to verify; empty audits the chain only |
 | `strict` | `false` | fail on YELLOW too (unprovable/partially verified) |
 | `allow-commands` | `false` | execute locked `command` checks |
+| `allow-network` | `false` | execute bounded `http_probe` checks |
 
 ## What fails the job
 
@@ -80,6 +81,17 @@ default non-strict gate still passes on everything else. Enable
         with:
           session: my-agent-session
           allow-commands: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+```
+
+`http_probe` checks are also disabled by default. A ledger from a fork can
+choose its own URL, so the action sets `SHOWWORK_NO_NETWORK=1` unless
+`allow-network` is explicitly true. Enable it only for trusted same-repository
+branches, and treat the resulting evidence as a live external dependency:
+
+```yaml
+        with:
+          session: my-agent-session
+          allow-network: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
 ```
 
 ## Mapping sessions to PRs

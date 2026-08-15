@@ -148,6 +148,29 @@ escape, and MUST [test:
 tests/test_checks.py::test_command_recursion_guard] reject nested command
 verification.
 
+### `http_probe`
+
+```json
+{"type":"http_probe","url":"https://example.com/health","expect_status":200,"body_contains":"ok"}
+```
+
+The checker MUST [test: tests/test_checks.py::test_http_probe_happy_path] accept
+only `http` and `https` URLs with a hostname, no userinfo or fragment, and an
+integer expected status from 100 through 599. The optional `body_contains` value
+MUST [test: tests/test_checks.py::test_http_probe_validates_url_and_inputs] be a
+non-empty string when present. The checker MUST [test:
+tests/test_checks.py::test_http_probe_status_and_body_mismatches] compare the
+observed status exactly and, when requested, require the exact UTF-8 byte
+substring in the bounded response body. An HTTP error status is still a response
+that can satisfy a claim MUST [test:
+tests/test_checks.py::test_http_probe_accepts_expected_http_error_status], while
+a redirect MUST [test: tests/test_checks.py::test_http_probe_does_not_follow_redirects]
+remain un-followed. A response larger than the checker cap MUST [test:
+tests/test_checks.py::test_http_probe_rejects_oversized_response] return an error.
+When `SHOWWORK_NO_NETWORK` is set, the checker MUST [test:
+tests/test_checks.py::test_http_probe_disabled_by_no_network_env] refuse the
+request and return an error.
+
 ## Integrity chain (`spec-v0.2`)
 
 Append-only stops being a promise and becomes provable. Every record a
@@ -283,7 +306,7 @@ An implementation conforms to `spec-v0.2` when:
 - every appended record extends the integrity chain, and audits detect
   tampering, deletion, and unchained appends while accepting concurrent forks
   (a `prev` re-anchored to an earlier line) as GREEN and reporting them;
-- all six checker semantics and anti-vacuous rules match this document;
+- all seven checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - parse and checker errors stay visible.
 

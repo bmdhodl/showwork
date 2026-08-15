@@ -35,6 +35,9 @@ Correctness and security hardening, plus production hygiene on the self-hosted C
 - **Packaging metadata cleanup** - use the SPDX `MIT` license expression and
   explicit license file metadata, removing deprecated packaging warnings ahead
   of the 0.3.1 distribution build.
+- **HTTP probe checker** - verify bounded HTTP(S) status and optional body
+  evidence without following redirects; network checks are disabled by default
+  in the GitHub Action.
 
 All changes are backward-compatible. The ledger format (spec-v0.2) is unchanged.
 

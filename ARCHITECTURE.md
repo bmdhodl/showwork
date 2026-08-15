@@ -45,7 +45,7 @@ Three rules drive every design decision below:
 | File | Role |
 |---|---|
 | `src/showwork/ledger.py` | Append-only storage, record framing, hash chain writes, session lifecycle, the `finish` gate |
-| `src/showwork/checks.py` | The six deterministic checkers, the verification driver, verdict algebra, retraction resolution |
+| `src/showwork/checks.py` | The seven deterministic checkers, the verification driver, verdict algebra, retraction resolution |
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
 | `src/showwork/cli.py` | Argument parsing and the ten subcommands; exit codes |
 | `src/showwork/hooks.py` | Stop-hook adapter. Observes, never gates |
@@ -194,7 +194,7 @@ whole file into one YELLOW record instead of raising.
 
 ## Check types
 
-All six live in `checks.py` and are registered in the `CHECKERS` dict. Each
+All seven live in `checks.py` and are registered in the `CHECKERS` dict. Each
 returns `(status, detail)` where status is `pass`, `fail`, or `error`.
 
 `error` is not a synonym for `fail`. A failed check means the claim is false. A
@@ -208,7 +208,7 @@ empty path raises `PathArgError` (reported as `error`). A path that resolves
 outside the project root raises `PathEscapeError` (reported as `fail`, since a
 claim reaching outside the root is a bad claim, not an unevaluable one).
 
-### The six
+### The seven
 
 | Type | Fields | Passes when |
 |---|---|---|
@@ -218,6 +218,7 @@ claim reaching outside the root is a bad claim, not an unevaluable one).
 | `frontmatter` | `path`, `field`, `equals` | The file opens with `---`, the field is present in the block, and the scalar matches after quote trimming |
 | `glob_count` | `pattern`, `op`, `n` | `root.glob(pattern)` count satisfies `== >= <= > <` |
 | `command` | `argv`, `expect_exit?`, `stdout_contains?` | The locked command exits as expected and optional stdout text is present |
+| `http_probe` | `url`, `expect_status`, `body_contains?` | An HTTP(S) response has the exact status and optional UTF-8 body bytes; redirects are not followed |
 
 `frontmatter` normalizes the expected value before comparing:
 `_frontmatter_equals_str()` maps JSON `true`/`false`/`null` to their lowercase
@@ -239,9 +240,10 @@ Three checks are therefore rejected rather than passed:
 
 ### The command lock
 
-`chk_command()` is the only checker that executes anything, so it is locked
+`chk_command()` is the checker that executes repository code, so it is locked
 hard. A ledger is a data file, and a data file must never be able to run
-arbitrary commands.
+arbitrary commands. Network access belongs to the separate `http_probe` policy
+below and is disabled by default in CI.
 
 - `argv[0]` must be `python`, `python.exe`, or `python3`.
 - `argv[1]` must resolve to an existing regular file under the project root.
@@ -256,6 +258,17 @@ arbitrary commands.
 - `SHOWWORK_NO_COMMANDS=1` disables the checker entirely. It reports an error
   and the verdict degrades honestly to YELLOW. This is the policy switch CI
   uses on fork PRs so untrusted repo code never executes.
+
+### The HTTP probe
+
+`chk_http_probe()` is bounded network evidence, not a general web client. It
+accepts only HTTP(S) URLs without userinfo or fragments, uses a fixed timeout,
+reads at most one megabyte plus one byte to detect overflow, and disables
+redirect handling so the claimed endpoint is the observed endpoint. HTTP error
+responses remain inspectable, which makes intentional 404/401 probes useful.
+`SHOWWORK_NO_NETWORK=1` disables requests and reports an error. The verify Action
+sets this by default; `allow-network: true` is an explicit opt-in for trusted
+same-repository workflows.
 
 ## Verdict algebra and exit codes
 
@@ -361,9 +374,11 @@ gates on:
    ran,
 4. `verify_bypassed` on the last finish event.
 
-`strict: true` escalates YELLOW to a failure. `allow-commands` defaults to
-false and exports `SHOWWORK_NO_COMMANDS=1`, so a fork PR cannot get its own
-code executed by the checker. Output is echoed into the step summary.
+`strict: true` escalates YELLOW to a failure. `allow-commands` and
+`allow-network` default to false and export `SHOWWORK_NO_COMMANDS=1` and
+`SHOWWORK_NO_NETWORK=1`, respectively, so a fork PR cannot execute its own
+code or make its own network requests through a checker. Output is echoed into
+the step summary.
 
 ## Control plane
 

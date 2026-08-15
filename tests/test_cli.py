@@ -182,6 +182,21 @@ def test_check_json_passthrough(tmp_path):
     assert run(tmp_path, "verify", "--session", "s9", "--no-report") == 0
 
 
+def test_http_probe_claim_flags_are_recorded(tmp_path):
+    assert run(
+        tmp_path,
+        "claim", "--session", "s-http", "--claim", "health endpoint is live",
+        "--type", "http_probe", "--url", "https://example.com/health",
+        "--expect-status", "200", "--body-contains", "ok",
+    ) == 0
+    claims = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    record = json.loads(claims.read_text(encoding="utf-8").splitlines()[0])
+    assert record["check"] == {
+        "type": "http_probe", "url": "https://example.com/health",
+        "expect_status": 200, "body_contains": "ok",
+    }
+
+
 def test_invalid_check_json_is_clean_error(tmp_path):
     """Malformed --check-json must not raise an uncaught JSONDecodeError.
 

@@ -1,11 +1,52 @@
 """Behavioral tests for the deterministic checkers and verdict logic."""
 
 import json
+import http.server
+import threading
+from contextlib import contextmanager
 
 import pytest
 
 from showwork import checks
 from showwork.checks import evaluate_records, verify_claim
+
+
+@contextmanager
+def local_http_server():
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.0"
+
+        def do_GET(self):  # noqa: N802 - stdlib handler API
+            if self.path == "/ok":
+                status, body = 200, b"healthy response"
+            elif self.path == "/missing":
+                status, body = 404, b"not found"
+            elif self.path == "/redirect":
+                self.send_response(302)
+                self.send_header("Location", "/ok")
+                self.end_headers()
+                return
+            elif self.path == "/large":
+                status, body = 200, b"x" * (checks.MAX_HTTP_BODY_BYTES + 1)
+            else:
+                status, body = 400, b"bad request"
+            self.send_response(status)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):  # noqa: A002 - stdlib handler API
+            return
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 def claim(check=None, severity="RED", **extra):
@@ -311,6 +352,116 @@ def test_glob_count_rejects_empty_pattern(tmp_path):
     assert r["status"] == "error"
     assert "checker raised" not in r["detail"]
     assert "pattern" in r["detail"].lower()
+
+
+# ---------- http_probe ----------
+
+def test_http_probe_happy_path(tmp_path):
+    with local_http_server() as base:
+        result = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/ok",
+                   "expect_status": 200, "body_contains": "healthy"}),
+            tmp_path,
+        )
+    assert result["status"] == "pass", result
+
+
+def test_http_probe_status_and_body_mismatches(tmp_path):
+    with local_http_server() as base:
+        wrong_status = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/ok",
+                   "expect_status": 201}),
+            tmp_path,
+        )
+        wrong_body = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/ok",
+                   "expect_status": 200, "body_contains": "missing"}),
+            tmp_path,
+        )
+    assert wrong_status["status"] == "fail"
+    assert wrong_body["status"] == "fail"
+
+
+def test_http_probe_accepts_expected_http_error_status(tmp_path):
+    with local_http_server() as base:
+        result = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/missing",
+                   "expect_status": 404, "body_contains": "not found"}),
+            tmp_path,
+        )
+    assert result["status"] == "pass", result
+
+
+def test_http_probe_does_not_follow_redirects(tmp_path):
+    with local_http_server() as base:
+        result = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/redirect",
+                   "expect_status": 302}),
+            tmp_path,
+        )
+    assert result["status"] == "pass", result
+
+
+def test_http_probe_validates_url_and_inputs(tmp_path):
+    invalid_urls = (
+        "",
+        "/health",
+        "ftp://example.com/health",
+        "http://user:password@example.com/health",
+        "http://example.com/health#fragment",
+        "http://example.com/health\n",
+    )
+    for url in invalid_urls:
+        result = verify_claim(
+            claim({"type": "http_probe", "url": url, "expect_status": 200}),
+            tmp_path,
+        )
+        assert result["status"] == "error", (url, result)
+
+    for status in (None, True, "200", 200.0):
+        result = verify_claim(
+            claim({"type": "http_probe", "url": "http://example.com/health",
+                   "expect_status": status}),
+            tmp_path,
+        )
+        assert result["status"] == "error", (status, result)
+
+    for body_contains in ("", None, 42, ["healthy"]):
+        check = {"type": "http_probe", "url": "http://example.com/health",
+                 "expect_status": 200}
+        if body_contains is not None:
+            check["body_contains"] = body_contains
+        elif body_contains is None:
+            check["body_contains"] = None
+        result = verify_claim(claim(check), tmp_path)
+        if body_contains is None:
+            # Missing and explicit null are distinct: null is not a valid
+            # optional value and must not silently disable the assertion.
+            assert result["status"] == "error", (body_contains, result)
+        else:
+            assert result["status"] == "error", (body_contains, result)
+
+
+def test_http_probe_rejects_oversized_response(tmp_path):
+    with local_http_server() as base:
+        result = verify_claim(
+            claim({"type": "http_probe", "url": f"{base}/large",
+                   "expect_status": 200}),
+            tmp_path,
+        )
+    assert result["status"] == "error", result
+    assert "body" in result["detail"].lower() or "byte" in result["detail"].lower()
+
+
+def test_http_probe_disabled_by_no_network_env(tmp_path, monkeypatch):
+    with local_http_server() as base:
+        monkeypatch.setenv(checks.NO_NETWORK_ENV, "1")
+        status, detail = checks.chk_http_probe(
+            {"type": "http_probe", "url": f"{base}/ok", "expect_status": 200},
+            tmp_path,
+        )
+    assert status == "error"
+    assert "SHOWWORK_NO_NETWORK" in detail
 
 
 # ---------- command (locked) ----------
