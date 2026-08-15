@@ -244,3 +244,5 @@
 {"event": "session.finish", "session": "proof-manifest-ai-answerability-r15-20260815", "ts": "2026-08-15T17:01:24", "status": "ok", "claims_verdict": "GREEN", "prev": "72c5a706cd00789dd2b974d8a28336f9a1860d8e1199c9cf26c6318541f966bd"}
 {"event": "session.finish", "session": "run-wall-clock-budget-boundary-r15-20260815", "ts": "2026-08-15T17:01:25", "status": "ok", "claims_verdict": "GREEN", "prev": "4dd3f68de4575e57449405c8b1f1743abedad8bc1387afd6cd56a910d87558af"}
 {"event": "session.finish", "session": "stuck-detector-threshold-replay-r15-20260815", "ts": "2026-08-15T17:01:25", "status": "ok", "claims_verdict": "GREEN", "prev": "0ae6ceb9aac5e6bbeb66686e66010c7afc87b8851c4e7ab84bd10165d67d1417"}
+{"event": "session.start", "session": "r15-static-policy-regression-20260815", "ts": "2026-08-15T17:04:56", "agent": "codex", "prev": "8a331a30cc84ffe7ecd1964190005aa5c11e0d1857175e7c33275fc145da1c4c"}
+{"event": "session.finish", "session": "r15-static-policy-regression-20260815", "ts": "2026-08-15T17:06:30", "status": "ok", "claims_verdict": "GREEN", "prev": "d3b3b485143acbf929cb52b2c6d8bd03f7fc730b6ffe678ba17ffb4c4db1536b"}
