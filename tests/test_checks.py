@@ -206,6 +206,23 @@ def test_frontmatter(tmp_path):
     assert missing["status"] == "fail"
 
 
+def test_frontmatter_requires_exact_delimiter_lines(tmp_path):
+    check = {"type": "frontmatter", "path": "task.md",
+             "field": "status", "equals": "done"}
+
+    (tmp_path / "task.md").write_text(
+        "---\nstatus: done\n---\nbody", encoding="utf-8")
+    assert verify_claim(claim(check), tmp_path)["status"] == "pass"
+
+    (tmp_path / "task.md").write_text(
+        "---not-frontmatter\nstatus: done\n---\nbody", encoding="utf-8")
+    assert verify_claim(claim(check), tmp_path)["status"] == "fail"
+
+    (tmp_path / "task.md").write_text(
+        "---\nstatus: done\n---not-a-delimiter\nbody", encoding="utf-8")
+    assert verify_claim(claim(check), tmp_path)["status"] == "fail"
+
+
 def test_frontmatter_no_block(tmp_path):
     (tmp_path / "plain.md").write_text("no frontmatter", encoding="utf-8")
     r = verify_claim(claim({"type": "frontmatter", "path": "plain.md",

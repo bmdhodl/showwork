@@ -28,6 +28,10 @@ Correctness and security hardening, plus production hygiene on the self-hosted C
   survey's verification problem (commit 59cb472).
 - **Public calibration dashboard** - sanitized aggregate metrics page (commit
   5d6cb19).
+- **Adoption example correction** - the retraction workflow now uses the
+  shipped `--claim` flag instead of an unsupported `--claim-index` flag.
+- **Frontmatter boundary hardening** - frontmatter checks require exact opening
+  and closing delimiter lines, preventing malformed blocks from becoming proof.
 
 All changes are backward-compatible. The ledger format (spec-v0.2) is unchanged.
 

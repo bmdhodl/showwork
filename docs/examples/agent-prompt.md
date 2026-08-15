@@ -24,7 +24,7 @@ Before reporting success, close through the exit gate:
 
 If the finish command refuses (exit 2), fix the failed claim or retract it truthfully:
 
-    showwork retract --session <task-slug> --claim-index <N> --reason "<why>"
+    showwork retract --session <task-slug> --claim "<exact claim text>" --reason "<why>"
 
 NEVER use --no-verify to manufacture a clean result. A bypassed gate is stamped on
 the record and CI will reject it.
