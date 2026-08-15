@@ -50,3 +50,12 @@ def test_readme_links_current_spec_version():
     assert f"`{version}`" in readme, f"README must link {version}"
     case = (ROOT / "docs" / "case-study.md").read_text(encoding="utf-8")
     assert f"`{version}`" in case, f"case-study must link {version}"
+
+
+def test_agent_prompt_example_uses_supported_retract_flag():
+    """The shipped onboarding example must invoke the actual CLI surface."""
+    example = (ROOT / "docs" / "examples" / "agent-prompt.md").read_text(
+        encoding="utf-8"
+    )
+    assert "--claim-index" not in example
+    assert '--claim "<exact claim text>"' in example

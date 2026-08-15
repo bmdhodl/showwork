@@ -211,10 +211,14 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
             return ("fail", f"{c['path']} is not a regular file")
         return ("fail", f"{c['path']} missing")
     text = p.read_text(encoding="utf-8-sig")
-    if not text.startswith("---"):
+    opening = re.match(r"\A---[ \t]*(?:\r?\n|\Z)", text)
+    if opening is None:
         return ("fail", f"{c['path']} has no frontmatter")
-    end = text.find("\n---", 3)
-    fm = text[3:end] if end != -1 else ""
+    body = text[opening.end():]
+    closing = re.search(r"(?m)^---[ \t]*(?:\r?\n|\Z)", body)
+    if closing is None:
+        return ("fail", f"{c['path']} has no closed frontmatter block")
+    fm = body[:closing.start()]
     field = c["field"]
     if not isinstance(field, str) or field == "":
         return ("error", f"field must be a non-empty string, got {type(field).__name__}")

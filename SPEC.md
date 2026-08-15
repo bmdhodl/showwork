@@ -113,8 +113,9 @@ source is absent and the destination exists.
 {"type":"frontmatter","path":"Queue/task.md","field":"status","equals":"done"}
 ```
 
-The check MUST [test: tests/test_checks.py::test_frontmatter] require a YAML-like
-frontmatter block and exact scalar equality after quote trimming.
+The check MUST [test: tests/test_checks.py::test_frontmatter_requires_exact_delimiter_lines]
+require a YAML-like frontmatter block bounded by exact opening and closing
+delimiter lines (`---`), and exact scalar equality after quote trimming.
 
 ### `glob_count`
 
