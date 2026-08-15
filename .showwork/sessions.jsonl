@@ -116,3 +116,5 @@
 {"event": "session.finish", "session": "release-packaging-metadata-2026-08-15", "ts": "2026-08-15T12:31:58", "status": "ok", "claims_verdict": "GREEN", "prev": "8e1079e876df0906d7972181e9a1c0190fbfcdb3f51ba08c40ee432e123fae2c"}
 {"event": "session.start", "session": "receipt-refresh-2026-08-15", "ts": "2026-08-15T12:34:58", "agent": "codex", "prev": "069a8189ebe98a41106be56828725377134eded20275f49a6d689bc9deba3278"}
 {"event": "session.finish", "session": "receipt-refresh-2026-08-15", "ts": "2026-08-15T12:37:59", "status": "ok", "claims_verdict": "GREEN", "prev": "ad2dc4e03692a5c0a433725554dd4a535cea8e779343937312d8bd43e3d72be5"}
+{"event": "session.start", "session": "http-probe-2026-08-15", "ts": "2026-08-15T12:46:31", "agent": "codex", "note": "Add bounded HTTP probe checks with fork-safe CI policy", "prev": "e100b11e1f84f8919a5e6d0f94e3d3713291c0318983b8f571f448d4d2e256bf"}
+{"event": "session.finish", "session": "http-probe-2026-08-15", "ts": "2026-08-15T12:55:09", "status": "ok", "claims_verdict": "GREEN", "prev": "84116cff10e902fc879a992b5fd0b3a3f7a90258e3fcfafdb94431ecc2245369"}

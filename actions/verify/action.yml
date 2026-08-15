@@ -24,6 +24,12 @@ inputs:
       code: command checks then report an error and the verdict honestly
       degrades to YELLOW instead of running repo code.
     default: "false"
+  allow-network:
+    description: >-
+      Execute `http_probe` checks. Leave false for fork PRs / untrusted code:
+      network checks then report an error and the verdict honestly degrades to
+      YELLOW instead of making requests controlled by repository data.
+    default: "false"
 
 runs:
   using: "composite"
@@ -46,11 +52,15 @@ runs:
         SW_SESSION: ${{ inputs.session }}
         SW_STRICT: ${{ inputs.strict }}
         SW_ALLOW_COMMANDS: ${{ inputs.allow-commands }}
+        SW_ALLOW_NETWORK: ${{ inputs.allow-network }}
       run: |
         set -u
         PY="${SHOWWORK_PY:-python}"
         if [ "${SW_ALLOW_COMMANDS}" != "true" ]; then
           export SHOWWORK_NO_COMMANDS=1
+        fi
+        if [ "${SW_ALLOW_NETWORK}" != "true" ]; then
+          export SHOWWORK_NO_NETWORK=1
         fi
         fail=0
 

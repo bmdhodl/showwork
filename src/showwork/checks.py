@@ -18,6 +18,8 @@ Check types:
     command       {argv: [...], expect_exit?: 0, stdout_contains?: str}
                   # LOCKED: `python <script under the project root>` only.
                   # No shell, no metacharacters, no `..` escape, no PowerShell.
+    http_probe    {url, expect_status, body_contains?: str}
+                  # Fixed timeout, bounded response, no redirects, HTTP(S) only.
 
 Vacuous checks are rejected, not blessed: a regex that matches the empty
 string proves nothing, and a glob count that is always true (>= 0) proves
@@ -32,6 +34,9 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 SHELL_META = set(";|&$<>`\n\r")
@@ -46,6 +51,14 @@ VERIFYING_ENV = "SHOWWORK_VERIFYING"
 # honestly degrades to YELLOW ("not fully verified") rather than either
 # running untrusted repo code or silently passing.
 NO_COMMANDS_ENV = "SHOWWORK_NO_COMMANDS"
+
+# Policy switch for hostile-input contexts (CI verifying a fork PR): when set,
+# `http_probe` checks refuse to make network requests. Network access is an
+# explicit opt-in because a claim ledger is repository-controlled input.
+NO_NETWORK_ENV = "SHOWWORK_NO_NETWORK"
+
+HTTP_TIMEOUT_S = 10
+MAX_HTTP_BODY_BYTES = 1024 * 1024
 
 EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 
@@ -327,6 +340,94 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
             + (f", stdout has {needle!r}" if needle else ""))
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep the observed response status instead of following redirects."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _http_url(url) -> tuple[str, str | None]:
+    if not isinstance(url, str) or url == "":
+        return ("error", "http_probe.url must be a non-empty string")
+    if any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in url):
+        return ("error", "http_probe.url must not contain whitespace or control characters")
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        hostname = parsed.hostname
+        parsed.port  # Force malformed/out-of-range ports to raise ValueError.
+    except ValueError as exc:
+        return ("error", f"invalid http_probe.url: {exc}")
+    if parsed.scheme not in ("http", "https"):
+        return ("error", "http_probe.url scheme must be http or https")
+    if not hostname:
+        return ("error", "http_probe.url must include a hostname")
+    if parsed.username is not None or parsed.password is not None:
+        return ("error", "http_probe.url must not include username or password")
+    if parsed.fragment:
+        return ("error", "http_probe.url must not include a fragment")
+    return ("pass", None)
+
+
+def chk_http_probe(c: dict, root: Path) -> tuple[str, str]:
+    """GET one URL and verify its exact status plus optional UTF-8 body bytes."""
+    del root  # Network evidence is intentionally independent of the project root.
+    if os.environ.get(NO_NETWORK_ENV):
+        return ("error", "http_probe checks disabled by SHOWWORK_NO_NETWORK "
+                "(policy: do not make network requests in this context)")
+
+    url = c.get("url")
+    url_status, url_detail = _http_url(url)
+    if url_status == "error":
+        return ("error", url_detail or "invalid http_probe.url")
+
+    expected = c.get("expect_status")
+    if isinstance(expected, bool) or not isinstance(expected, int):
+        return ("error", "http_probe.expect_status must be an integer")
+    if not 100 <= expected <= 599:
+        return ("error", "http_probe.expect_status must be between 100 and 599")
+
+    if "body_contains" in c:
+        needle = c["body_contains"]
+        if not isinstance(needle, str) or needle == "":
+            return ("error", "http_probe.body_contains must be a non-empty string")
+    else:
+        needle = None
+
+    request = urllib.request.Request(url, method="GET")
+    opener = urllib.request.build_opener(_NoRedirectHandler())
+    try:
+        response = opener.open(request, timeout=HTTP_TIMEOUT_S)
+    except urllib.error.HTTPError as exc:
+        # HTTP errors are still HTTP responses. This lets a claim explicitly
+        # prove a deliberate 404/401/redirect without following it.
+        response = exc
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        return ("error", f"http_probe request failed: {exc}")
+
+    try:
+        body = response.read(MAX_HTTP_BODY_BYTES + 1)
+    except (urllib.error.URLError, OSError, TimeoutError) as exc:
+        return ("error", f"http_probe response read failed: {exc}")
+    finally:
+        response.close()
+
+    if len(body) > MAX_HTTP_BODY_BYTES:
+        return ("error", f"http_probe response body exceeds {MAX_HTTP_BODY_BYTES}-byte cap")
+
+    actual = getattr(response, "status", None)
+    if actual is None:
+        actual = getattr(response, "code", None)
+    if actual != expected:
+        return ("fail", f"HTTP status {actual}, expected {expected}")
+    if needle is not None and needle.encode("utf-8") not in body:
+        return ("fail", f"HTTP body missing {needle!r}")
+    detail = f"HTTP status {actual}"
+    if needle is not None:
+        detail += f", body has {needle!r}"
+    return ("pass", detail)
+
+
 CHECKERS = {
     "file_exists": chk_file_exists,
     "file_contains": chk_file_contains,
@@ -334,6 +435,7 @@ CHECKERS = {
     "frontmatter": chk_frontmatter,
     "glob_count": chk_glob_count,
     "command": chk_command,
+    "http_probe": chk_http_probe,
 }
 
 

@@ -16,7 +16,7 @@ After each completed change, record a falsifiable claim with a check that can fa
       --claim "bumped the API timeout in config" \
       --type file_contains --path config/api.yaml --pattern "timeout: 30"
 
-Check types: file_exists, file_contains, path_moved, frontmatter, glob_count, command
+Check types: file_exists, file_contains, path_moved, frontmatter, glob_count, command, http_probe
 
 Before reporting success, close through the exit gate:
 
