@@ -59,3 +59,12 @@ def test_agent_prompt_example_uses_supported_retract_flag():
     )
     assert "--claim-index" not in example
     assert '--claim "<exact claim text>"' in example
+
+
+def test_package_metadata_uses_spdx_license_expression():
+    """Distribution metadata must use the current PEP 639 representation."""
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'license = "MIT"' in pyproject
+    assert 'license-files = ["LICENSE"]' in pyproject
+    assert 'license = { text = "MIT" }' not in pyproject
+    assert "License ::" not in pyproject
