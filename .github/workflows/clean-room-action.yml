@@ -69,7 +69,7 @@ jobs:
               "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
                 --claim 'tamper fixture exists' --type file_exists --path ready.txt
               "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
-              "$PY" - "$FIXTURE/.showwork/sessions.jsonl" <<'PY'
+              "$PY" - "$FIXTURE/.showwork/claims.jsonl" <<'PY'
           from pathlib import Path
           import sys
 
