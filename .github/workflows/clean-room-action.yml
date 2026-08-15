@@ -69,11 +69,14 @@ jobs:
               "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
                 --claim 'tamper fixture exists' --type file_exists --path ready.txt
               "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --status ok
-              "$PY" - "$FIXTURE/.showwork/claims.jsonl" <<'PY'
+              "$PY" - "$FIXTURE/.showwork" <<'PY'
           from pathlib import Path
           import sys
 
-          ledger = Path(sys.argv[1])
+          showwork_dir = Path(sys.argv[1])
+          ledgers = sorted(showwork_dir.glob("claims-*.jsonl"))
+          assert len(ledgers) == 1
+          ledger = ledgers[0]
           text = ledger.read_text(encoding="utf-8")
           needle = "tamper fixture exists"
           assert needle in text
