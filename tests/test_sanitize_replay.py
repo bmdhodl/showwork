@@ -89,6 +89,29 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert "private" not in build(clean)
 
 
+def test_sanitize_is_idempotent_for_approved_public_shape():
+    raw = {
+        "thresholds": {"repeat_threshold": 3},
+        "scanned": 1,
+        "with_calls": 1,
+        "results": [
+            {
+                "session": "raw-session",
+                "project": r"C:\Users\patri\private-repo",
+                "total_calls": 4,
+                "stuck": True,
+                "reason": "repeat",
+                "detail": "Read called with identical input C:\\secret",
+                "fired_at_call": 3,
+                "calls_after_trip": 1,
+            }
+        ],
+    }
+
+    clean = sanitize(raw)
+    assert sanitize(clean) == clean
+
+
 def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
     rendered = build(
         {

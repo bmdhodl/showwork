@@ -418,3 +418,5 @@
 {"event": "session.start", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:33:03", "agent": "codex", "prev": "03faa088747f05ccb2430060d96ce4e4d4f660c5a622bfa1c356574890e49c14"}
 {"event": "session.finish.refused", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:33:30", "status": "ok", "claims_verdict": "RED", "prev": "e911eacb73f25dda32e676563b0ea7b487a90202d5f4a6e9cf45be10fa5c1f83"}
 {"event": "session.finish", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:36:38", "status": "ok", "claims_verdict": "GREEN", "prev": "43e3904e2684bcd67c6bb2bbd14e5c84138b3653010b7711fd0e6c37c6248b5d"}
+{"event": "session.start", "session": "sanitize-replay-idempotence-20260816", "ts": "2026-08-16T04:45:22", "agent": "codex", "prev": "11e7462be83cf58416db06049844e1f315e8c069f70d57abd9b1b2c2673e5302"}
+{"event": "session.finish", "session": "sanitize-replay-idempotence-20260816", "ts": "2026-08-16T04:45:45", "status": "ok", "claims_verdict": "GREEN", "prev": "b05b33a615a3863634c31ebe980ea372d2d055e789e0822c600c77bc7d430df7"}

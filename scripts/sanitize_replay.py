@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 # Only built-in, non-tenant tool labels are safe to expose. Transcript data can
@@ -37,6 +38,7 @@ PUBLIC_TOOL_NAMES = frozenset(
         "Write",
     )
 )
+PUBLIC_RUN_ID = re.compile(r"^[0-9a-f]{7}$")
 PUBLIC_REASONS = frozenset(("repeat", "alternation", "no_progress"))
 PUBLIC_THRESHOLD_KEYS = (
     "repeat_threshold",
@@ -48,6 +50,12 @@ PUBLIC_THRESHOLD_KEYS = (
 
 def short_hash(value: str, length: int = 7) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
+
+
+def _safe_session_id(value: object) -> str:
+    """Preserve only the sanitizer's exact generic public run-ID shape."""
+    candidate = str(value)
+    return candidate if PUBLIC_RUN_ID.fullmatch(candidate) else short_hash(candidate)
 
 
 def generic_project(name: str, mapping: dict[str, str]) -> str:
@@ -131,7 +139,7 @@ def sanitize(data: dict) -> dict:
 
         out_results.append(
             {
-                "session": short_hash(str(row.get("session", ""))),
+                "session": _safe_session_id(row.get("session", "")),
                 "project": generic_project(str(row.get("project", "")), projects),
                 "total_calls": _safe_count(row.get("total_calls")),
                 "stuck": row.get("stuck") if isinstance(row.get("stuck"), bool) else False,
