@@ -430,3 +430,5 @@
 {"event": "session.finish", "session": "sanitize-replay-strict-validation-20260816", "ts": "2026-08-16T05:16:45", "status": "ok", "claims_verdict": "GREEN", "prev": "388a6758f793e9db09c944bdad3f5a3b62a24af8a970b00251dd8d65d0bc0a05"}
 {"event": "session.start", "session": "sanitize-replay-provenance-20260816", "ts": "2026-08-16T05:22:38", "agent": "codex", "prev": "83209d74001a81d6e15f981589466221e5b73b81f67f2587b3d09a1c8c59415a"}
 {"event": "session.finish", "session": "sanitize-replay-provenance-20260816", "ts": "2026-08-16T05:23:02", "status": "ok", "claims_verdict": "GREEN", "prev": "b91d73d9720e2fc6f2c3f7ec9b1cbbee42c2e9f32f36d87816c7a8d2272403a5"}
+{"event": "session.start", "session": "sanitize-replay-summary-integrity-20260816", "ts": "2026-08-16T05:28:05", "agent": "codex", "prev": "430c8b937a67a7fac3aedefebd9ad6bab0a56fe4941c5de5f020ee586ae3a845"}
+{"event": "session.finish", "session": "sanitize-replay-summary-integrity-20260816", "ts": "2026-08-16T05:28:28", "status": "ok", "claims_verdict": "GREEN", "prev": "7278e1eb2f441261b8f80b5041e25a08218adf502a18bedeacd8bee122adbfab"}

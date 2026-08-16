@@ -83,7 +83,7 @@ def _safe_optional_count(value: object) -> int | None:
 def _safe_with_calls(value: object, fallback: int) -> int:
     """Keep counts usable for rates without trusting malformed input."""
     if (isinstance(value, bool) or not isinstance(value, int)
-            or value < fallback):
+            or value != fallback):
         return fallback
     return value
 
@@ -163,10 +163,11 @@ def sanitize(data: dict) -> dict:
         )
 
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
+    scanned = max(_safe_count(data.get("scanned")), with_calls)
 
     return _SanitizedReplay({
         "thresholds": _safe_thresholds(data.get("thresholds")),
-        "scanned": _safe_count(data.get("scanned")),
+        "scanned": scanned,
         "with_calls": with_calls,
         "results": out_results,
         "sanitized": True,

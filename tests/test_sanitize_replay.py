@@ -61,7 +61,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     )
 
     assert clean["thresholds"] == {"repeat_threshold": 3, "window": 12}
-    assert clean["scanned"] == 0
+    assert clean["scanned"] == 5
     assert clean["with_calls"] == 5
     first, second, private, customer_mcp, known = clean["results"]
     assert first == {
@@ -133,6 +133,29 @@ def test_public_renderer_falls_back_for_invalid_explicit_with_calls():
     )
 
     assert "100.0%" in rendered
+
+
+def test_public_renderer_falls_back_for_inconsistent_explicit_with_calls():
+    rendered = build(
+        {
+            "with_calls": 100,
+            "results": [{"session": "raw", "stuck": True}],
+        }
+    )
+
+    assert "100.0%" in rendered
+
+
+def test_public_renderer_clamps_scanned_to_emitted_rows():
+    rendered = build(
+        {
+            "scanned": 0,
+            "with_calls": 1,
+            "results": [{"session": "raw", "stuck": True}],
+        }
+    )
+
+    assert '1</span><span class="l">sessions replayed' in rendered
 
 
 def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
