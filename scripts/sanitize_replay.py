@@ -91,6 +91,22 @@ _SanitizedMapping, _SanitizedReplay, _new_sanitized_mapping, _new_sanitized_repl
     _make_sanitized_types()
 )
 
+# A type check cannot distinguish sanitizer output from a tuple forged with
+# ``tuple.__new__`` or made through the module-private factory. Keep the
+# capability at the exact object identity returned by this module instead.
+# The strong references also prevent an id from being reused for an untrusted
+# object while the trusted value remains usable by a caller.
+_TRUSTED_SANITIZED_REPLAYS: dict[int, object] = {}
+
+
+def _is_trusted_sanitized_replay(value: object) -> bool:
+    return _TRUSTED_SANITIZED_REPLAYS.get(id(value)) is value
+
+
+def _remember_sanitized_replay(value: _SanitizedReplay) -> _SanitizedReplay:
+    _TRUSTED_SANITIZED_REPLAYS[id(value)] = value
+    return value
+
 
 def _to_jsonable(value: object) -> object:
     if isinstance(value, _SanitizedMapping):
@@ -198,9 +214,12 @@ def _safe_detail(row: dict, reason: str) -> str:
     return "unclassified finding"
 
 
-def sanitize(data: dict) -> dict:
-    if isinstance(data, _SanitizedReplay):
+def sanitize(data: Mapping[str, object]) -> Mapping[str, object]:
+    if _is_trusted_sanitized_replay(data):
         return data
+
+    if not isinstance(data, Mapping):
+        data = {}
 
     projects: dict[str, str] = {}
     out_results = []
@@ -234,13 +253,15 @@ def sanitize(data: dict) -> dict:
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
     scanned = max(_safe_count(data.get("scanned")), with_calls)
 
-    return _new_sanitized_replay(
-        (
-            ("thresholds", _new_sanitized_mapping(_safe_thresholds(data.get("thresholds")).items())),
-            ("scanned", scanned),
-            ("with_calls", with_calls),
-            ("results", tuple(out_results)),
-            ("sanitized", True),
+    return _remember_sanitized_replay(
+        _new_sanitized_replay(
+            (
+                ("thresholds", _new_sanitized_mapping(_safe_thresholds(data.get("thresholds")).items())),
+                ("scanned", scanned),
+                ("with_calls", with_calls),
+                ("results", tuple(out_results)),
+                ("sanitized", True),
+            )
         )
     )
 

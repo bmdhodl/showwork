@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from scripts.build_public_dashboard import build
+from scripts import sanitize_replay
 from scripts.sanitize_replay import _to_jsonable, sanitize
 
 
@@ -149,6 +150,66 @@ def test_sanitized_replay_provenance_constructor_is_internal_only():
 
     with pytest.raises(TypeError):
         type(clean)((("sanitized", True),))
+
+
+def test_sanitize_does_not_trust_callable_factory_output():
+    forged = sanitize_replay._new_sanitized_replay(
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "alice_private_repo called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        )
+    )
+
+    clean = sanitize(forged)
+
+    assert clean is not forged
+    rendered = json.dumps(_to_jsonable(clean))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "alice_private_repo" not in rendered
+
+
+def test_sanitize_does_not_trust_base_tuple_forgery():
+    clean = sanitize({"results": []})
+    forged = tuple.__new__(
+        type(clean),
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "mcp__customer_acme__lookup called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        ),
+    )
+
+    sanitized = sanitize(forged)
+
+    assert sanitized is not forged
+    rendered = json.dumps(_to_jsonable(sanitized))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "mcp__customer_acme__lookup" not in rendered
 
 
 def test_public_renderer_resanitizes_base_tuple_forgery():
