@@ -378,12 +378,13 @@ def test_glob_count_rejects_empty_pattern(tmp_path):
 def test_glob_count_accepts_maximum_match_bound(tmp_path, monkeypatch):
     """Bounded traversal should accept an exact match limit count."""
     accepted = checks.MAX_GLOB_MATCHES
+    _path = tmp_path / "entry.md"
+    _path.write_text("x", encoding="utf-8")
 
-    def fake_glob(_root, _pattern):
-        yield from (_path for _ in range(accepted))
+    def fake_itdir(_self) -> list:
+        return [_path for _ in range(accepted)]
 
-    _path = tmp_path / "entry"
-    monkeypatch.setattr(type(tmp_path), "glob", fake_glob)
+    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": accepted}),
         tmp_path,
@@ -396,12 +397,13 @@ def test_glob_count_accepts_maximum_match_bound(tmp_path, monkeypatch):
 def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
     """A malicious claim must be bounded even without recursive syntax."""
     too_many = checks.MAX_GLOB_MATCHES + 1
-    _path = tmp_path / "entry"
+    _path = tmp_path / "entry.md"
+    _path.write_text("x", encoding="utf-8")
 
-    def fake_glob(_root, _pattern):
-        yield from (_path for _ in range(too_many))
+    def fake_itdir(_self) -> list:
+        return [_path for _ in range(too_many)]
 
-    monkeypatch.setattr(type(tmp_path), "glob", fake_glob)
+    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": too_many}),
         tmp_path,
@@ -420,6 +422,31 @@ def test_glob_count_rejects_recursive_pattern(tmp_path):
 
     assert result["status"] == "error", result
     assert "non-recursive" in result["detail"], result
+
+
+def test_glob_count_limits_traversal_on_low_match_tree(tmp_path, monkeypatch):
+    """Traversal must stop on entry budget even when yielded matches are low."""
+    monkeypatch.setattr(checks, "MAX_GLOB_TRAVERSAL", 5)
+    for i in range(20):
+        (tmp_path / f"dir{i}").mkdir()
+        (tmp_path / f"dir{i}" / "leaf").mkdir()
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/leaf/missing", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert result["status"] == "error", result
+    assert "traversal limit exceeded" in result["detail"], result
+
+
+def test_glob_count_accepts_adjacent_star_patterns(tmp_path):
+    """Exact-match `**` rejection should preserve non-recursive adjacent-star patterns."""
+    (tmp_path / "foobar.md").write_text("x", encoding="utf-8")
+    for pattern in ("foo**bar.md", "**.md"):
+        result = verify_claim(
+            claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": 1}),
+            tmp_path,
+        )
+        assert result["status"] == "pass", (pattern, result)
 
 
 # ---------- http_probe ----------

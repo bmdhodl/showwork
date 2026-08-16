@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import fnmatch
 import re
 import subprocess
 import sys
@@ -43,6 +44,7 @@ from pathlib import Path
 
 SHELL_META = set(";|&$<>`\n\r")
 MAX_GLOB_MATCHES = 100_000
+MAX_GLOB_TRAVERSAL = MAX_GLOB_MATCHES
 
 # Set in the environment of any child process spawned by a `command` check.
 # If that child in turn triggers verification, nested `command` checks refuse
@@ -248,18 +250,69 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
         else ("fail", f"{field}={actual}, claimed {want}")
 
 def _count_glob_matches(root: Path, pattern: str) -> tuple[int, str | None]:
-    count = 0
     try:
-        for _ in root.glob(pattern):
-            count += 1
-            if count > MAX_GLOB_MATCHES:
-                return (
-                    count,
-                    f"glob match limit exceeded: {MAX_GLOB_MATCHES} for pattern {pattern!r}",
-                )
-    except ValueError as e:
-        return 0, f"invalid glob pattern {pattern!r}: {e}"
+        normalized_parts = _glob_parts(pattern)
+        count, inspected = _bounded_glob_count(root, normalized_parts)
+    except (ValueError, OSError) as exc:
+        return 0, f"invalid glob pattern {pattern!r}: {exc}"
+    if inspected > MAX_GLOB_TRAVERSAL:
+        return 0, (
+            f"glob traversal limit exceeded: {MAX_GLOB_TRAVERSAL} for pattern "
+            f"{pattern!r} after inspecting {inspected} entries"
+        )
     return count, None
+
+
+def _glob_parts(pattern: str) -> tuple[str, ...]:
+    parts = [p for p in pattern.replace("\\", "/").split("/") if p and p != "."]
+    if not parts:
+        raise ValueError("invalid empty glob pattern")
+    return tuple(parts)
+
+
+def _has_recursive_glob(parts: tuple[str, ...]) -> bool:
+    return any(part == "**" for part in parts)
+
+
+def _bounded_glob_count(root: Path, parts: tuple[str, ...]) -> tuple[int, int]:
+    """Return (match_count, traversed_entries) with a hard traversal cap."""
+    if not parts:
+        return 0, 0
+
+    def walk_dir(directory: Path, idx: int, inspected: int) -> tuple[int, int]:
+        if idx >= len(parts):
+            return 0, inspected
+        try:
+            entries = sorted(directory.iterdir())
+        except OSError as exc:
+            raise OSError(f"cannot read directory {directory}: {exc}") from exc
+        segment = parts[idx]
+        if idx == len(parts) - 1:
+            count = 0
+            for entry in entries:
+                inspected += 1
+                if inspected > MAX_GLOB_TRAVERSAL:
+                    return count, inspected
+                if fnmatch.fnmatch(entry.name, segment):
+                    count += 1
+            return count, inspected
+        count = 0
+        for entry in entries:
+            inspected += 1
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return count, inspected
+            if not fnmatch.fnmatch(entry.name, segment):
+                continue
+            if not entry.is_dir():
+                continue
+            nested_count, inspected = walk_dir(entry, idx + 1, inspected)
+            count += nested_count
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return count, inspected
+        return count, inspected
+
+    count, inspected = walk_dir(root, 0, 0)
+    return count, inspected
 
 
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
@@ -286,7 +339,7 @@ def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     # is never negative, so `>= 0` / `> -1` verify nothing.
     if (op == ">=" and want <= 0) or (op == ">" and want < 0):
         return ("error", f"count {op} {want} is always true (vacuous check); tighten it")
-    if "**" in pattern:
+    if _has_recursive_glob(_glob_parts(pattern)):
         return ("error", "glob pattern must be non-recursive in verifier context")
     n, error = _count_glob_matches(root, pattern)
     if error is not None:
