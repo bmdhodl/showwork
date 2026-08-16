@@ -407,3 +407,9 @@
 {"event": "session.finish", "session": "sanitize-replay-compat-boundary-20260816", "ts": "2026-08-16T04:18:18", "status": "ok", "claims_verdict": "GREEN", "prev": "84119da45cb6b9691943f2e48acfcaed4776e62ebe3397fd7bb272867b1ed603"}
 {"event": "session.start", "session": "fluarmn-node24-runner-bootstrap", "ts": "2026-08-15T23:24:03", "agent": "codex", "prev": "289dc1765b539332edf902ad4d2b0342cdda868075ef47a7ac8d0ab63bb9cdd6"}
 {"event": "session.finish", "session": "fluarmn-node24-runner-bootstrap", "ts": "2026-08-15T23:26:26", "status": "ok", "claims_verdict": "GREEN", "prev": "9b56fba5dfe65531e822c5322eec7fcfefd25d09ee333b004e3bda13b67febc9"}
+{"event": "session.start", "session": "sanitize-replay-post-merge-20260816", "ts": "2026-08-16T04:22:09", "agent": "codex", "prev": "2a0dcb6c0b15dd44fedfa9a41519bc777aef04b05fb5cac3cb5a6c76863a086e"}
+{"event": "session.finish", "session": "sanitize-replay-post-merge-20260816", "ts": "2026-08-16T04:22:09", "status": "ok", "claims_verdict": "GREEN", "prev": "9c8c70fbd6acf9afca6175e09d476dd8a95998540edfd8419ed61a8a9c3e9532"}
+{"event": "session.start", "session": "sanitize-replay-post-merge-gate-20260816", "ts": "2026-08-16T04:22:21", "prev": "81b92bff50867a7f3e51cc9fbc7dc1325f3971725edda088eed87c79a40a7647"}
+{"event": "session.finish", "session": "sanitize-replay-post-merge-gate-20260816", "ts": "2026-08-16T04:22:22", "status": "ok", "claims_verdict": "YELLOW", "prev": "7220e309198b066dc897a36529ac5ecfa0a8bf0cf75c293e510cbe301b0149c0"}
+{"event": "session.start", "session": "sanitize-replay-post-merge-receipt-20260816", "ts": "2026-08-16T04:23:13", "agent": "codex", "prev": "d4571b7aac756418baea7213535a2af6ffc4ea79bae1d7cbfb9eaf68dbcbc00f"}
+{"event": "session.finish", "session": "sanitize-replay-post-merge-receipt-20260816", "ts": "2026-08-16T04:23:37", "status": "ok", "claims_verdict": "GREEN", "prev": "b3d1dd0cc179a0660f04c7dacba39484e674b8d043fa25f45d8d68bcb78760e2"}
