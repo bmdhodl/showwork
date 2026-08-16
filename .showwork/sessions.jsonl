@@ -440,3 +440,5 @@
 {"event": "session.finish", "session": "sanitize-replay-immutable-mapping-receipt-20260816", "ts": "2026-08-16T05:45:19", "status": "ok", "claims_verdict": "GREEN", "prev": "0cace3bcf36b0b390b5c79d9a034248346afcf6deff21f5a661bd73b5ccc8cdf"}
 {"event": "session.start", "session": "sanitize-replay-slot-immutability-20260816", "ts": "2026-08-16T06:01:10", "agent": "codex", "prev": "55bd5467b087e5f18f66deab1d4b60065c473e372ce6eec822b1fe497de2d9c2"}
 {"event": "session.finish", "session": "sanitize-replay-slot-immutability-20260816", "ts": "2026-08-16T06:01:34", "status": "ok", "claims_verdict": "GREEN", "prev": "2e98571c184bb90c165168ae43cf81638f869f9a2ef188d2abdfa569ed2817f5"}
+{"event": "session.start", "session": "sanitize-replay-object-immutable-20260816", "ts": "2026-08-16T06:08:37", "agent": "codex", "prev": "90d2d66792ecb398ab6cb532b73654bf6f6064e3a464f4f0812534eb57736bab"}
+{"event": "session.finish", "session": "sanitize-replay-object-immutable-20260816", "ts": "2026-08-16T06:09:01", "status": "ok", "claims_verdict": "GREEN", "prev": "b89b6587db82f338498f181dae710b8f064c383262237f581f506600af2e8415"}

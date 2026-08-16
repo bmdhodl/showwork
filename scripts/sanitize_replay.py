@@ -47,31 +47,25 @@ PUBLIC_THRESHOLD_KEYS = (
 )
 
 
-class _SanitizedMapping(Mapping[str, object]):
-    """Immutable mapping backed only by tuples, never a mutable dict."""
+class _SanitizedMapping(tuple, Mapping[str, object]):
+    """Immutable mapping whose items live in the tuple payload."""
 
-    __slots__ = ("_items",)
+    __slots__ = ()
 
-    def __init__(self, items: Iterable[tuple[str, object]]):
-        object.__setattr__(self, "_items", tuple(items))
-
-    def __setattr__(self, name: str, value: object) -> None:
-        raise TypeError("sanitized replay output is immutable")
-
-    def __delattr__(self, name: str) -> None:
-        raise TypeError("sanitized replay output is immutable")
+    def __new__(cls, items: Iterable[tuple[str, object]]):
+        return tuple.__new__(cls, tuple(items))
 
     def __getitem__(self, key: str) -> object:
-        for item_key, value in self._items:
+        for item_key, value in tuple.__iter__(self):
             if item_key == key:
                 return value
         raise KeyError(key)
 
     def __iter__(self):
-        return (key for key, _ in self._items)
+        return (key for key, _ in tuple.__iter__(self))
 
     def __len__(self) -> int:
-        return len(self._items)
+        return tuple.__len__(self)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Mapping):
