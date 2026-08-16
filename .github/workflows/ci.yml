@@ -38,10 +38,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
+      - name: Require host-provisioned Node.js 24
+        shell: bash
+        run: |
+          node_version="$(node --version)"
+          echo "Using ${node_version}"
+          [[ "$node_version" == v24.* ]]
 
       - name: JS auditor must match the frozen chain fixtures
         run: node js/showwork-audit/test.mjs
