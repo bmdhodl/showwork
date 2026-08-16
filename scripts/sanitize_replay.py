@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 # Only built-in, non-tenant tool labels are safe to expose. Transcript data can
@@ -46,20 +47,44 @@ PUBLIC_THRESHOLD_KEYS = (
 )
 
 
-class _SanitizedReplay(dict):
-    """Immutable private provenance marker for sanitizer output in memory."""
+class _SanitizedMapping(Mapping[str, object]):
+    """Immutable mapping backed only by tuples, never a mutable dict."""
 
-    def _reject_mutation(self, *args, **kwargs):
-        raise TypeError("sanitized replay output is immutable")
+    __slots__ = ("_items",)
 
-    __setitem__ = _reject_mutation
-    __delitem__ = _reject_mutation
-    clear = _reject_mutation
-    pop = _reject_mutation
-    popitem = _reject_mutation
-    setdefault = _reject_mutation
-    update = _reject_mutation
-    __ior__ = _reject_mutation
+    def __init__(self, items: Iterable[tuple[str, object]]):
+        self._items = tuple(items)
+
+    def __getitem__(self, key: str) -> object:
+        for item_key, value in self._items:
+            if item_key == key:
+                return value
+        raise KeyError(key)
+
+    def __iter__(self):
+        return (key for key, _ in self._items)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        return dict(self.items()) == dict(other.items())
+
+
+class _SanitizedReplay(_SanitizedMapping):
+    """Private provenance marker for sanitizer output kept in memory."""
+
+    __slots__ = ()
+
+
+def _to_jsonable(value: object) -> object:
+    if isinstance(value, _SanitizedMapping):
+        return {key: _to_jsonable(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_to_jsonable(item) for item in value]
+    return value
 
 
 def short_hash(value: str, length: int = 7) -> str:
@@ -162,28 +187,32 @@ def sanitize(data: dict) -> dict:
         reason = _safe_reason(row.get("reason"))
 
         out_results.append(
-            _SanitizedReplay({
-                "session": _safe_session_id(row.get("session", "")),
-                "project": generic_project(str(row.get("project", "")), projects),
-                "total_calls": _safe_count(row.get("total_calls")),
-                "stuck": row.get("stuck") if isinstance(row.get("stuck"), bool) else False,
-                "reason": reason,
-                "detail": _safe_detail(row, reason),
-                "fired_at_call": _safe_optional_count(row.get("fired_at_call")),
-                "calls_after_trip": _safe_count(row.get("calls_after_trip")),
-            })
+            _SanitizedMapping(
+                (
+                    ("session", _safe_session_id(row.get("session", ""))),
+                    ("project", generic_project(str(row.get("project", "")), projects)),
+                    ("total_calls", _safe_count(row.get("total_calls"))),
+                    ("stuck", row.get("stuck") if isinstance(row.get("stuck"), bool) else False),
+                    ("reason", reason),
+                    ("detail", _safe_detail(row, reason)),
+                    ("fired_at_call", _safe_optional_count(row.get("fired_at_call"))),
+                    ("calls_after_trip", _safe_count(row.get("calls_after_trip"))),
+                )
+            )
         )
 
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
     scanned = max(_safe_count(data.get("scanned")), with_calls)
 
-    return _SanitizedReplay({
-        "thresholds": _SanitizedReplay(_safe_thresholds(data.get("thresholds"))),
-        "scanned": scanned,
-        "with_calls": with_calls,
-        "results": tuple(out_results),
-        "sanitized": True,
-    })
+    return _SanitizedReplay(
+        (
+            ("thresholds", _SanitizedMapping(_safe_thresholds(data.get("thresholds")).items())),
+            ("scanned", scanned),
+            ("with_calls", with_calls),
+            ("results", tuple(out_results)),
+            ("sanitized", True),
+        )
+    )
 
 
 def main() -> int:
@@ -194,11 +223,12 @@ def main() -> int:
 
     data = json.loads(args.src.read_text(encoding="utf-8"))
     clean = sanitize(data)
+    clean_json = _to_jsonable(clean)
     args.dst.parent.mkdir(parents=True, exist_ok=True)
-    args.dst.write_text(json.dumps(clean, indent=2), encoding="utf-8")
+    args.dst.write_text(json.dumps(clean_json, indent=2), encoding="utf-8")
 
     leaked = [t for t in ("Users", "patri", "autotrader", "bmdpat", "K--", "wsl")
-              if t.lower() in json.dumps(clean).lower()]
+              if t.lower() in json.dumps(clean_json).lower()]
     print(f"sanitized {len(clean['results'])} rows -> {args.dst}")
     print(f"projects collapsed: {len(set(r['project'] for r in clean['results']))}")
     if leaked:

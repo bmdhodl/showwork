@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from scripts.build_public_dashboard import build
-from scripts.sanitize_replay import sanitize
+from scripts.sanitize_replay import _to_jsonable, sanitize
 
 
 def test_sanitize_whitelists_untrusted_replay_fields():
@@ -81,7 +81,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert private["detail"] == "unknown tool called with identical input"
     assert customer_mcp["detail"] == "unknown tool called with identical input"
     assert known["detail"] == "Bash called with identical input"
-    assert "C:\\Users" not in json.dumps(clean)
+    assert "C:\\Users" not in json.dumps(_to_jsonable(clean))
 
     empty = sanitize({"results": [{"reason": "", "detail": ""}]})["results"][0]
     assert empty["reason"] == ""
@@ -132,7 +132,9 @@ def test_sanitized_replay_output_cannot_be_mutated_at_renderer_boundary():
     )
 
     with pytest.raises(TypeError):
-        clean["results"][0]["session"] = r"C:\Users\patri\private"
+        dict.__setitem__(
+            clean["results"][0], "session", r"C:\Users\patri\private"
+        )
 
 
 def test_public_renderer_falls_back_for_invalid_explicit_with_calls():
