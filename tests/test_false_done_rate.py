@@ -10,7 +10,6 @@ from false_done_rate import analyze_root  # noqa: E402
 from showwork.ledger import (  # noqa: E402
     finish_session,
     record_claim,
-    record_event,
     record_retraction,
     start_session,
 )

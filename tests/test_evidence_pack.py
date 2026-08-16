@@ -52,7 +52,7 @@ def test_pack_refuses_tampered_ledger(tmp_path):
     record_claim(tmp_path, "sess-a", "second claim",
                  check={"type": "file_exists", "path": "artifact.txt"})
     path = claims_path(tmp_path)
-    lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     lines[0] = lines[0].replace("artifact", "artefact")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     code, text = build_pack(tmp_path, "2026-01-01", "2026-12-31", ["soc2"], [])

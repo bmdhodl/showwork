@@ -30,7 +30,7 @@ def test_exit_gate_refuses_red_close(tmp_path, capsys):
     assert run(tmp_path, "finish", "--session", "s2") == 2
     err = capsys.readouterr().err
     assert "REFUSED" in err
-    events = [json.loads(l) for l in
+    events = [json.loads(line) for line in
               sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
     assert events[-1]["event"] == "session.finish.refused"
 
@@ -50,7 +50,7 @@ def test_no_verify_bypass_is_stamped(tmp_path):
     run(tmp_path, "claim", "--session", "s4", "--claim", "made a file",
         "--type", "file_exists", "--path", "never-created.txt")
     assert run(tmp_path, "finish", "--session", "s4", "--no-verify") == 0
-    events = [json.loads(l) for l in
+    events = [json.loads(line) for line in
               sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
     assert events[-1]["event"] == "session.finish"
     assert events[-1]["verify_bypassed"] is True
@@ -79,7 +79,7 @@ def test_finish_status_ok_is_case_insensitive_gate(tmp_path):
     code, state = finish_session(tmp_path, "s-case", status="OK")
     assert code == 2
     assert state is not None and state["verdict"] == "RED"
-    events = [json.loads(l) for l in
+    events = [json.loads(line) for line in
               sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
     assert events[-1]["event"] == "session.finish.refused"
     assert events[-1]["status"] == "ok"

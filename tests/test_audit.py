@@ -19,7 +19,7 @@ def _claims_file(root: Path) -> Path:
 
 
 def _lines(path: Path) -> list[str]:
-    return [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def test_append_adds_prev_hash(tmp_path):
@@ -28,7 +28,7 @@ def test_append_adds_prev_hash(tmp_path):
     record_claim(tmp_path, "s", "second",
                  check={"type": "file_exists", "path": "x"})
     path = _claims_file(tmp_path)
-    first, second = (json.loads(l) for l in _lines(path))
+    first, second = (json.loads(line) for line in _lines(path))
     assert first["prev"] == genesis_hash(path)
     assert second["prev"] == line_hash(_lines(path)[0])
 

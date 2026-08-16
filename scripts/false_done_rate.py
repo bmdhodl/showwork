@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 
@@ -128,8 +127,10 @@ def render(reports: list[tuple[str, dict]]) -> str:
         lines.append(f"| {label} | {r['eligible_sessions']} | {r['false_done_sessions']} "
                      f"| {_pct(r['fdr_session'])} | {_pct(r['fdr_event'])} "
                      f"| {r['checked_claims']} |")
-        te += r["eligible_sessions"]; tf += r["false_done_sessions"]
-        ee += r["false_done_events"]; ef += r["clean_closes"]
+        te += r["eligible_sessions"]
+        tf += r["false_done_sessions"]
+        ee += r["false_done_events"]
+        ef += r["clean_closes"]
     lines.append(f"| **all** | **{te}** | **{tf}** "
                  f"| **{_pct(tf / te if te else None)}** "
                  f"| **{_pct(ee / (ee + ef) if (ee + ef) else None)}** |  |")

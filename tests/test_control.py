@@ -17,7 +17,6 @@ from showwork.control import (
     RiskPolicy,
     RiskRule,
     call_from_payload,
-    evaluate_post_tool_use,
     evaluate_pre_tool_use,
     render_post_tool_use,
     render_pre_tool_use,

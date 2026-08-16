@@ -6,8 +6,6 @@ import subprocess
 import threading
 from contextlib import contextmanager
 
-import pytest
-
 from showwork import checks
 from showwork.checks import evaluate_records, verify_claim
 

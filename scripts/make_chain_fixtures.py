@@ -99,13 +99,17 @@ def main() -> None:
     #    anchored per file, so each fixture is built under its own name.
     def build_forked(name: str) -> list[str]:
         target = OUT / name
-        parent = dict(rec(1, "parent")); parent["prev"] = genesis_hash(target)
+        parent = dict(rec(1, "parent"))
+        parent["prev"] = genesis_hash(target)
         p_line = json.dumps(parent, ensure_ascii=False)
-        a1 = dict(rec(2, "A-one")); a1["prev"] = line_hash(p_line)
+        a1 = dict(rec(2, "A-one"))
+        a1["prev"] = line_hash(p_line)
         a1_line = json.dumps(a1, ensure_ascii=False)
-        b1 = dict(rec(3, "B-one")); b1["prev"] = line_hash(p_line)  # re-anchors to parent
+        b1 = dict(rec(3, "B-one"))
+        b1["prev"] = line_hash(p_line)  # re-anchors to parent
         b1_line = json.dumps(b1, ensure_ascii=False)
-        b2 = dict(rec(4, "B-two")); b2["prev"] = line_hash(b1_line)
+        b2 = dict(rec(4, "B-two"))
+        b2["prev"] = line_hash(b1_line)
         return [p_line, a1_line, b1_line, json.dumps(b2, ensure_ascii=False)]
 
     write("forked.jsonl", build_forked("forked.jsonl"))
@@ -121,7 +125,8 @@ def main() -> None:
 
     # 11. hostile prev that is not a string (an object): a break, never a crash
     lines = chain(OUT / "nonstring-prev.jsonl", base[:1])
-    hostile = dict(rec(2, "hostile")); hostile["prev"] = {}
+    hostile = dict(rec(2, "hostile"))
+    hostile["prev"] = {}
     lines.append(json.dumps(hostile, ensure_ascii=False))
     write("nonstring-prev.jsonl", lines)
     expected["nonstring-prev.jsonl"] = {"verdict": "RED", "break_at": 2}
@@ -145,9 +150,11 @@ def main() -> None:
     #     break. str.splitlines() split it (cutting the JSON in two -> RED);
     #     \r?\n keeps the record whole, so the chain stays intact (GREEN).
     target = OUT / "u2028-in-string.jsonl"
-    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a = dict(rec(1, "one"))
+    a["prev"] = genesis_hash(target)
     a_line = json.dumps(a, ensure_ascii=False)
-    b = dict(rec(2, "line\u2028break")); b["prev"] = line_hash(a_line)
+    b = dict(rec(2, "line\u2028break"))
+    b["prev"] = line_hash(a_line)
     b_line = json.dumps(b, ensure_ascii=False)  # ensure_ascii=False keeps U+2028 raw
     (OUT / "u2028-in-string.jsonl").write_bytes((a_line + "\n" + b_line + "\n").encode("utf-8"))
     expected["u2028-in-string.jsonl"] = {"verdict": "GREEN", "break_at": None,
@@ -157,9 +164,11 @@ def main() -> None:
     #     physical line (invalid JSON -> one unparseable pre-chain record,
     #     YELLOW). str.splitlines() would have split it into two chained records.
     target = OUT / "lone-cr.jsonl"
-    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a = dict(rec(1, "one"))
+    a["prev"] = genesis_hash(target)
     a_line = json.dumps(a, ensure_ascii=False)
-    b = dict(rec(2, "two")); b["prev"] = line_hash(a_line)
+    b = dict(rec(2, "two"))
+    b["prev"] = line_hash(a_line)
     b_line = json.dumps(b, ensure_ascii=False)
     (OUT / "lone-cr.jsonl").write_bytes((a_line + "\r" + b_line + "\n").encode("utf-8"))
     expected["lone-cr.jsonl"] = {"verdict": "YELLOW", "break_at": None,
@@ -170,11 +179,14 @@ def main() -> None:
     #     as its own blank line and reports the break at line 5; \r?\n reports
     #     it at line 3, matching the JS auditor.
     target = OUT / "nlcr-break-numbering.jsonl"
-    a = dict(rec(1, "one")); a["prev"] = genesis_hash(target)
+    a = dict(rec(1, "one"))
+    a["prev"] = genesis_hash(target)
     a_line = json.dumps(a, ensure_ascii=False)
-    b = dict(rec(2, "two")); b["prev"] = line_hash(a_line)
+    b = dict(rec(2, "two"))
+    b["prev"] = line_hash(a_line)
     b_line = json.dumps(b, ensure_ascii=False)
-    c = dict(rec(3, "three")); c["prev"] = line_hash(b_line)
+    c = dict(rec(3, "three"))
+    c["prev"] = line_hash(b_line)
     c_line = json.dumps(c, ensure_ascii=False)
     b_tampered = b_line.replace('"two"', '"2wo"')  # record 3's prev no longer resolves
     (OUT / "nlcr-break-numbering.jsonl").write_bytes(
