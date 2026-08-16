@@ -129,6 +129,12 @@ declared integer. Predicates that are true for every possible count, including
 `>= 0` and `> -1`, MUST [test:
 tests/test_checks.py::test_glob_count_rejects_vacuous] return an error.
 
+Recursive glob components are not supported in verifier context. The pattern MUST
+[test: tests/test_checks.py::test_glob_count_rejects_recursive_pattern] reject any
+`glob_count` claim whose pattern includes an exact `**` component with status
+`error` before attempting match traversal. This is an explicit refusal boundary:
+recursive claims may not silently downgrade into a bounded-count comparison.
+
 ### `command`
 
 ```json

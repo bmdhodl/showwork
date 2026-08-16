@@ -415,14 +415,15 @@ def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
 
 
 def test_glob_count_rejects_recursive_pattern(tmp_path):
-    """Recursive glob patterns are refused to prevent unbounded traversal."""
-    result = verify_claim(
-        claim({"type": "glob_count", "pattern": "**/*", "op": "==", "n": 10}),
-        tmp_path,
-    )
+    """Recursive glob components are refused to prevent unbounded traversal."""
+    for pattern in ("**/*", "build/**/*.md"):
+        result = verify_claim(
+            claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": 10}),
+            tmp_path,
+        )
 
-    assert result["status"] == "error", result
-    assert "non-recursive" in result["detail"], result
+        assert result["status"] == "error", (pattern, result)
+        assert "non-recursive" in result["detail"], (pattern, result)
 
 
 def test_glob_count_limits_traversal_on_low_match_tree(tmp_path, monkeypatch):
