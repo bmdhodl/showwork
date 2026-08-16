@@ -415,3 +415,6 @@
 {"event": "session.finish", "session": "sanitize-replay-post-merge-receipt-20260816", "ts": "2026-08-16T04:23:37", "status": "ok", "claims_verdict": "GREEN", "prev": "b3d1dd0cc179a0660f04c7dacba39484e674b8d043fa25f45d8d68bcb78760e2"}
 {"event": "session.start", "session": "sanitize-replay-p1-remediation-20260816", "ts": "2026-08-16T04:26:28", "agent": "codex", "prev": "73f6db7d4beccadb30a2b128bf9657c334c257f181052135de28899985d9b68e"}
 {"event": "session.finish", "session": "sanitize-replay-p1-remediation-20260816", "ts": "2026-08-16T04:26:52", "status": "ok", "claims_verdict": "GREEN", "prev": "134750e153e4a0a94dfd4dc1cb67f82d03110d4cc626d36840dfc26d2ccdc105"}
+{"event": "session.start", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:33:03", "agent": "codex", "prev": "03faa088747f05ccb2430060d96ce4e4d4f660c5a622bfa1c356574890e49c14"}
+{"event": "session.finish.refused", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:33:30", "status": "ok", "claims_verdict": "RED", "prev": "e911eacb73f25dda32e676563b0ea7b487a90202d5f4a6e9cf45be10fa5c1f83"}
+{"event": "session.finish", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:36:38", "status": "ok", "claims_verdict": "GREEN", "prev": "43e3904e2684bcd67c6bb2bbd14e5c84138b3653010b7711fd0e6c37c6248b5d"}

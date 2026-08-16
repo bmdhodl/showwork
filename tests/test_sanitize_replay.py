@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+from pathlib import Path
 
 from scripts.build_public_dashboard import build
 from scripts.sanitize_replay import sanitize
@@ -84,3 +87,81 @@ def test_sanitize_whitelists_untrusted_replay_fields():
 
     # The sanitized shape remains consumable by the public renderer.
     assert "private" not in build(clean)
+
+
+def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
+    rendered = build(
+        {
+            "sanitized": True,
+            "scanned": r"C:\Users\patri\private.json",
+            "results": [
+                {
+                    "session": "raw-session",
+                    "project": r"C:\Users\patri\private-repo",
+                    "total_calls": 4,
+                    "stuck": True,
+                    "reason": "repeat",
+                    "detail": (
+                        "mcp__customer_acme__lookup called with identical input "
+                        r"C:\Users\patri\secret"
+                    ),
+                    "fired_at_call": 3,
+                    "calls_after_trip": 1,
+                }
+            ],
+        }
+    )
+
+    assert "mcp__customer_acme__lookup" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "unknown tool" in rendered
+
+
+def test_public_renderer_cli_sanitizes_forged_marker_input(tmp_path):
+    source = tmp_path / "forged.json"
+    output = tmp_path / "dashboard.html"
+    source.write_text(
+        json.dumps(
+            {
+                "sanitized": True,
+                "scanned": r"C:\Users\patri\private.json",
+                "results": [
+                    {
+                        "session": "raw-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "total_calls": 4,
+                        "stuck": True,
+                        "reason": "repeat",
+                        "detail": (
+                            "alice_private_repo called with identical input "
+                            r"C:\Users\patri\secret"
+                        ),
+                        "fired_at_call": 3,
+                        "calls_after_trip": 1,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/build_public_dashboard.py",
+            "--replay",
+            str(source),
+            "--out",
+            str(output),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    rendered = output.read_text(encoding="utf-8")
+    assert "alice_private_repo" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "unknown tool" in rendered
