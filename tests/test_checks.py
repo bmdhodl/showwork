@@ -49,6 +49,32 @@ def local_http_server():
         thread.join(timeout=5)
 
 
+class _FakeScandirEntry:
+    def __init__(self, name: str, is_dir: bool):
+        self.name = name
+        self._is_dir = is_dir
+
+    def is_dir(self) -> bool:
+        return self._is_dir
+
+
+class _FakeScandirResult:
+    def __init__(self, entries):
+        self._iterator = iter(entries)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self._iterator)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+
 def make_git_repo(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -382,10 +408,11 @@ def test_glob_count_accepts_maximum_match_bound(tmp_path, monkeypatch):
     _path = tmp_path / "entry.md"
     _path.write_text("x", encoding="utf-8")
 
-    def fake_itdir(_self) -> list:
-        return [_path for _ in range(accepted)]
+    def fake_scandir(_directory):
+        entries = [_FakeScandirEntry(_path.name, False) for _ in range(accepted)]
+        return _FakeScandirResult(entries)
 
-    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": accepted}),
         tmp_path,
@@ -401,10 +428,11 @@ def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
     _path = tmp_path / "entry.md"
     _path.write_text("x", encoding="utf-8")
 
-    def fake_itdir(_self) -> list:
-        return [_path for _ in range(too_many)]
+    def fake_scandir(_directory):
+        entries = [_FakeScandirEntry(_path.name, False) for _ in range(too_many)]
+        return _FakeScandirResult(entries)
 
-    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": too_many}),
         tmp_path,
@@ -445,14 +473,16 @@ def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
     monkeypatch.setattr(checks, "MAX_GLOB_TRAVERSAL", 5)
     path = tmp_path / "entry.md"
     path.write_text("x", encoding="utf-8")
+    calls = {"entries": 0}
 
-    def fake_itdir(_self) -> object:
+    def fake_scandir(_directory):
         for idx in range(20):
-            if idx > checks.MAX_GLOB_TRAVERSAL + 1:
+            calls["entries"] += 1
+            if calls["entries"] > checks.MAX_GLOB_TRAVERSAL + 1:
                 raise AssertionError("directory enumeration exceeded bounded cap")
-            yield path
+            yield _FakeScandirEntry(path.name, False)
 
-    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
+    monkeypatch.setattr(checks.os, "scandir", lambda _directory: _FakeScandirResult(fake_scandir(_directory)))
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": 0}),
         tmp_path,
@@ -460,6 +490,7 @@ def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
 
     assert result["status"] == "error", result
     assert "traversal limit exceeded" in result["detail"], result
+    assert calls["entries"] <= checks.MAX_GLOB_TRAVERSAL + 1
 
 
 def test_glob_count_respects_directory_only_trailing_separator(tmp_path):

@@ -286,39 +286,43 @@ def _bounded_glob_count(
     if not parts:
         return 0, 0
 
+    def _iter_dir_entries(directory: Path):
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    try:
+                        is_dir = entry.is_dir()
+                    except OSError as exc:  # pragma: no cover - platform-specific
+                        raise OSError(f"cannot read directory entry {entry.name}: {exc}")
+                    yield (entry.name, is_dir)
+        except OSError as exc:
+            raise OSError(f"cannot read directory {directory}: {exc}") from exc
+
     def walk_dir(directory: Path, idx: int, inspected: int) -> tuple[int, int]:
         if idx >= len(parts):
             return 0, inspected
         segment = parts[idx]
         if idx == len(parts) - 1:
             count = 0
-            try:
-                entries = directory.iterdir()
-            except OSError as exc:
-                raise OSError(f"cannot read directory {directory}: {exc}") from exc
-            for entry in entries:
+            for name, is_dir in _iter_dir_entries(directory):
                 inspected += 1
                 if inspected > MAX_GLOB_TRAVERSAL:
                     return count, inspected
-                if directory_only and not entry.is_dir():
+                if directory_only and not is_dir:
                     continue
-                if fnmatch.fnmatch(entry.name, segment):
+                if fnmatch.fnmatch(name, segment):
                     count += 1
             return count, inspected
         count = 0
-        try:
-            entries = directory.iterdir()
-        except OSError as exc:
-            raise OSError(f"cannot read directory {directory}: {exc}") from exc
-        for entry in entries:
+        for name, is_dir in _iter_dir_entries(directory):
             inspected += 1
             if inspected > MAX_GLOB_TRAVERSAL:
                 return count, inspected
-            if not fnmatch.fnmatch(entry.name, segment):
+            if not fnmatch.fnmatch(name, segment):
                 continue
-            if not entry.is_dir():
+            if not is_dir:
                 continue
-            nested_count, inspected = walk_dir(entry, idx + 1, inspected)
+            nested_count, inspected = walk_dir(directory / name, idx + 1, inspected)
             count += nested_count
             if inspected > MAX_GLOB_TRAVERSAL:
                 return count, inspected
