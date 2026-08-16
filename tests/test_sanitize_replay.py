@@ -114,7 +114,6 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     clean = sanitize(raw)
     assert clean["results"][0]["session"].startswith("run-")
     assert clean["results"][0]["session"] != "deadbee"
-    assert sanitize(clean) is clean
     assert sanitize(clean) == clean
 
 
@@ -205,6 +204,42 @@ def test_sanitize_does_not_trust_base_tuple_forgery():
 
     sanitized = sanitize(forged)
 
+    assert sanitized is not forged
+    rendered = json.dumps(_to_jsonable(sanitized))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "mcp__customer_acme__lookup" not in rendered
+
+
+def test_sanitize_does_not_trust_callable_registration_helper():
+    forged = tuple.__new__(
+        type(sanitize({"results": []})),
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "mcp__customer_acme__lookup called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        ),
+    )
+
+    registration_helper = getattr(
+        sanitize_replay, "_remember_sanitized_replay", None
+    )
+    if registration_helper is not None:
+        registration_helper(forged)
+    sanitized = sanitize(forged)
+
+    assert not hasattr(sanitize_replay, "_remember_sanitized_replay")
     assert sanitized is not forged
     rendered = json.dumps(_to_jsonable(sanitized))
     assert "attacker-session" not in rendered

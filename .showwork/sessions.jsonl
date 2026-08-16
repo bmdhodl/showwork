@@ -453,3 +453,5 @@
 {"event": "session.finish", "session": "sanitize-replay-fired-position-boundary-20260816", "ts": "2026-08-16T07:21:21", "status": "ok", "claims_verdict": "GREEN", "prev": "a2cc64423b850240d404478ab7119f573b4c97d54b6a0712df206c89c5ae59bd"}
 {"event": "session.start", "session": "sanitize-replay-provenance-capability-20260816", "ts": "2026-08-16T07:43:54", "agent": "codex", "prev": "9d930bc02ab7ab3152c64aebaccb7ec09c1e1d595b86a628e7797aac597f0cb6"}
 {"event": "session.finish", "session": "sanitize-replay-provenance-capability-20260816", "ts": "2026-08-16T07:52:43", "status": "ok", "claims_verdict": "GREEN", "prev": "fbec7c1cd5fa27eec0dfbcda6d29edeb29be6c1ef26a3bd552483957027775a6"}
+{"event": "session.start", "session": "sanitize-replay-canonical-idempotence-20260816", "ts": "2026-08-16T08:02:17", "agent": "codex", "prev": "a20a7a9c176b26484783d1dac13bbdd7e27c39842f03b7f51195537537d5ad3d"}
+{"event": "session.finish", "session": "sanitize-replay-canonical-idempotence-20260816", "ts": "2026-08-16T08:03:56", "status": "ok", "claims_verdict": "GREEN", "prev": "378e47f4e71bbcf9bda8e0cabd67741a925d3a899a323280c2ae6279e9b6488a"}

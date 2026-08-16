@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
@@ -91,23 +92,6 @@ _SanitizedMapping, _SanitizedReplay, _new_sanitized_mapping, _new_sanitized_repl
     _make_sanitized_types()
 )
 
-# A type check cannot distinguish sanitizer output from a tuple forged with
-# ``tuple.__new__`` or made through the module-private factory. Keep the
-# capability at the exact object identity returned by this module instead.
-# The strong references also prevent an id from being reused for an untrusted
-# object while the trusted value remains usable by a caller.
-_TRUSTED_SANITIZED_REPLAYS: dict[int, object] = {}
-
-
-def _is_trusted_sanitized_replay(value: object) -> bool:
-    return _TRUSTED_SANITIZED_REPLAYS.get(id(value)) is value
-
-
-def _remember_sanitized_replay(value: _SanitizedReplay) -> _SanitizedReplay:
-    _TRUSTED_SANITIZED_REPLAYS[id(value)] = value
-    return value
-
-
 def _to_jsonable(value: object) -> object:
     if isinstance(value, _SanitizedMapping):
         return {key: _to_jsonable(item) for key, item in value.items()}
@@ -171,7 +155,7 @@ def _safe_with_calls(value: object, fallback: int) -> int:
 
 def _safe_thresholds(value: object) -> dict[str, int | None]:
     """Copy only the numeric threshold fields used by replay_transcripts."""
-    if not isinstance(value, dict):
+    if not isinstance(value, Mapping):
         return {}
     clean: dict[str, int | None] = {}
     for key in PUBLIC_THRESHOLD_KEYS:
@@ -214,9 +198,90 @@ def _safe_detail(row: dict, reason: str) -> str:
     return "unclassified finding"
 
 
-def sanitize(data: Mapping[str, object]) -> Mapping[str, object]:
-    if _is_trusted_sanitized_replay(data):
-        return data
+def _canonical_sanitized_replay(data: object) -> _SanitizedReplay | None:
+    """Rebuild an already-safe value without trusting its object identity."""
+    if isinstance(data, _SanitizedMapping):
+        data = _to_jsonable(data)
+    if not isinstance(data, Mapping) or data.get("sanitized") is not True:
+        return None
+
+    thresholds = data.get("thresholds")
+    clean_thresholds = _safe_thresholds(thresholds)
+    if not isinstance(thresholds, Mapping) or dict(thresholds) != clean_thresholds:
+        return None
+
+    rows = data.get("results")
+    if not isinstance(rows, list):
+        return None
+
+    out_results = []
+    for row in rows:
+        if not isinstance(row, dict):
+            return None
+        session = row.get("session")
+        if (not isinstance(session, str)
+                or re.fullmatch(r"run-[0-9a-f]{7}", session) is None):
+            return None
+        project = row.get("project")
+        if (not isinstance(project, str)
+                or re.fullmatch(r"repo-[0-9]+", project) is None):
+            return None
+
+        reason = row.get("reason")
+        if reason not in PUBLIC_REASONS and reason not in ("", "unknown"):
+            return None
+        total_calls = _safe_count(row.get("total_calls"), default=-1)
+        if total_calls < 0:
+            return None
+        stuck = row.get("stuck")
+        if not isinstance(stuck, bool):
+            return None
+        fired_at_call = _safe_fired_at_call(row.get("fired_at_call"), total_calls)
+        if row.get("fired_at_call") != fired_at_call:
+            return None
+        calls_after_trip = _safe_calls_after_trip(total_calls, fired_at_call)
+        if row.get("calls_after_trip") != calls_after_trip:
+            return None
+        if row.get("detail") != _safe_detail(row, reason):
+            return None
+
+        out_results.append(
+            _new_sanitized_mapping(
+                (
+                    ("session", session),
+                    ("project", project),
+                    ("total_calls", total_calls),
+                    ("stuck", stuck),
+                    ("reason", reason),
+                    ("detail", row["detail"]),
+                    ("fired_at_call", fired_at_call),
+                    ("calls_after_trip", calls_after_trip),
+                )
+            )
+        )
+
+    with_calls = _safe_count(data.get("with_calls"), default=-1)
+    if with_calls < 0 or with_calls != len(out_results):
+        return None
+    scanned = _safe_count(data.get("scanned"), default=-1)
+    if scanned < with_calls:
+        return None
+
+    return _new_sanitized_replay(
+        (
+            ("thresholds", _new_sanitized_mapping(clean_thresholds.items())),
+            ("scanned", scanned),
+            ("with_calls", with_calls),
+            ("results", tuple(out_results)),
+            ("sanitized", True),
+        )
+    )
+
+
+def sanitize(data: object) -> Mapping[str, object]:
+    canonical = _canonical_sanitized_replay(data)
+    if canonical is not None:
+        return canonical
 
     if not isinstance(data, Mapping):
         data = {}
@@ -253,15 +318,13 @@ def sanitize(data: Mapping[str, object]) -> Mapping[str, object]:
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
     scanned = max(_safe_count(data.get("scanned")), with_calls)
 
-    return _remember_sanitized_replay(
-        _new_sanitized_replay(
-            (
-                ("thresholds", _new_sanitized_mapping(_safe_thresholds(data.get("thresholds")).items())),
-                ("scanned", scanned),
-                ("with_calls", with_calls),
-                ("results", tuple(out_results)),
-                ("sanitized", True),
-            )
+    return _new_sanitized_replay(
+        (
+            ("thresholds", _new_sanitized_mapping(_safe_thresholds(data.get("thresholds")).items())),
+            ("scanned", scanned),
+            ("with_calls", with_calls),
+            ("results", tuple(out_results)),
+            ("sanitized", True),
         )
     )
 
