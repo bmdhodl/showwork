@@ -45,6 +45,13 @@ def test_ci_receipt_gate_keeps_sensitive_opt_ins_disabled():
     assert "allow-network" not in workflow
 
 
+def test_ci_js_conformance_uses_host_node_without_setup_action():
+    workflow = read_repo_file(".github", "workflows", "ci.yml")
+    assert "actions/setup-node@" not in workflow
+    assert "Require host-provisioned Node.js 24" in workflow
+    assert '[[ "$node_version" == v24.* ]]' in workflow
+
+
 def test_action_strict_mode_turns_yellow_into_failure():
     action = read_repo_file("actions", "verify", "action.yml")
     assert '3) if [ "${SW_STRICT}" = "true" ]; then fail=1; fi' in action
