@@ -97,4 +97,8 @@ scope, add a parser, claim replay safety, or claim human/agent comprehension.
 
 - `python -m showwork.ledger.verify_date` fixture run: completed; all rows recorded above.
 - Exact temporary fixture removed: confirmed.
+- Receipt status: GREEN; `4/5` current claims verify because one initial
+  regex claim remains as a retracted append-only record and was superseded by
+  a verifier-compatible claim. The retraction is preserved rather than
+  rewritten.
 - Full repository gate for this cycle: `python -m pytest tests/ -q` -> 240 passed.
