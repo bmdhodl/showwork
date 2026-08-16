@@ -53,7 +53,13 @@ class _SanitizedMapping(Mapping[str, object]):
     __slots__ = ("_items",)
 
     def __init__(self, items: Iterable[tuple[str, object]]):
-        self._items = tuple(items)
+        object.__setattr__(self, "_items", tuple(items))
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise TypeError("sanitized replay output is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise TypeError("sanitized replay output is immutable")
 
     def __getitem__(self, key: str) -> object:
         for item_key, value in self._items:

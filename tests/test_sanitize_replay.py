@@ -137,6 +137,13 @@ def test_sanitized_replay_output_cannot_be_mutated_at_renderer_boundary():
         )
 
 
+def test_sanitized_replay_provenance_rejects_slot_reassignment():
+    clean = sanitize({"results": [{"session": "raw-session", "reason": ""}]})
+
+    with pytest.raises(TypeError):
+        clean._items = (("results", ()),)
+
+
 def test_public_renderer_falls_back_for_invalid_explicit_with_calls():
     rendered = build(
         {
