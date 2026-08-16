@@ -464,3 +464,4 @@
 {"event": "session.finish", "session": "ruff-cleanup-20260816", "ts": "2026-08-16T09:16:06", "status": "ok", "claims_verdict": "GREEN", "prev": "76e92495cdca009ed1c5b60ab253bf93bda53b6e3e73af1085467752e5be1557"}
 {"event": "session.start", "session": "glob-count-backslash-posix-20260816", "ts": "2026-08-16T14:36:15", "agent": "codex", "prev": "602d97dbd98a10228d2bf97ac60648fcd19c1872fdf8eae51f750aa0aab57f8f"}
 {"event": "session.finish.refused", "session": "glob-count-backslash-posix-20260816", "ts": "2026-08-16T14:36:39", "status": "ok", "claims_verdict": "RED", "prev": "c50088b641703d99beda92de6495c4edb3e10473717bd2ab1ff04347065f6a70"}
+{"event": "session.finish", "session": "glob-count-backslash-posix-20260816", "ts": "2026-08-16T14:51:00", "status": "ok", "claims_verdict": "GREEN", "prev": "dd843d222d5e8c05f62ab50b5ec0fb25e50e0dd9ce90d53a6629c8d7fbb97d8c"}
