@@ -42,6 +42,7 @@ import urllib.request
 from pathlib import Path
 
 SHELL_META = set(";|&$<>`\n\r")
+MAX_GLOB_MATCHES = 100_000
 
 # Set in the environment of any child process spawned by a `command` check.
 # If that child in turn triggers verification, nested `command` checks refuse
@@ -246,6 +247,20 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", f"{field}={actual}") if actual == want \
         else ("fail", f"{field}={actual}, claimed {want}")
 
+def _count_glob_matches(root: Path, pattern: str) -> tuple[int, str | None]:
+    count = 0
+    try:
+        for _ in root.glob(pattern):
+            count += 1
+            if count > MAX_GLOB_MATCHES:
+                return (
+                    count,
+                    f"glob match limit exceeded: {MAX_GLOB_MATCHES} for pattern {pattern!r}",
+                )
+    except ValueError as e:
+        return 0, f"invalid glob pattern {pattern!r}: {e}"
+    return count, None
+
 
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     op = c["op"]
@@ -271,10 +286,11 @@ def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     # is never negative, so `>= 0` / `> -1` verify nothing.
     if (op == ">=" and want <= 0) or (op == ">" and want < 0):
         return ("error", f"count {op} {want} is always true (vacuous check); tighten it")
-    try:
-        n = sum(1 for _ in root.glob(pattern))
-    except ValueError as e:
-        return ("error", f"invalid glob pattern {pattern!r}: {e}")
+    if "**" in pattern:
+        return ("error", "glob pattern must be non-recursive in verifier context")
+    n, error = _count_glob_matches(root, pattern)
+    if error is not None:
+        return ("error", error)
     ok = {
         "==": n == want, ">=": n >= want, "<=": n <= want,
         ">": n > want, "<": n < want,

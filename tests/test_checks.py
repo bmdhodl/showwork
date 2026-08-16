@@ -375,6 +375,34 @@ def test_glob_count_rejects_empty_pattern(tmp_path):
     assert "pattern" in r["detail"].lower()
 
 
+def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
+    """A malicious claim must be bounded even without recursive syntax."""
+    too_many = 100_001
+
+    def fake_glob(_root, _pattern):
+        yield from (tmp_path / "entry" for _ in range(too_many))
+
+    monkeypatch.setattr(type(tmp_path), "glob", fake_glob)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": too_many}),
+        tmp_path,
+    )
+
+    assert result["status"] == "error", result
+    assert "limit exceeded" in result["detail"], result
+
+
+def test_glob_count_rejects_recursive_pattern(tmp_path):
+    """Recursive glob patterns are refused to prevent unbounded traversal."""
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "**/*", "op": "==", "n": 10}),
+        tmp_path,
+    )
+
+    assert result["status"] == "error", result
+    assert "non-recursive" in result["detail"], result
+
+
 # ---------- http_probe ----------
 
 def test_http_probe_happy_path(tmp_path):
