@@ -311,7 +311,7 @@ def _bounded_glob_count(
                 if inspected > MAX_GLOB_TRAVERSAL:
                     return 0, inspected
                 candidate = directory / segment
-                exists = candidate.exists()
+                exists = os.path.lexists(candidate)
                 if exists:
                     if not directory_only or candidate.is_dir():
                         return 1, inspected
@@ -335,6 +335,7 @@ def _bounded_glob_count(
                 return 0, inspected
             return walk_dir(child, idx + 1, inspected)
         count = 0
+        matching_children: list[Path] = []
         for name, is_dir in _iter_dir_entries(directory):
             inspected += 1
             if inspected > MAX_GLOB_TRAVERSAL:
@@ -343,7 +344,10 @@ def _bounded_glob_count(
                 continue
             if not is_dir:
                 continue
-            nested_count, inspected = walk_dir(directory / name, idx + 1, inspected)
+            matching_children.append(directory / name)
+
+        for child in matching_children:
+            nested_count, inspected = walk_dir(child, idx + 1, inspected)
             count += nested_count
             if inspected > MAX_GLOB_TRAVERSAL:
                 return count, inspected

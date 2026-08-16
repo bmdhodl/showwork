@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from contextlib import contextmanager
 
+import pytest
+
 from showwork import checks
 from showwork.checks import evaluate_records, verify_claim
 
@@ -492,6 +494,76 @@ def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
     assert result["status"] == "error", result
     assert "traversal limit exceeded" in result["detail"], result
     assert calls["entries"] <= checks.MAX_GLOB_TRAVERSAL + 1
+
+
+def test_glob_count_closes_parent_scandir_before_recursing(tmp_path, monkeypatch):
+    """Pattern recursion must close a parent directory stream before descending."""
+    state = {"depth": 0}
+
+    def fake_scandir(directory):
+        def _entries_for(path: Path):
+            if path == tmp_path:
+                return [_FakeScandirEntry("alpha", True), _FakeScandirEntry("beta", True)]
+            if path == tmp_path / "alpha":
+                return [_FakeScandirEntry("x.md", False)]
+            if path == tmp_path / "beta":
+                return [_FakeScandirEntry("x.md", False)]
+            raise AssertionError(f"unexpected scandir target: {path!r}")
+
+        class TrackingScandirResult:
+            def __init__(self, entries):
+                self._iterator = iter(entries)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return next(self._iterator)
+
+            def __enter__(self):
+                if state["depth"] != 0:
+                    raise AssertionError("parent scandir handle remained open during recursion")
+                state["depth"] += 1
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                state["depth"] -= 1
+                return False
+
+        return TrackingScandirResult(_entries_for(Path(directory)))
+
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/*.md", "op": "==", "n": 2}),
+        tmp_path,
+    )
+
+    assert result["status"] == "pass", result
+    assert "count 2 ==" in result["detail"], result
+
+
+def test_glob_count_counts_dangling_symlink_on_final_literal(tmp_path):
+    """Final literal path segments should follow Path.glob semantics for dangling symlinks."""
+    link = tmp_path / "dangling.md"
+    target = tmp_path / "does-not-exist.md"
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable on this platform")
+
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "dangling.md", "op": "==", "n": 1}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert "count 1 ==" in result["detail"], result
+
+    directory_only = verify_claim(
+        claim({"type": "glob_count", "pattern": "dangling.md/", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert directory_only["status"] == "pass", directory_only
+    assert "count 0 ==" in directory_only["detail"], directory_only
 
 
 def test_glob_count_uses_direct_lookup_for_literal_prefix(tmp_path, monkeypatch):
