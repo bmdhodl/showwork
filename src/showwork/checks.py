@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import fnmatch
 import re
 import subprocess
 import sys
@@ -42,6 +43,8 @@ import urllib.request
 from pathlib import Path
 
 SHELL_META = set(";|&$<>`\n\r")
+MAX_GLOB_MATCHES = 100_000
+MAX_GLOB_TRAVERSAL = MAX_GLOB_MATCHES
 
 # Set in the environment of any child process spawned by a `command` check.
 # If that child in turn triggers verification, nested `command` checks refuse
@@ -246,6 +249,113 @@ def chk_frontmatter(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", f"{field}={actual}") if actual == want \
         else ("fail", f"{field}={actual}, claimed {want}")
 
+def _count_glob_matches(root: Path, pattern: str) -> tuple[int, str | None]:
+    try:
+        normalized_parts, directory_only = _glob_parts(pattern)
+        count, inspected = _bounded_glob_count(root, normalized_parts, directory_only)
+    except (ValueError, OSError) as exc:
+        return 0, f"invalid glob pattern {pattern!r}: {exc}"
+    if inspected > MAX_GLOB_TRAVERSAL:
+        return 0, (
+            f"glob traversal limit exceeded: {MAX_GLOB_TRAVERSAL} for pattern "
+            f"{pattern!r} after inspecting {inspected} entries"
+        )
+    return count, None
+
+
+def _glob_parts(pattern: str) -> tuple[tuple[str, ...], bool]:
+    parts = [p for p in Path(pattern).parts if p and p != "."]
+    if not parts:
+        raise ValueError("invalid empty glob pattern")
+    directory_only = pattern.endswith("/") or (
+        (os.path.sep != "/" and pattern.endswith("\\"))
+    )
+    return tuple(parts), directory_only
+
+
+def _has_recursive_glob(parts: tuple[str, ...]) -> bool:
+    return any(part == "**" for part in parts)
+
+
+def _bounded_glob_count(
+    root: Path,
+    parts: tuple[str, ...],
+    directory_only: bool,
+) -> tuple[int, int]:
+    """Return (match_count, traversed_entries) with a hard traversal cap."""
+    if not parts:
+        return 0, 0
+
+    def _is_pattern_component(segment: str) -> bool:
+        return any(ch in segment for ch in "*?[")
+
+    def _iter_dir_entries(directory: Path):
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    try:
+                        is_dir = entry.is_dir()
+                    except OSError as exc:  # pragma: no cover - platform-specific
+                        raise OSError(f"cannot read directory entry {entry.name}: {exc}")
+                    yield (entry.name, is_dir)
+        except OSError as exc:
+            raise OSError(f"cannot read directory {directory}: {exc}") from exc
+
+    def walk_dir(directory: Path, idx: int, inspected: int) -> tuple[int, int]:
+        if idx >= len(parts):
+            return 0, inspected
+        segment = parts[idx]
+        if idx == len(parts) - 1:
+            if not _is_pattern_component(segment):
+                inspected += 1
+                if inspected > MAX_GLOB_TRAVERSAL:
+                    return 0, inspected
+                candidate = directory / segment
+                exists = os.path.lexists(candidate)
+                if exists:
+                    if not directory_only or candidate.is_dir():
+                        return 1, inspected
+                return 0, inspected
+            count = 0
+            for name, is_dir in _iter_dir_entries(directory):
+                inspected += 1
+                if inspected > MAX_GLOB_TRAVERSAL:
+                    return count, inspected
+                if directory_only and not is_dir:
+                    continue
+                if fnmatch.fnmatch(name, segment):
+                    count += 1
+            return count, inspected
+        if not _is_pattern_component(segment):
+            inspected += 1
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return 0, inspected
+            child = directory / segment
+            if not child.is_dir():
+                return 0, inspected
+            return walk_dir(child, idx + 1, inspected)
+        count = 0
+        matching_children: list[Path] = []
+        for name, is_dir in _iter_dir_entries(directory):
+            inspected += 1
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return count, inspected
+            if not fnmatch.fnmatch(name, segment):
+                continue
+            if not is_dir:
+                continue
+            matching_children.append(directory / name)
+
+        for child in matching_children:
+            nested_count, inspected = walk_dir(child, idx + 1, inspected)
+            count += nested_count
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return count, inspected
+        return count, inspected
+
+    count, inspected = walk_dir(root, 0, 0)
+    return count, inspected
+
 
 def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     op = c["op"]
@@ -271,10 +381,12 @@ def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     # is never negative, so `>= 0` / `> -1` verify nothing.
     if (op == ">=" and want <= 0) or (op == ">" and want < 0):
         return ("error", f"count {op} {want} is always true (vacuous check); tighten it")
-    try:
-        n = sum(1 for _ in root.glob(pattern))
-    except ValueError as e:
-        return ("error", f"invalid glob pattern {pattern!r}: {e}")
+    pattern_parts, _ = _glob_parts(pattern)
+    if _has_recursive_glob(pattern_parts):
+        return ("error", "glob pattern must be non-recursive in verifier context")
+    n, error = _count_glob_matches(root, pattern)
+    if error is not None:
+        return ("error", error)
     ok = {
         "==": n == want, ">=": n >= want, "<=": n <= want,
         ">": n > want, "<": n < want,

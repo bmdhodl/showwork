@@ -4,7 +4,11 @@ import json
 import http.server
 import subprocess
 import threading
+import os
+from pathlib import Path
 from contextlib import contextmanager
+
+import pytest
 
 from showwork import checks
 from showwork.checks import evaluate_records, verify_claim
@@ -46,6 +50,32 @@ def local_http_server():
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+class _FakeScandirEntry:
+    def __init__(self, name: str, is_dir: bool):
+        self.name = name
+        self._is_dir = is_dir
+
+    def is_dir(self) -> bool:
+        return self._is_dir
+
+
+class _FakeScandirResult:
+    def __init__(self, entries):
+        self._iterator = iter(entries)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self._iterator)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
 
 
 def make_git_repo(tmp_path):
@@ -373,6 +403,249 @@ def test_glob_count_rejects_empty_pattern(tmp_path):
     assert r["status"] == "error"
     assert "checker raised" not in r["detail"]
     assert "pattern" in r["detail"].lower()
+
+
+def test_glob_count_accepts_maximum_match_bound(tmp_path, monkeypatch):
+    """Bounded traversal should accept an exact match limit count."""
+    accepted = checks.MAX_GLOB_MATCHES
+    _path = tmp_path / "entry.md"
+    _path.write_text("x", encoding="utf-8")
+
+    def fake_scandir(_directory):
+        entries = [_FakeScandirEntry(_path.name, False) for _ in range(accepted)]
+        return _FakeScandirResult(entries)
+
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": accepted}),
+        tmp_path,
+    )
+
+    assert result["status"] == "pass", result
+    assert f"count {accepted} ==" in result["detail"], result
+
+
+def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
+    """A malicious claim must be bounded even without recursive syntax."""
+    too_many = checks.MAX_GLOB_MATCHES + 1
+    _path = tmp_path / "entry.md"
+    _path.write_text("x", encoding="utf-8")
+
+    def fake_scandir(_directory):
+        entries = [_FakeScandirEntry(_path.name, False) for _ in range(too_many)]
+        return _FakeScandirResult(entries)
+
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": too_many}),
+        tmp_path,
+    )
+
+    assert result["status"] == "error", result
+    assert "limit exceeded" in result["detail"], result
+
+
+def test_glob_count_rejects_recursive_pattern(tmp_path):
+    """Recursive glob components are refused to prevent unbounded traversal."""
+    for pattern in ("**/*", "build/**/*.md"):
+        result = verify_claim(
+            claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": 10}),
+            tmp_path,
+        )
+
+        assert result["status"] == "error", (pattern, result)
+        assert "non-recursive" in result["detail"], (pattern, result)
+
+
+def test_glob_count_limits_traversal_on_low_match_tree(tmp_path, monkeypatch):
+    """Traversal must stop on entry budget even when yielded matches are low."""
+    monkeypatch.setattr(checks, "MAX_GLOB_TRAVERSAL", 5)
+    for i in range(20):
+        (tmp_path / f"dir{i}").mkdir()
+        (tmp_path / f"dir{i}" / "leaf").mkdir()
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/leaf/missing", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert result["status"] == "error", result
+    assert "traversal limit exceeded" in result["detail"], result
+
+
+def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
+    """Traversal must stop before reading unbounded entries from a single directory."""
+    monkeypatch.setattr(checks, "MAX_GLOB_TRAVERSAL", 5)
+    path = tmp_path / "entry.md"
+    path.write_text("x", encoding="utf-8")
+    calls = {"entries": 0}
+
+    def fake_scandir(_directory):
+        for idx in range(20):
+            calls["entries"] += 1
+            if calls["entries"] > checks.MAX_GLOB_TRAVERSAL + 1:
+                raise AssertionError("directory enumeration exceeded bounded cap")
+            yield _FakeScandirEntry(path.name, False)
+
+    monkeypatch.setattr(checks.os, "scandir", lambda _directory: _FakeScandirResult(fake_scandir(_directory)))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": 0}),
+        tmp_path,
+    )
+
+    assert result["status"] == "error", result
+    assert "traversal limit exceeded" in result["detail"], result
+    assert calls["entries"] <= checks.MAX_GLOB_TRAVERSAL + 1
+
+
+def test_glob_count_closes_parent_scandir_before_recursing(tmp_path, monkeypatch):
+    """Pattern recursion must close a parent directory stream before descending."""
+    state = {"depth": 0}
+
+    def fake_scandir(directory):
+        def _entries_for(path: Path):
+            if path == tmp_path:
+                return [_FakeScandirEntry("alpha", True), _FakeScandirEntry("beta", True)]
+            if path == tmp_path / "alpha":
+                return [_FakeScandirEntry("x.md", False)]
+            if path == tmp_path / "beta":
+                return [_FakeScandirEntry("x.md", False)]
+            raise AssertionError(f"unexpected scandir target: {path!r}")
+
+        class TrackingScandirResult:
+            def __init__(self, entries):
+                self._iterator = iter(entries)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return next(self._iterator)
+
+            def __enter__(self):
+                if state["depth"] != 0:
+                    raise AssertionError("parent scandir handle remained open during recursion")
+                state["depth"] += 1
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                state["depth"] -= 1
+                return False
+
+        return TrackingScandirResult(_entries_for(Path(directory)))
+
+    monkeypatch.setattr(checks.os, "scandir", fake_scandir)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/*.md", "op": "==", "n": 2}),
+        tmp_path,
+    )
+
+    assert result["status"] == "pass", result
+    assert "count 2 ==" in result["detail"], result
+
+
+def test_glob_count_counts_dangling_symlink_on_final_literal(tmp_path):
+    """Final literal path segments should follow Path.glob semantics for dangling symlinks."""
+    link = tmp_path / "dangling.md"
+    target = tmp_path / "does-not-exist.md"
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable on this platform")
+
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "dangling.md", "op": "==", "n": 1}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert "count 1 ==" in result["detail"], result
+
+    directory_only = verify_claim(
+        claim({"type": "glob_count", "pattern": "dangling.md/", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert directory_only["status"] == "pass", directory_only
+    assert "count 0 ==" in directory_only["detail"], directory_only
+
+
+def test_glob_count_uses_direct_lookup_for_literal_prefix(tmp_path, monkeypatch):
+    """Literal non-final segments should resolve as direct children, not sibling scans."""
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "readme.md").write_text("x", encoding="utf-8")
+    calls = []
+
+    def fake_scandir(directory):
+        calls.append(Path(directory))
+        if directory == tmp_path:
+            raise AssertionError("root enumeration should not be used for literal component")
+        if directory == reports:
+            return _FakeScandirResult([_FakeScandirEntry("readme.md", False)])
+        raise AssertionError(f"unexpected scandir call for {directory!r}")
+
+    monkeypatch.setattr(checks.os, "scandir", lambda directory: fake_scandir(directory))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "reports/*.md", "op": "==", "n": 1}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert calls == [reports]
+
+    missing = verify_claim(
+        claim({"type": "glob_count", "pattern": "missing/*.md", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert missing["status"] == "pass", missing
+
+
+def test_glob_count_respects_directory_only_trailing_separator(tmp_path):
+    """Trailing slash should count directories only, matching pathlib glob behavior."""
+    (tmp_path / "build").mkdir()
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "build.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "root_file.md").write_text("x", encoding="utf-8")
+
+    expected_root_glob = list(tmp_path.glob("*/"))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/", "op": "==", "n": len(expected_root_glob)}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert f"count {len(expected_root_glob)} ==" in result["detail"], result
+
+    expected_build_glob = list(tmp_path.glob("build/"))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "build/", "op": "==", "n": len(expected_build_glob)}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert f"count {len(expected_build_glob)} ==" in result["detail"], result
+
+
+def test_glob_count_accepts_adjacent_star_patterns(tmp_path):
+    """Exact-match `**` rejection should preserve non-recursive adjacent-star patterns."""
+    (tmp_path / "foobar.md").write_text("x", encoding="utf-8")
+    for pattern in ("foo**bar.md", "**.md"):
+        result = verify_claim(
+            claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": 1}),
+            tmp_path,
+        )
+        assert result["status"] == "pass", (pattern, result)
+
+
+def test_glob_count_preserves_backslash_semantics(tmp_path):
+    """Backslashes should follow pathlib semantics for the current platform."""
+    (tmp_path / "foo").mkdir()
+    (tmp_path / "foo" / "bar.md").write_text("x", encoding="utf-8")
+
+    pattern = "foo\\bar.md"
+    expected = len(list(tmp_path.glob(pattern)))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": expected}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+
+    if os.name == "posix":
+        assert expected == 0, result
 
 
 # ---------- http_probe ----------
