@@ -10,7 +10,7 @@ signature fired, how far past the trip point the run continued. That is the part
 that makes the case. The identifiers are noise to a reader and exposure to the
 owner.
 
-Session ids become short stable hashes so rows stay distinguishable across
+Session ids become opaque stable hashes so rows stay distinguishable across
 renders without being traceable. Project names collapse to generic slugs.
 """
 
@@ -38,7 +38,7 @@ PUBLIC_TOOL_NAMES = frozenset(
         "Write",
     )
 )
-PUBLIC_RUN_ID = re.compile(r"^run-[0-9a-f]{7}$")
+PUBLIC_RUN_ID = re.compile(r"^run-[0-9a-f]{64}$")
 PUBLIC_REASONS = frozenset(("repeat", "alternation", "no_progress"))
 PUBLIC_THRESHOLD_KEYS = (
     "repeat_threshold",
@@ -48,7 +48,7 @@ PUBLIC_THRESHOLD_KEYS = (
 )
 
 
-def short_hash(value: str, length: int = 7) -> str:
+def short_hash(value: str, length: int = 64) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
 
 
@@ -76,6 +76,14 @@ def _safe_optional_count(value: object) -> int | None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
+    return value
+
+
+def _safe_with_calls(value: object, fallback: int) -> int:
+    """Keep counts usable for rates without trusting malformed input."""
+    if (isinstance(value, bool) or not isinstance(value, int)
+            or value < fallback):
+        return fallback
     return value
 
 
@@ -150,11 +158,7 @@ def sanitize(data: dict) -> dict:
             }
         )
 
-    with_calls = (
-        len(out_results)
-        if "with_calls" not in data
-        else _safe_count(data.get("with_calls"))
-    )
+    with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
 
     return {
         "thresholds": _safe_thresholds(data.get("thresholds")),

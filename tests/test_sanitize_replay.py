@@ -62,7 +62,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
 
     assert clean["thresholds"] == {"repeat_threshold": 3, "window": 12}
     assert clean["scanned"] == 0
-    assert clean["with_calls"] == 0
+    assert clean["with_calls"] == 5
     first, second, private, customer_mcp, known = clean["results"]
     assert first == {
         "session": first["session"],
@@ -112,6 +112,26 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     assert clean["results"][0]["session"].startswith("run-")
     assert clean["results"][0]["session"] != "deadbee"
     assert sanitize(clean) == clean
+
+
+def test_sanitize_rehashes_transcript_supplied_public_looking_session_id():
+    clean = sanitize(
+        {"results": [{"session": "run-deadbee", "reason": ""}]}
+    )
+
+    assert clean["results"][0]["session"] != "run-deadbee"
+    assert clean["results"][0]["session"].startswith("run-")
+
+
+def test_public_renderer_falls_back_for_invalid_explicit_with_calls():
+    rendered = build(
+        {
+            "with_calls": "not-a-count",
+            "results": [{"session": "raw", "stuck": True}],
+        }
+    )
+
+    assert "100.0%" in rendered
 
 
 def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
