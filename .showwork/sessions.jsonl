@@ -432,3 +432,5 @@
 {"event": "session.finish", "session": "sanitize-replay-provenance-20260816", "ts": "2026-08-16T05:23:02", "status": "ok", "claims_verdict": "GREEN", "prev": "b91d73d9720e2fc6f2c3f7ec9b1cbbee42c2e9f32f36d87816c7a8d2272403a5"}
 {"event": "session.start", "session": "sanitize-replay-summary-integrity-20260816", "ts": "2026-08-16T05:28:05", "agent": "codex", "prev": "430c8b937a67a7fac3aedefebd9ad6bab0a56fe4941c5de5f020ee586ae3a845"}
 {"event": "session.finish", "session": "sanitize-replay-summary-integrity-20260816", "ts": "2026-08-16T05:28:28", "status": "ok", "claims_verdict": "GREEN", "prev": "7278e1eb2f441261b8f80b5041e25a08218adf502a18bedeacd8bee122adbfab"}
+{"event": "session.start", "session": "sanitize-replay-immutability-20260816", "ts": "2026-08-16T05:32:46", "agent": "codex", "prev": "6c107bb0dcdd311701ea2ef366fd2a408d46fb6fd995b05152c2693202675d75"}
+{"event": "session.finish", "session": "sanitize-replay-immutability-20260816", "ts": "2026-08-16T05:33:09", "status": "ok", "claims_verdict": "GREEN", "prev": "3c9e6b4205c706b145b625b9f366b8969fe2ae31e44659e69e2a9508329931e3"}

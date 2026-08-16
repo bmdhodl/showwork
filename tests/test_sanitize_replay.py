@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.build_public_dashboard import build
 from scripts.sanitize_replay import sanitize
 
@@ -122,6 +124,15 @@ def test_sanitize_rehashes_transcript_supplied_public_looking_session_id():
 
     assert clean["results"][0]["session"] != "run-deadbee"
     assert clean["results"][0]["session"].startswith("run-")
+
+
+def test_sanitized_replay_output_cannot_be_mutated_at_renderer_boundary():
+    clean = sanitize(
+        {"results": [{"session": "raw-session", "reason": ""}]}
+    )
+
+    with pytest.raises(TypeError):
+        clean["results"][0]["session"] = r"C:\Users\patri\private"
 
 
 def test_public_renderer_falls_back_for_invalid_explicit_with_calls():

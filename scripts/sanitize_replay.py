@@ -47,7 +47,19 @@ PUBLIC_THRESHOLD_KEYS = (
 
 
 class _SanitizedReplay(dict):
-    """Private provenance marker for sanitizer output kept in memory."""
+    """Immutable private provenance marker for sanitizer output in memory."""
+
+    def _reject_mutation(self, *args, **kwargs):
+        raise TypeError("sanitized replay output is immutable")
+
+    __setitem__ = _reject_mutation
+    __delitem__ = _reject_mutation
+    clear = _reject_mutation
+    pop = _reject_mutation
+    popitem = _reject_mutation
+    setdefault = _reject_mutation
+    update = _reject_mutation
+    __ior__ = _reject_mutation
 
 
 def short_hash(value: str, length: int = 7) -> str:
@@ -150,7 +162,7 @@ def sanitize(data: dict) -> dict:
         reason = _safe_reason(row.get("reason"))
 
         out_results.append(
-            {
+            _SanitizedReplay({
                 "session": _safe_session_id(row.get("session", "")),
                 "project": generic_project(str(row.get("project", "")), projects),
                 "total_calls": _safe_count(row.get("total_calls")),
@@ -159,17 +171,17 @@ def sanitize(data: dict) -> dict:
                 "detail": _safe_detail(row, reason),
                 "fired_at_call": _safe_optional_count(row.get("fired_at_call")),
                 "calls_after_trip": _safe_count(row.get("calls_after_trip")),
-            }
+            })
         )
 
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
     scanned = max(_safe_count(data.get("scanned")), with_calls)
 
     return _SanitizedReplay({
-        "thresholds": _safe_thresholds(data.get("thresholds")),
+        "thresholds": _SanitizedReplay(_safe_thresholds(data.get("thresholds"))),
         "scanned": scanned,
         "with_calls": with_calls,
-        "results": out_results,
+        "results": tuple(out_results),
         "sanitized": True,
     })
 
