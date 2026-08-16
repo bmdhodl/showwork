@@ -17,6 +17,11 @@ import html
 import json
 from pathlib import Path
 
+try:
+    from .sanitize_replay import sanitize_for_public
+except ImportError:  # pragma: no cover - supports direct script execution
+    from sanitize_replay import sanitize_for_public
+
 CALIBRATION = [
     ("repeat", "3, window 12", 14, 0.5, "plausible true positives", "ok"),
     ("no_progress", "6", 2281, 82.7, "noise", "bad"),
@@ -145,6 +150,10 @@ def esc(v: object) -> str:
 
 
 def build(data: dict) -> str:
+    # The input may come directly from a transcript-controlled JSON file. Do
+    # not treat the caller's `sanitized` marker as an attestation; sanitize at
+    # the renderer boundary every time.
+    data = sanitize_for_public(data)
     results = data.get("results", [])
     stuck = [r for r in results if r.get("stuck")]
     wasted = sum(r.get("calls_after_trip", 0) for r in stuck)
@@ -154,8 +163,8 @@ def build(data: dict) -> str:
 
     stats = "".join(
         f'<div class="stat{cls}"><span class="n">{esc(n)}</span>'
-        f'<span class="l">{esc(l)}</span></div>'
-        for n, l, cls in [
+        f'<span class="l">{esc(label)}</span></div>'
+        for n, label, cls in [
             (f"{scanned:,}", "sessions replayed", ""),
             (f"{with_calls:,}", "with tool calls", ""),
             (str(len(stuck)), "flagged stuck", ""),
@@ -274,13 +283,9 @@ def main() -> int:
     args = ap.parse_args()
 
     data = json.loads(args.replay.read_text(encoding="utf-8"))
-    if not data.get("sanitized"):
-        print("refusing: input is not marked sanitized; run sanitize_replay.py first")
-        return 2
-
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(build(data), encoding="utf-8")
-    print(f"wrote {args.out} ({args.out.stat().st_size:,} bytes)")
+    print(f"wrote sanitized dashboard {args.out} ({args.out.stat().st_size:,} bytes)")
     return 0
 
 
