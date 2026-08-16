@@ -18,9 +18,9 @@ import json
 from pathlib import Path
 
 try:
-    from .sanitize_replay import sanitize
+    from .sanitize_replay import sanitize_for_public
 except ImportError:  # pragma: no cover - supports direct script execution
-    from sanitize_replay import sanitize
+    from sanitize_replay import sanitize_for_public
 
 CALIBRATION = [
     ("repeat", "3, window 12", 14, 0.5, "plausible true positives", "ok"),
@@ -153,7 +153,7 @@ def build(data: dict) -> str:
     # The input may come directly from a transcript-controlled JSON file. Do
     # not treat the caller's `sanitized` marker as an attestation; sanitize at
     # the renderer boundary every time.
-    data = sanitize(data)
+    data = sanitize_for_public(data)
     results = data.get("results", [])
     stuck = [r for r in results if r.get("stuck")]
     wasted = sum(r.get("calls_after_trip", 0) for r in stuck)

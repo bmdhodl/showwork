@@ -442,3 +442,5 @@
 {"event": "session.finish", "session": "sanitize-replay-slot-immutability-20260816", "ts": "2026-08-16T06:01:34", "status": "ok", "claims_verdict": "GREEN", "prev": "2e98571c184bb90c165168ae43cf81638f869f9a2ef188d2abdfa569ed2817f5"}
 {"event": "session.start", "session": "sanitize-replay-object-immutable-20260816", "ts": "2026-08-16T06:08:37", "agent": "codex", "prev": "90d2d66792ecb398ab6cb532b73654bf6f6064e3a464f4f0812534eb57736bab"}
 {"event": "session.finish", "session": "sanitize-replay-object-immutable-20260816", "ts": "2026-08-16T06:09:01", "status": "ok", "claims_verdict": "GREEN", "prev": "b89b6587db82f338498f181dae710b8f064c383262237f581f506600af2e8415"}
+{"event": "session.start", "session": "sanitize-replay-constructor-boundary-20260816", "ts": "2026-08-16T06:21:15", "agent": "codex", "prev": "ad40454d8adb09c1efcd117f3e0f3314012a4d11f92b2b8aba15c97c3120c774"}
+{"event": "session.finish", "session": "sanitize-replay-constructor-boundary-20260816", "ts": "2026-08-16T06:21:39", "status": "ok", "claims_verdict": "GREEN", "prev": "88c5dbf4d44d73ffb0dac6cb38597a1fc5f92c4e9e3f8e4c9b7cb8b72f427b38"}

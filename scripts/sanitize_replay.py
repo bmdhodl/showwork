@@ -47,36 +47,53 @@ PUBLIC_THRESHOLD_KEYS = (
 )
 
 
-class _SanitizedMapping(tuple, Mapping[str, object]):
-    """Immutable mapping whose items live in the tuple payload."""
+def _make_sanitized_types():
+    capability = object()
 
-    __slots__ = ()
+    class SanitizedMapping(tuple, Mapping[str, object]):
+        """Immutable mapping whose items live in the tuple payload."""
 
-    def __new__(cls, items: Iterable[tuple[str, object]]):
-        return tuple.__new__(cls, tuple(items))
+        __slots__ = ()
 
-    def __getitem__(self, key: str) -> object:
-        for item_key, value in tuple.__iter__(self):
-            if item_key == key:
-                return value
-        raise KeyError(key)
+        def __new__(cls, items: Iterable[tuple[str, object]], _capability=None):
+            if _capability is not capability:
+                raise TypeError("sanitized replay mappings are internal only")
+            return tuple.__new__(cls, tuple(items))
 
-    def __iter__(self):
-        return (key for key, _ in tuple.__iter__(self))
+        def __getitem__(self, key: str) -> object:
+            for item_key, value in tuple.__iter__(self):
+                if item_key == key:
+                    return value
+            raise KeyError(key)
 
-    def __len__(self) -> int:
-        return tuple.__len__(self)
+        def __iter__(self):
+            return (key for key, _ in tuple.__iter__(self))
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Mapping):
-            return NotImplemented
-        return dict(self.items()) == dict(other.items())
+        def __len__(self) -> int:
+            return tuple.__len__(self)
+
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, Mapping):
+                return NotImplemented
+            return dict(self.items()) == dict(other.items())
+
+    class SanitizedReplay(SanitizedMapping):
+        """Private provenance marker for sanitizer output kept in memory."""
+
+        __slots__ = ()
+
+    def make_mapping(items: Iterable[tuple[str, object]]):
+        return SanitizedMapping(items, capability)
+
+    def make_replay(items: Iterable[tuple[str, object]]):
+        return SanitizedReplay(items, capability)
+
+    return SanitizedMapping, SanitizedReplay, make_mapping, make_replay
 
 
-class _SanitizedReplay(_SanitizedMapping):
-    """Private provenance marker for sanitizer output kept in memory."""
-
-    __slots__ = ()
+_SanitizedMapping, _SanitizedReplay, _new_sanitized_mapping, _new_sanitized_replay = (
+    _make_sanitized_types()
+)
 
 
 def _to_jsonable(value: object) -> object:
@@ -187,7 +204,7 @@ def sanitize(data: dict) -> dict:
         reason = _safe_reason(row.get("reason"))
 
         out_results.append(
-            _SanitizedMapping(
+            _new_sanitized_mapping(
                 (
                     ("session", _safe_session_id(row.get("session", ""))),
                     ("project", generic_project(str(row.get("project", "")), projects)),
@@ -204,15 +221,24 @@ def sanitize(data: dict) -> dict:
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
     scanned = max(_safe_count(data.get("scanned")), with_calls)
 
-    return _SanitizedReplay(
+    return _new_sanitized_replay(
         (
-            ("thresholds", _SanitizedMapping(_safe_thresholds(data.get("thresholds")).items())),
+            ("thresholds", _new_sanitized_mapping(_safe_thresholds(data.get("thresholds")).items())),
             ("scanned", scanned),
             ("with_calls", with_calls),
             ("results", tuple(out_results)),
             ("sanitized", True),
         )
     )
+
+
+def sanitize_for_public(data: object) -> Mapping[str, object]:
+    """Sanitize at the renderer boundary without trusting provenance types."""
+    if isinstance(data, _SanitizedMapping):
+        data = _to_jsonable(data)
+    if not isinstance(data, dict):
+        data = {}
+    return sanitize(data)
 
 
 def main() -> int:

@@ -144,6 +144,41 @@ def test_sanitized_replay_provenance_rejects_slot_reassignment():
         object.__setattr__(clean, "_items", (("results", ()),))
 
 
+def test_sanitized_replay_provenance_constructor_is_internal_only():
+    clean = sanitize({"results": []})
+
+    with pytest.raises(TypeError):
+        type(clean)((("sanitized", True),))
+
+
+def test_public_renderer_resanitizes_base_tuple_forgery():
+    clean = sanitize({"results": []})
+    forged = tuple.__new__(
+        type(clean),
+        (
+            (
+                "results",
+                (
+                    {
+                        "session": "raw-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "alice_private_repo called with identical input",
+                    },
+                ),
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        ),
+    )
+
+    rendered = build(forged)
+
+    assert "alice_private_repo" not in rendered
+    assert "C:\\Users" not in rendered
+
+
 def test_public_renderer_falls_back_for_invalid_explicit_with_calls():
     rendered = build(
         {
