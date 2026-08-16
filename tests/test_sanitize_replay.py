@@ -234,6 +234,25 @@ def test_public_renderer_derives_overrun_from_validated_call_positions():
     assert "Worst observed overrun: 999" not in rendered
 
 
+def test_public_renderer_rejects_fired_position_beyond_total_calls():
+    rendered = build(
+        {
+            "results": [
+                {
+                    "session": "raw",
+                    "stuck": True,
+                    "reason": "repeat",
+                    "detail": "Read called with identical input",
+                    "total_calls": 1,
+                    "fired_at_call": 999,
+                }
+            ]
+        }
+    )
+
+    assert '<td class="n">999</td>' not in rendered
+
+
 def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
     rendered = build(
         {

@@ -130,6 +130,14 @@ def _safe_optional_count(value: object) -> int | None:
     return value
 
 
+def _safe_fired_at_call(value: object, total_calls: int) -> int | None:
+    """Keep intervention positions within the validated session length."""
+    fired_at_call = _safe_optional_count(value)
+    if fired_at_call is None or fired_at_call <= 0 or fired_at_call > total_calls:
+        return None
+    return fired_at_call
+
+
 def _safe_calls_after_trip(total_calls: int, fired_at_call: int | None) -> int:
     """Derive overrun from validated call positions, never raw input."""
     if fired_at_call is None or fired_at_call <= 0 or fired_at_call > total_calls:
@@ -206,7 +214,7 @@ def sanitize(data: dict) -> dict:
             continue
         reason = _safe_reason(row.get("reason"))
         total_calls = _safe_count(row.get("total_calls"))
-        fired_at_call = _safe_optional_count(row.get("fired_at_call"))
+        fired_at_call = _safe_fired_at_call(row.get("fired_at_call"), total_calls)
 
         out_results.append(
             _new_sanitized_mapping(
