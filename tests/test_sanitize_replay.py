@@ -35,6 +35,24 @@ def test_sanitize_whitelists_untrusted_replay_fields():
                     "reason": "untrusted-reason",
                     "detail": r"C:\Users\patri\raw detail",
                 },
+                {
+                    "session": "private-tool",
+                    "project": "repo",
+                    "reason": "repeat",
+                    "detail": "alice_private_repo called with identical input",
+                },
+                {
+                    "session": "customer-mcp",
+                    "project": "repo",
+                    "reason": "repeat",
+                    "detail": "mcp__customer_acme__lookup called with identical input",
+                },
+                {
+                    "session": "known-tool",
+                    "project": "repo",
+                    "reason": "repeat",
+                    "detail": "Bash called with identical input",
+                },
             ],
         }
     )
@@ -42,7 +60,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert clean["thresholds"] == {"repeat_threshold": 3, "window": 12}
     assert clean["scanned"] == 0
     assert clean["with_calls"] == 0
-    first, second = clean["results"]
+    first, second, private, customer_mcp, known = clean["results"]
     assert first == {
         "session": first["session"],
         "project": "repo-1",
@@ -55,6 +73,9 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     }
     assert second["reason"] == "unknown"
     assert second["detail"] == "unclassified finding"
+    assert private["detail"] == "unknown tool called with identical input"
+    assert customer_mcp["detail"] == "unknown tool called with identical input"
+    assert known["detail"] == "Bash called with identical input"
     assert "C:\\Users" not in json.dumps(clean)
 
     empty = sanitize({"results": [{"reason": "", "detail": ""}]})["results"][0]

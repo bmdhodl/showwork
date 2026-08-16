@@ -19,12 +19,24 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from pathlib import Path
 
-# Tool names are public API surface (everyone has Read/Bash/mcp__*), so a
-# tightly validated label may stay. Arguments never appear in the dashboard.
-TOOL_NAME = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
+# Only built-in, non-tenant tool labels are safe to expose. Transcript data can
+# name arbitrary MCP servers or private tools, so syntax validation is not a
+# privacy boundary. Arguments never appear in the dashboard.
+PUBLIC_TOOL_NAMES = frozenset(
+    (
+        "Bash",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Read",
+        "Task",
+        "WebFetch",
+        "WebSearch",
+        "Write",
+    )
+)
 PUBLIC_REASONS = frozenset(("repeat", "alternation", "no_progress"))
 PUBLIC_THRESHOLD_KEYS = (
     "repeat_threshold",
@@ -84,11 +96,11 @@ def _safe_reason(value: object) -> str:
 
 
 def _safe_tool_name(detail: object) -> str:
-    """Extract the public tool label without trusting arbitrary detail text."""
+    """Keep only known built-in labels, never transcript-controlled names."""
     if not isinstance(detail, str):
         return "unknown tool"
     candidate = detail.split(" called", 1)[0].strip()
-    return candidate if TOOL_NAME.fullmatch(candidate) else "unknown tool"
+    return candidate if candidate in PUBLIC_TOOL_NAMES else "unknown tool"
 
 
 def _safe_detail(row: dict, reason: str) -> str:

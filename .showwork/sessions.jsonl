@@ -413,3 +413,5 @@
 {"event": "session.finish", "session": "sanitize-replay-post-merge-gate-20260816", "ts": "2026-08-16T04:22:22", "status": "ok", "claims_verdict": "YELLOW", "prev": "7220e309198b066dc897a36529ac5ecfa0a8bf0cf75c293e510cbe301b0149c0"}
 {"event": "session.start", "session": "sanitize-replay-post-merge-receipt-20260816", "ts": "2026-08-16T04:23:13", "agent": "codex", "prev": "d4571b7aac756418baea7213535a2af6ffc4ea79bae1d7cbfb9eaf68dbcbc00f"}
 {"event": "session.finish", "session": "sanitize-replay-post-merge-receipt-20260816", "ts": "2026-08-16T04:23:37", "status": "ok", "claims_verdict": "GREEN", "prev": "b3d1dd0cc179a0660f04c7dacba39484e674b8d043fa25f45d8d68bcb78760e2"}
+{"event": "session.start", "session": "sanitize-replay-p1-remediation-20260816", "ts": "2026-08-16T04:26:28", "agent": "codex", "prev": "73f6db7d4beccadb30a2b128bf9657c334c257f181052135de28899985d9b68e"}
+{"event": "session.finish", "session": "sanitize-replay-p1-remediation-20260816", "ts": "2026-08-16T04:26:52", "status": "ok", "claims_verdict": "GREEN", "prev": "134750e153e4a0a94dfd4dc1cb67f82d03110d4cc626d36840dfc26d2ccdc105"}
