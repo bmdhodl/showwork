@@ -447,3 +447,5 @@
 {"event": "session.start", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:38:39", "agent": "codex", "prev": "404b509b454bc3403fa8c4974941d28315293e3559b559ad2203394fdae184f0"}
 {"event": "session.finish", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:39:59", "status": "ok", "claims_verdict": "GREEN", "prev": "4c760f24816474e9b6b2414080b2ee27b3e3c52f584c92b5ddbdd064e380a7a4"}
 {"event": "session.finish", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:40:13", "status": "ok", "claims_verdict": "GREEN", "prev": "ab87d2f041294e7fbd5a59d80a287aaec7498474f1e4b1a9bcee958781562ff2"}
+{"event": "session.start", "session": "sanitize-replay-overrun-boundary-20260816", "ts": "2026-08-16T06:57:27", "agent": "codex", "prev": "8157254a6b2948173fe7dd689fca1893ae3b84f237a562ce79543006f67eedef"}
+{"event": "session.finish", "session": "sanitize-replay-overrun-boundary-20260816", "ts": "2026-08-16T06:58:50", "status": "ok", "claims_verdict": "GREEN", "prev": "a999e8e738945c2167dfbbb213d7fc7fe8be2b235bf3d7f780c114d4043fdfe7"}

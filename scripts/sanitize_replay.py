@@ -130,6 +130,13 @@ def _safe_optional_count(value: object) -> int | None:
     return value
 
 
+def _safe_calls_after_trip(total_calls: int, fired_at_call: int | None) -> int:
+    """Derive overrun from validated call positions, never raw input."""
+    if fired_at_call is None or fired_at_call <= 0 or fired_at_call > total_calls:
+        return 0
+    return total_calls - fired_at_call
+
+
 def _safe_with_calls(value: object, fallback: int) -> int:
     """Keep counts usable for rates without trusting malformed input."""
     if (isinstance(value, bool) or not isinstance(value, int)
@@ -198,18 +205,20 @@ def sanitize(data: dict) -> dict:
         if not isinstance(row, dict):
             continue
         reason = _safe_reason(row.get("reason"))
+        total_calls = _safe_count(row.get("total_calls"))
+        fired_at_call = _safe_optional_count(row.get("fired_at_call"))
 
         out_results.append(
             _new_sanitized_mapping(
                 (
                     ("session", _safe_session_id(row.get("session", ""))),
                     ("project", generic_project(str(row.get("project", "")), projects)),
-                    ("total_calls", _safe_count(row.get("total_calls"))),
+                    ("total_calls", total_calls),
                     ("stuck", row.get("stuck") if isinstance(row.get("stuck"), bool) else False),
                     ("reason", reason),
                     ("detail", _safe_detail(row, reason)),
-                    ("fired_at_call", _safe_optional_count(row.get("fired_at_call"))),
-                    ("calls_after_trip", _safe_count(row.get("calls_after_trip"))),
+                    ("fired_at_call", fired_at_call),
+                    ("calls_after_trip", _safe_calls_after_trip(total_calls, fired_at_call)),
                 )
             )
         )

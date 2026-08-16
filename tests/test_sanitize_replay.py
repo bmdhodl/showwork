@@ -213,6 +213,27 @@ def test_public_renderer_clamps_scanned_to_emitted_rows():
     assert '1</span><span class="l">sessions replayed' in rendered
 
 
+def test_public_renderer_derives_overrun_from_validated_call_positions():
+    rendered = build(
+        {
+            "results": [
+                {
+                    "session": "raw",
+                    "stuck": True,
+                    "reason": "repeat",
+                    "detail": "Read called with identical input",
+                    "total_calls": 1,
+                    "fired_at_call": 1,
+                    "calls_after_trip": 999,
+                }
+            ]
+        }
+    )
+
+    assert "+999" not in rendered
+    assert "Worst observed overrun: 999" not in rendered
+
+
 def test_public_renderer_sanitizes_raw_input_even_when_attested_by_caller():
     rendered = build(
         {
