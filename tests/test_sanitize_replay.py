@@ -92,7 +92,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert "private" not in build(clean)
 
 
-def test_sanitize_is_idempotent_for_approved_public_shape():
+def test_sanitize_preserves_public_meaning_across_reapplication():
     raw = {
         "thresholds": {"repeat_threshold": 3},
         "scanned": 1,
@@ -114,7 +114,17 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     clean = sanitize(raw)
     assert clean["results"][0]["session"].startswith("run-")
     assert clean["results"][0]["session"] != "deadbee"
-    assert sanitize(clean) == clean
+
+    reapplied = sanitize(clean)
+    assert dict(reapplied["thresholds"]) == dict(clean["thresholds"])
+    assert reapplied["scanned"] == clean["scanned"]
+    assert reapplied["with_calls"] == clean["with_calls"]
+    first_row = dict(clean["results"][0])
+    reapplied_row = dict(reapplied["results"][0])
+    assert reapplied_row["session"].startswith("run-")
+    first_row.pop("session")
+    reapplied_row.pop("session")
+    assert reapplied_row == first_row
 
 
 def test_sanitize_rehashes_transcript_supplied_public_looking_session_id():
@@ -295,6 +305,31 @@ def test_sanitize_normalizes_non_string_marked_reason():
     )
 
     assert clean["results"][0]["reason"] == "unknown"
+
+
+def test_sanitize_hashes_computed_public_session_proof():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee-263004d",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": "",
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["session"] != "run-deadbee-263004d"
 
 
 def test_public_renderer_resanitizes_base_tuple_forgery():

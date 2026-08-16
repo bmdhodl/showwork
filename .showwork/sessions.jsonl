@@ -457,3 +457,5 @@
 {"event": "session.finish", "session": "sanitize-replay-canonical-idempotence-20260816", "ts": "2026-08-16T08:03:56", "status": "ok", "claims_verdict": "GREEN", "prev": "378e47f4e71bbcf9bda8e0cabd67741a925d3a899a323280c2ae6279e9b6488a"}
 {"event": "session.start", "session": "sanitize-replay-session-proof-20260816", "ts": "2026-08-16T08:21:57", "agent": "codex", "prev": "52b638892b96e7d1d17dba20bd2d2b88cf134cc60f4758018d584faa41a0e70c"}
 {"event": "session.finish", "session": "sanitize-replay-session-proof-20260816", "ts": "2026-08-16T08:23:27", "status": "ok", "claims_verdict": "GREEN", "prev": "9777978fc90f806e8e17eb1209b9aabeb5ca230db9c991a4b6bee1917c2238ef"}
+{"event": "session.start", "session": "sanitize-replay-value-semantic-20260816", "ts": "2026-08-16T08:37:44", "agent": "codex", "prev": "2340b718f7b3015cdf63695a55e5f7a87e888c2a8ef2b1eb4bee10751fc7a2f3"}
+{"event": "session.finish", "session": "sanitize-replay-value-semantic-20260816", "ts": "2026-08-16T08:50:34", "status": "ok", "claims_verdict": "GREEN", "prev": "1048dcd6ecc6040169b308c27a835b77a13516bde185a5fc85dbd685fd183f56"}

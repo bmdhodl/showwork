@@ -10,8 +10,8 @@ signature fired, how far past the trip point the run continued. That is the part
 that makes the case. The identifiers are noise to a reader and exposure to the
 owner.
 
-Session ids become opaque stable hashes so rows stay distinguishable across
-renders without being traceable. Project names collapse to generic slugs.
+Session ids become opaque hashes so rows stay distinguishable across renders
+without being traceable. Project names collapse to generic slugs.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
@@ -104,28 +103,9 @@ def short_hash(value: str, length: int = 7) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
 
 
-def _public_row_fingerprint(row: Mapping[str, object]) -> str:
-    payload = json.dumps(dict(row), sort_keys=True, separators=(",", ":"))
-    return short_hash(payload)
-
-
-def _session_proof(fingerprint: str) -> str:
-    return short_hash(f"showwork-sanitized-session:{fingerprint}")
-
-
-def _is_proven_session_id(value: object, fingerprint: str) -> bool:
-    if not isinstance(value, str):
-        return False
-    match = re.fullmatch(r"run-([0-9a-f]{7})-([0-9a-f]{7})", value)
-    return match is not None and match.group(2) == _session_proof(fingerprint)
-
-
-def _safe_session_id(value: object, fingerprint: str) -> str:
-    """Hash raw session ids and preserve only a row-bound public form."""
-    candidate = str(value)
-    if _is_proven_session_id(candidate, fingerprint):
-        return candidate
-    return f"run-{short_hash(candidate)}-{_session_proof(fingerprint)}"
+def _safe_session_id(value: object) -> str:
+    """Hash every supplied session id without trusting serialized provenance."""
+    return f"run-{short_hash(str(value))}"
 
 
 def generic_project(name: str, mapping: dict[str, str]) -> str:
@@ -217,102 +197,9 @@ def _safe_detail(row: dict, reason: str) -> str:
     return "unclassified finding"
 
 
-def _canonical_sanitized_replay(data: object) -> _SanitizedReplay | None:
-    """Rebuild an already-safe value without trusting its object identity."""
+def sanitize(data: object) -> Mapping[str, object]:
     if isinstance(data, _SanitizedMapping):
         data = _to_jsonable(data)
-    if not isinstance(data, Mapping) or data.get("sanitized") is not True:
-        return None
-
-    thresholds = data.get("thresholds")
-    clean_thresholds = _safe_thresholds(thresholds)
-    if not isinstance(thresholds, Mapping) or dict(thresholds) != clean_thresholds:
-        return None
-
-    rows = data.get("results")
-    if not isinstance(rows, list):
-        return None
-
-    out_results = []
-    for row in rows:
-        if not isinstance(row, dict):
-            return None
-        session = row.get("session")
-        if not isinstance(session, str):
-            return None
-        project = row.get("project")
-        if (not isinstance(project, str)
-                or re.fullmatch(r"repo-[0-9]+", project) is None):
-            return None
-
-        reason = row.get("reason")
-        if (not isinstance(reason, str)
-                or (reason not in PUBLIC_REASONS and reason not in ("", "unknown"))):
-            return None
-        total_calls = _safe_count(row.get("total_calls"), default=-1)
-        if total_calls < 0:
-            return None
-        stuck = row.get("stuck")
-        if not isinstance(stuck, bool):
-            return None
-        fired_at_call = _safe_fired_at_call(row.get("fired_at_call"), total_calls)
-        if row.get("fired_at_call") != fired_at_call:
-            return None
-        calls_after_trip = _safe_calls_after_trip(total_calls, fired_at_call)
-        if row.get("calls_after_trip") != calls_after_trip:
-            return None
-        if row.get("detail") != _safe_detail(row, reason):
-            return None
-        public_row = {
-            "project": project,
-            "total_calls": total_calls,
-            "stuck": stuck,
-            "reason": reason,
-            "detail": row["detail"],
-            "fired_at_call": fired_at_call,
-            "calls_after_trip": calls_after_trip,
-        }
-        if not _is_proven_session_id(
-                session, _public_row_fingerprint(public_row)):
-            return None
-
-        out_results.append(
-            _new_sanitized_mapping(
-                (
-                    ("session", session),
-                    ("project", project),
-                    ("total_calls", total_calls),
-                    ("stuck", stuck),
-                    ("reason", reason),
-                    ("detail", row["detail"]),
-                    ("fired_at_call", fired_at_call),
-                    ("calls_after_trip", calls_after_trip),
-                )
-            )
-        )
-
-    with_calls = _safe_count(data.get("with_calls"), default=-1)
-    if with_calls < 0 or with_calls != len(out_results):
-        return None
-    scanned = _safe_count(data.get("scanned"), default=-1)
-    if scanned < with_calls:
-        return None
-
-    return _new_sanitized_replay(
-        (
-            ("thresholds", _new_sanitized_mapping(clean_thresholds.items())),
-            ("scanned", scanned),
-            ("with_calls", with_calls),
-            ("results", tuple(out_results)),
-            ("sanitized", True),
-        )
-    )
-
-
-def sanitize(data: object) -> Mapping[str, object]:
-    canonical = _canonical_sanitized_replay(data)
-    if canonical is not None:
-        return canonical
 
     if not isinstance(data, Mapping):
         data = {}
@@ -333,28 +220,19 @@ def sanitize(data: object) -> Mapping[str, object]:
         stuck = row.get("stuck") if isinstance(row.get("stuck"), bool) else False
         project = generic_project(str(row.get("project", "")), projects)
         detail = _safe_detail(row, reason)
-        public_row = {
-            "project": project,
-            "total_calls": total_calls,
-            "stuck": stuck,
-            "reason": reason,
-            "detail": detail,
-            "fired_at_call": fired_at_call,
-            "calls_after_trip": _safe_calls_after_trip(total_calls, fired_at_call),
-        }
+        calls_after_trip = _safe_calls_after_trip(total_calls, fired_at_call)
 
         out_results.append(
             _new_sanitized_mapping(
                 (
-                    ("session", _safe_session_id(
-                        row.get("session", ""), _public_row_fingerprint(public_row))),
+                    ("session", _safe_session_id(row.get("session", ""))),
                     ("project", project),
                     ("total_calls", total_calls),
                     ("stuck", stuck),
                     ("reason", reason),
                     ("detail", detail),
                     ("fired_at_call", fired_at_call),
-                    ("calls_after_trip", public_row["calls_after_trip"]),
+                    ("calls_after_trip", calls_after_trip),
                 )
             )
         )
