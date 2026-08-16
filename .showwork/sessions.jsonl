@@ -420,3 +420,6 @@
 {"event": "session.finish", "session": "sanitize-replay-renderer-boundary-20260816", "ts": "2026-08-16T04:36:38", "status": "ok", "claims_verdict": "GREEN", "prev": "43e3904e2684bcd67c6bb2bbd14e5c84138b3653010b7711fd0e6c37c6248b5d"}
 {"event": "session.start", "session": "sanitize-replay-idempotence-20260816", "ts": "2026-08-16T04:45:22", "agent": "codex", "prev": "11e7462be83cf58416db06049844e1f315e8c069f70d57abd9b1b2c2673e5302"}
 {"event": "session.finish", "session": "sanitize-replay-idempotence-20260816", "ts": "2026-08-16T04:45:45", "status": "ok", "claims_verdict": "GREEN", "prev": "b05b33a615a3863634c31ebe980ea372d2d055e789e0822c600c77bc7d430df7"}
+{"event": "session.start", "session": "sanitize-replay-summary-boundary-20260816", "ts": "2026-08-16T04:56:51", "agent": "codex", "prev": "087b96c8687084b43818a17e294a9d2f65de44ec0f2f4e9f5cd3d2124a4a0ae7"}
+{"event": "session.finish.refused", "session": "sanitize-replay-summary-boundary-20260816", "ts": "2026-08-16T04:57:14", "status": "ok", "claims_verdict": "RED", "prev": "08fc89a53c68d52077b5e4c8746851d6a9c34012bf39dfafe74a287a3973af04"}
+{"event": "session.finish", "session": "sanitize-replay-summary-boundary-20260816", "ts": "2026-08-16T04:57:48", "status": "ok", "claims_verdict": "GREEN", "prev": "7b3f55cd6743eca4131720fa1e2a3fa9c573d89136ff175c313b1316503bb27c"}

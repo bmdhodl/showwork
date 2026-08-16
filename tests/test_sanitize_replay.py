@@ -96,7 +96,7 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
         "with_calls": 1,
         "results": [
             {
-                "session": "raw-session",
+                "session": "deadbee",
                 "project": r"C:\Users\patri\private-repo",
                 "total_calls": 4,
                 "stuck": True,
@@ -109,6 +109,8 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     }
 
     clean = sanitize(raw)
+    assert clean["results"][0]["session"].startswith("run-")
+    assert clean["results"][0]["session"] != "deadbee"
     assert sanitize(clean) == clean
 
 
@@ -188,3 +190,4 @@ def test_public_renderer_cli_sanitizes_forged_marker_input(tmp_path):
     assert "alice_private_repo" not in rendered
     assert "C:\\Users" not in rendered
     assert "unknown tool" in rendered
+    assert "100.0%" in rendered

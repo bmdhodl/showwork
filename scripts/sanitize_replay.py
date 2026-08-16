@@ -38,7 +38,7 @@ PUBLIC_TOOL_NAMES = frozenset(
         "Write",
     )
 )
-PUBLIC_RUN_ID = re.compile(r"^[0-9a-f]{7}$")
+PUBLIC_RUN_ID = re.compile(r"^run-[0-9a-f]{7}$")
 PUBLIC_REASONS = frozenset(("repeat", "alternation", "no_progress"))
 PUBLIC_THRESHOLD_KEYS = (
     "repeat_threshold",
@@ -53,9 +53,9 @@ def short_hash(value: str, length: int = 7) -> str:
 
 
 def _safe_session_id(value: object) -> str:
-    """Preserve only the sanitizer's exact generic public run-ID shape."""
+    """Preserve only the sanitizer's prefixed generic public run-ID shape."""
     candidate = str(value)
-    return candidate if PUBLIC_RUN_ID.fullmatch(candidate) else short_hash(candidate)
+    return candidate if PUBLIC_RUN_ID.fullmatch(candidate) else f"run-{short_hash(candidate)}"
 
 
 def generic_project(name: str, mapping: dict[str, str]) -> str:
@@ -150,10 +150,16 @@ def sanitize(data: dict) -> dict:
             }
         )
 
+    with_calls = (
+        len(out_results)
+        if "with_calls" not in data
+        else _safe_count(data.get("with_calls"))
+    )
+
     return {
         "thresholds": _safe_thresholds(data.get("thresholds")),
         "scanned": _safe_count(data.get("scanned")),
-        "with_calls": _safe_count(data.get("with_calls")),
+        "with_calls": with_calls,
         "results": out_results,
         "sanitized": True,
     }
