@@ -5,6 +5,7 @@ import http.server
 import subprocess
 import threading
 import os
+from pathlib import Path
 from contextlib import contextmanager
 
 from showwork import checks
@@ -491,6 +492,36 @@ def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
     assert result["status"] == "error", result
     assert "traversal limit exceeded" in result["detail"], result
     assert calls["entries"] <= checks.MAX_GLOB_TRAVERSAL + 1
+
+
+def test_glob_count_uses_direct_lookup_for_literal_prefix(tmp_path, monkeypatch):
+    """Literal non-final segments should resolve as direct children, not sibling scans."""
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "readme.md").write_text("x", encoding="utf-8")
+    calls = []
+
+    def fake_scandir(directory):
+        calls.append(Path(directory))
+        if directory == tmp_path:
+            raise AssertionError("root enumeration should not be used for literal component")
+        if directory == reports:
+            return _FakeScandirResult([_FakeScandirEntry("readme.md", False)])
+        raise AssertionError(f"unexpected scandir call for {directory!r}")
+
+    monkeypatch.setattr(checks.os, "scandir", lambda directory: fake_scandir(directory))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "reports/*.md", "op": "==", "n": 1}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert calls == [reports]
+
+    missing = verify_claim(
+        claim({"type": "glob_count", "pattern": "missing/*.md", "op": "==", "n": 0}),
+        tmp_path,
+    )
+    assert missing["status"] == "pass", missing
 
 
 def test_glob_count_respects_directory_only_trailing_separator(tmp_path):

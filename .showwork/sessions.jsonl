@@ -469,3 +469,5 @@
 {"event": "session.finish.refused", "session": "glob-count-recursive-contract-20260816", "ts": "2026-08-16T15:13:02", "status": "ok", "claims_verdict": "RED", "prev": "55b20c242e7afd6fb3c1607d123d77eaff4c6e342dc8799f8db0982a0f67ce3b"}
 {"event": "session.finish", "session": "glob-count-recursive-contract-20260816", "ts": "2026-08-16T15:14:37", "status": "ok", "claims_verdict": "GREEN", "prev": "7f8db7a506febd11be69daf4a3edf13d80be653a0a7aa177d04063eeca0f107b"}
 {"event": "session.finish", "session": "glob-count-recursive-contract-20260816", "ts": "2026-08-16T15:33:37", "status": "ok", "claims_verdict": "GREEN", "prev": "cd486a956c4fb2980393e85b03e8397fe092ef1bcdc3f1b458a62517d9c047fb"}
+{"event": "session.start", "session": "glob-count-literal-prefix-compat-20260816", "ts": "2026-08-16T15:56:31", "agent": "codex", "prev": "260ec970ce30efa6038852791079f76eb27bc28f7bdbd67fe5e2d33ddb936bc1"}
+{"event": "session.finish", "session": "glob-count-literal-prefix-compat-20260816", "ts": "2026-08-16T16:05:42", "status": "ok", "claims_verdict": "GREEN", "prev": "9c2dc0db622596b3b90404bed7119283ae230779c208fbeb63a8674d5188e394"}

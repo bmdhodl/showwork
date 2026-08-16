@@ -286,6 +286,9 @@ def _bounded_glob_count(
     if not parts:
         return 0, 0
 
+    def _is_pattern_component(segment: str) -> bool:
+        return any(ch in segment for ch in "*?[")
+
     def _iter_dir_entries(directory: Path):
         try:
             with os.scandir(directory) as entries:
@@ -303,6 +306,16 @@ def _bounded_glob_count(
             return 0, inspected
         segment = parts[idx]
         if idx == len(parts) - 1:
+            if not _is_pattern_component(segment):
+                inspected += 1
+                if inspected > MAX_GLOB_TRAVERSAL:
+                    return 0, inspected
+                candidate = directory / segment
+                exists = candidate.exists()
+                if exists:
+                    if not directory_only or candidate.is_dir():
+                        return 1, inspected
+                return 0, inspected
             count = 0
             for name, is_dir in _iter_dir_entries(directory):
                 inspected += 1
@@ -313,6 +326,14 @@ def _bounded_glob_count(
                 if fnmatch.fnmatch(name, segment):
                     count += 1
             return count, inspected
+        if not _is_pattern_component(segment):
+            inspected += 1
+            if inspected > MAX_GLOB_TRAVERSAL:
+                return 0, inspected
+            child = directory / segment
+            if not child.is_dir():
+                return 0, inspected
+            return walk_dir(child, idx + 1, inspected)
         count = 0
         for name, is_dir in _iter_dir_entries(directory):
             inspected += 1
