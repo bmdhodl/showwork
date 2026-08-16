@@ -475,3 +475,5 @@
 {"event": "session.finish", "session": "glob-count-exit-gate-20260816", "ts": "2026-08-16T16:32:00", "status": "ok", "claims_verdict": "GREEN", "prev": "b39954713c2e3bad07d54ecc97a62e8a5535a164eedf5b9e0ad1ccaa38ebc28a"}
 {"event": "session.start", "session": "glob-count-spec-limit-20260816", "ts": "2026-08-16T16:39:11", "agent": "codex", "prev": "b863934d8544af92a20eb7c39f24eb279676314eb93c1c077d14216e1f30f619"}
 {"event": "session.finish", "session": "glob-count-spec-limit-20260816", "ts": "2026-08-16T16:52:37", "status": "ok", "claims_verdict": "GREEN", "prev": "239e72248121254bc407196f932c53610c2709e5c253b76bff559d8d61ccd9a2"}
+{"event": "session.start", "session": "integrity-command-replay-design-20260816", "ts": "2026-08-16T03:59:07", "agent": "codex", "prev": "289dc1765b539332edf902ad4d2b0342cdda868075ef47a7ac8d0ab63bb9cdd6"}
+{"event": "session.finish", "session": "integrity-command-replay-design-20260816", "ts": "2026-08-16T04:05:41", "status": "ok", "claims_verdict": "GREEN", "prev": "07416a93668ba905fdfeeb04cedd00b6fb757e7ca8246c65c31efba555fcdfcf"}
