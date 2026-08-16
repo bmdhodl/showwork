@@ -375,12 +375,31 @@ def test_glob_count_rejects_empty_pattern(tmp_path):
     assert "pattern" in r["detail"].lower()
 
 
-def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
-    """A malicious claim must be bounded even without recursive syntax."""
-    too_many = 100_001
+def test_glob_count_accepts_maximum_match_bound(tmp_path, monkeypatch):
+    """Bounded traversal should accept an exact match limit count."""
+    accepted = checks.MAX_GLOB_MATCHES
 
     def fake_glob(_root, _pattern):
-        yield from (tmp_path / "entry" for _ in range(too_many))
+        yield from (_path for _ in range(accepted))
+
+    _path = tmp_path / "entry"
+    monkeypatch.setattr(type(tmp_path), "glob", fake_glob)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": accepted}),
+        tmp_path,
+    )
+
+    assert result["status"] == "pass", result
+    assert f"count {accepted} ==" in result["detail"], result
+
+
+def test_glob_count_rejects_match_stream_over_limit(tmp_path, monkeypatch):
+    """A malicious claim must be bounded even without recursive syntax."""
+    too_many = checks.MAX_GLOB_MATCHES + 1
+    _path = tmp_path / "entry"
+
+    def fake_glob(_root, _pattern):
+        yield from (_path for _ in range(too_many))
 
     monkeypatch.setattr(type(tmp_path), "glob", fake_glob)
     result = verify_claim(
