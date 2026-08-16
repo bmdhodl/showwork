@@ -4,6 +4,7 @@ import json
 import http.server
 import subprocess
 import threading
+import os
 from contextlib import contextmanager
 
 from showwork import checks
@@ -493,6 +494,23 @@ def test_glob_count_accepts_adjacent_star_patterns(tmp_path):
             tmp_path,
         )
         assert result["status"] == "pass", (pattern, result)
+
+
+def test_glob_count_preserves_backslash_semantics(tmp_path):
+    """Backslashes should follow pathlib semantics for the current platform."""
+    (tmp_path / "foo").mkdir()
+    (tmp_path / "foo" / "bar.md").write_text("x", encoding="utf-8")
+
+    pattern = "foo\\bar.md"
+    expected = len(list(tmp_path.glob(pattern)))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": pattern, "op": "==", "n": expected}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+
+    if os.name == "posix":
+        assert expected == 0, result
 
 
 # ---------- http_probe ----------

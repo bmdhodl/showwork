@@ -264,11 +264,12 @@ def _count_glob_matches(root: Path, pattern: str) -> tuple[int, str | None]:
 
 
 def _glob_parts(pattern: str) -> tuple[tuple[str, ...], bool]:
-    normalized = pattern.replace("\\", "/")
-    parts = [p for p in normalized.split("/") if p and p != "."]
+    parts = [p for p in Path(pattern).parts if p and p != "."]
     if not parts:
         raise ValueError("invalid empty glob pattern")
-    directory_only = normalized.endswith("/")
+    directory_only = pattern.endswith("/") or (
+        (os.path.sep != "/" and pattern.endswith("\\"))
+    )
     return tuple(parts), directory_only
 
 
