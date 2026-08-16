@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from pathlib import Path
 
 # Only built-in, non-tenant tool labels are safe to expose. Transcript data can
@@ -38,7 +37,6 @@ PUBLIC_TOOL_NAMES = frozenset(
         "Write",
     )
 )
-PUBLIC_RUN_ID = re.compile(r"^run-[0-9a-f]{64}$")
 PUBLIC_REASONS = frozenset(("repeat", "alternation", "no_progress"))
 PUBLIC_THRESHOLD_KEYS = (
     "repeat_threshold",
@@ -48,14 +46,17 @@ PUBLIC_THRESHOLD_KEYS = (
 )
 
 
-def short_hash(value: str, length: int = 64) -> str:
+class _SanitizedReplay(dict):
+    """Private provenance marker for sanitizer output kept in memory."""
+
+
+def short_hash(value: str, length: int = 7) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
 
 
 def _safe_session_id(value: object) -> str:
-    """Preserve only the sanitizer's prefixed generic public run-ID shape."""
-    candidate = str(value)
-    return candidate if PUBLIC_RUN_ID.fullmatch(candidate) else f"run-{short_hash(candidate)}"
+    """Hash every transcript-controlled session id at the trust boundary."""
+    return f"run-{short_hash(str(value))}"
 
 
 def generic_project(name: str, mapping: dict[str, str]) -> str:
@@ -133,6 +134,9 @@ def _safe_detail(row: dict, reason: str) -> str:
 
 
 def sanitize(data: dict) -> dict:
+    if isinstance(data, _SanitizedReplay):
+        return data
+
     projects: dict[str, str] = {}
     out_results = []
 
@@ -160,13 +164,13 @@ def sanitize(data: dict) -> dict:
 
     with_calls = _safe_with_calls(data.get("with_calls"), len(out_results))
 
-    return {
+    return _SanitizedReplay({
         "thresholds": _safe_thresholds(data.get("thresholds")),
         "scanned": _safe_count(data.get("scanned")),
         "with_calls": with_calls,
         "results": out_results,
         "sanitized": True,
-    }
+    })
 
 
 def main() -> int:

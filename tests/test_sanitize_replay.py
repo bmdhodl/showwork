@@ -111,6 +111,7 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     clean = sanitize(raw)
     assert clean["results"][0]["session"].startswith("run-")
     assert clean["results"][0]["session"] != "deadbee"
+    assert sanitize(clean) is clean
     assert sanitize(clean) == clean
 
 
