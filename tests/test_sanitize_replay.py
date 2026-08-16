@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from scripts.build_public_dashboard import build
+from scripts import sanitize_replay
 from scripts.sanitize_replay import _to_jsonable, sanitize
 
 
@@ -91,7 +92,7 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert "private" not in build(clean)
 
 
-def test_sanitize_is_idempotent_for_approved_public_shape():
+def test_sanitize_preserves_public_meaning_across_reapplication():
     raw = {
         "thresholds": {"repeat_threshold": 3},
         "scanned": 1,
@@ -113,8 +114,17 @@ def test_sanitize_is_idempotent_for_approved_public_shape():
     clean = sanitize(raw)
     assert clean["results"][0]["session"].startswith("run-")
     assert clean["results"][0]["session"] != "deadbee"
-    assert sanitize(clean) is clean
-    assert sanitize(clean) == clean
+
+    reapplied = sanitize(clean)
+    assert dict(reapplied["thresholds"]) == dict(clean["thresholds"])
+    assert reapplied["scanned"] == clean["scanned"]
+    assert reapplied["with_calls"] == clean["with_calls"]
+    first_row = dict(clean["results"][0])
+    reapplied_row = dict(reapplied["results"][0])
+    assert reapplied_row["session"].startswith("run-")
+    first_row.pop("session")
+    reapplied_row.pop("session")
+    assert reapplied_row == first_row
 
 
 def test_sanitize_rehashes_transcript_supplied_public_looking_session_id():
@@ -149,6 +159,177 @@ def test_sanitized_replay_provenance_constructor_is_internal_only():
 
     with pytest.raises(TypeError):
         type(clean)((("sanitized", True),))
+
+
+def test_sanitize_does_not_trust_callable_factory_output():
+    forged = sanitize_replay._new_sanitized_replay(
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "alice_private_repo called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        )
+    )
+
+    clean = sanitize(forged)
+
+    assert clean is not forged
+    rendered = json.dumps(_to_jsonable(clean))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "alice_private_repo" not in rendered
+
+
+def test_sanitize_does_not_trust_base_tuple_forgery():
+    clean = sanitize({"results": []})
+    forged = tuple.__new__(
+        type(clean),
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "mcp__customer_acme__lookup called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        ),
+    )
+
+    sanitized = sanitize(forged)
+
+    assert sanitized is not forged
+    rendered = json.dumps(_to_jsonable(sanitized))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "mcp__customer_acme__lookup" not in rendered
+
+
+def test_sanitize_does_not_trust_callable_registration_helper():
+    forged = tuple.__new__(
+        type(sanitize({"results": []})),
+        (
+            (
+                "results",
+                [
+                    {
+                        "session": "attacker-session",
+                        "project": r"C:\Users\patri\private-repo",
+                        "reason": "repeat",
+                        "detail": "mcp__customer_acme__lookup called with identical input",
+                    },
+                ],
+            ),
+            ("scanned", 1),
+            ("with_calls", 1),
+            ("sanitized", True),
+        ),
+    )
+
+    registration_helper = getattr(
+        sanitize_replay, "_remember_sanitized_replay", None
+    )
+    if registration_helper is not None:
+        registration_helper(forged)
+    sanitized = sanitize(forged)
+
+    assert not hasattr(sanitize_replay, "_remember_sanitized_replay")
+    assert sanitized is not forged
+    rendered = json.dumps(_to_jsonable(sanitized))
+    assert "attacker-session" not in rendered
+    assert "C:\\Users" not in rendered
+    assert "mcp__customer_acme__lookup" not in rendered
+
+
+def test_sanitize_hashes_raw_complete_marked_replay():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": "",
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["session"] != "run-deadbee"
+
+
+def test_sanitize_normalizes_non_string_marked_reason():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": [],
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["reason"] == "unknown"
+
+
+def test_sanitize_hashes_computed_public_session_proof():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee-263004d",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": "",
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["session"] != "run-deadbee-263004d"
 
 
 def test_public_renderer_resanitizes_base_tuple_forgery():

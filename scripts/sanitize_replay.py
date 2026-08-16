@@ -10,8 +10,8 @@ signature fired, how far past the trip point the run continued. That is the part
 that makes the case. The identifiers are noise to a reader and exposure to the
 owner.
 
-Session ids become opaque stable hashes so rows stay distinguishable across
-renders without being traceable. Project names collapse to generic slugs.
+Session ids become opaque hashes so rows stay distinguishable across renders
+without being traceable. Project names collapse to generic slugs.
 """
 
 from __future__ import annotations
@@ -91,7 +91,6 @@ _SanitizedMapping, _SanitizedReplay, _new_sanitized_mapping, _new_sanitized_repl
     _make_sanitized_types()
 )
 
-
 def _to_jsonable(value: object) -> object:
     if isinstance(value, _SanitizedMapping):
         return {key: _to_jsonable(item) for key, item in value.items()}
@@ -105,7 +104,7 @@ def short_hash(value: str, length: int = 7) -> str:
 
 
 def _safe_session_id(value: object) -> str:
-    """Hash every transcript-controlled session id at the trust boundary."""
+    """Hash every supplied session id without trusting serialized provenance."""
     return f"run-{short_hash(str(value))}"
 
 
@@ -155,7 +154,7 @@ def _safe_with_calls(value: object, fallback: int) -> int:
 
 def _safe_thresholds(value: object) -> dict[str, int | None]:
     """Copy only the numeric threshold fields used by replay_transcripts."""
-    if not isinstance(value, dict):
+    if not isinstance(value, Mapping):
         return {}
     clean: dict[str, int | None] = {}
     for key in PUBLIC_THRESHOLD_KEYS:
@@ -198,9 +197,12 @@ def _safe_detail(row: dict, reason: str) -> str:
     return "unclassified finding"
 
 
-def sanitize(data: dict) -> dict:
-    if isinstance(data, _SanitizedReplay):
-        return data
+def sanitize(data: object) -> Mapping[str, object]:
+    if isinstance(data, _SanitizedMapping):
+        data = _to_jsonable(data)
+
+    if not isinstance(data, Mapping):
+        data = {}
 
     projects: dict[str, str] = {}
     out_results = []
@@ -215,18 +217,22 @@ def sanitize(data: dict) -> dict:
         reason = _safe_reason(row.get("reason"))
         total_calls = _safe_count(row.get("total_calls"))
         fired_at_call = _safe_fired_at_call(row.get("fired_at_call"), total_calls)
+        stuck = row.get("stuck") if isinstance(row.get("stuck"), bool) else False
+        project = generic_project(str(row.get("project", "")), projects)
+        detail = _safe_detail(row, reason)
+        calls_after_trip = _safe_calls_after_trip(total_calls, fired_at_call)
 
         out_results.append(
             _new_sanitized_mapping(
                 (
                     ("session", _safe_session_id(row.get("session", ""))),
-                    ("project", generic_project(str(row.get("project", "")), projects)),
+                    ("project", project),
                     ("total_calls", total_calls),
-                    ("stuck", row.get("stuck") if isinstance(row.get("stuck"), bool) else False),
+                    ("stuck", stuck),
                     ("reason", reason),
-                    ("detail", _safe_detail(row, reason)),
+                    ("detail", detail),
                     ("fired_at_call", fired_at_call),
-                    ("calls_after_trip", _safe_calls_after_trip(total_calls, fired_at_call)),
+                    ("calls_after_trip", calls_after_trip),
                 )
             )
         )
