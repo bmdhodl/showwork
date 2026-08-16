@@ -247,6 +247,56 @@ def test_sanitize_does_not_trust_callable_registration_helper():
     assert "mcp__customer_acme__lookup" not in rendered
 
 
+def test_sanitize_hashes_raw_complete_marked_replay():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": "",
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["session"] != "run-deadbee"
+
+
+def test_sanitize_normalizes_non_string_marked_reason():
+    clean = sanitize(
+        {
+            "thresholds": {},
+            "scanned": 1,
+            "with_calls": 1,
+            "results": [
+                {
+                    "session": "run-deadbee",
+                    "project": "repo-1",
+                    "total_calls": 1,
+                    "stuck": True,
+                    "reason": [],
+                    "detail": "",
+                    "fired_at_call": None,
+                    "calls_after_trip": 0,
+                }
+            ],
+            "sanitized": True,
+        }
+    )
+
+    assert clean["results"][0]["reason"] == "unknown"
+
+
 def test_public_renderer_resanitizes_base_tuple_forgery():
     clean = sanitize({"results": []})
     forged = tuple.__new__(

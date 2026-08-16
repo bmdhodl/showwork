@@ -455,3 +455,5 @@
 {"event": "session.finish", "session": "sanitize-replay-provenance-capability-20260816", "ts": "2026-08-16T07:52:43", "status": "ok", "claims_verdict": "GREEN", "prev": "fbec7c1cd5fa27eec0dfbcda6d29edeb29be6c1ef26a3bd552483957027775a6"}
 {"event": "session.start", "session": "sanitize-replay-canonical-idempotence-20260816", "ts": "2026-08-16T08:02:17", "agent": "codex", "prev": "a20a7a9c176b26484783d1dac13bbdd7e27c39842f03b7f51195537537d5ad3d"}
 {"event": "session.finish", "session": "sanitize-replay-canonical-idempotence-20260816", "ts": "2026-08-16T08:03:56", "status": "ok", "claims_verdict": "GREEN", "prev": "378e47f4e71bbcf9bda8e0cabd67741a925d3a899a323280c2ae6279e9b6488a"}
+{"event": "session.start", "session": "sanitize-replay-session-proof-20260816", "ts": "2026-08-16T08:21:57", "agent": "codex", "prev": "52b638892b96e7d1d17dba20bd2d2b88cf134cc60f4758018d584faa41a0e70c"}
+{"event": "session.finish", "session": "sanitize-replay-session-proof-20260816", "ts": "2026-08-16T08:23:27", "status": "ok", "claims_verdict": "GREEN", "prev": "9777978fc90f806e8e17eb1209b9aabeb5ca230db9c991a4b6bee1917c2238ef"}

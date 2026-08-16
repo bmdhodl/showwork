@@ -104,9 +104,28 @@ def short_hash(value: str, length: int = 7) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
 
 
-def _safe_session_id(value: object) -> str:
-    """Hash every transcript-controlled session id at the trust boundary."""
-    return f"run-{short_hash(str(value))}"
+def _public_row_fingerprint(row: Mapping[str, object]) -> str:
+    payload = json.dumps(dict(row), sort_keys=True, separators=(",", ":"))
+    return short_hash(payload)
+
+
+def _session_proof(fingerprint: str) -> str:
+    return short_hash(f"showwork-sanitized-session:{fingerprint}")
+
+
+def _is_proven_session_id(value: object, fingerprint: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    match = re.fullmatch(r"run-([0-9a-f]{7})-([0-9a-f]{7})", value)
+    return match is not None and match.group(2) == _session_proof(fingerprint)
+
+
+def _safe_session_id(value: object, fingerprint: str) -> str:
+    """Hash raw session ids and preserve only a row-bound public form."""
+    candidate = str(value)
+    if _is_proven_session_id(candidate, fingerprint):
+        return candidate
+    return f"run-{short_hash(candidate)}-{_session_proof(fingerprint)}"
 
 
 def generic_project(name: str, mapping: dict[str, str]) -> str:
@@ -219,8 +238,7 @@ def _canonical_sanitized_replay(data: object) -> _SanitizedReplay | None:
         if not isinstance(row, dict):
             return None
         session = row.get("session")
-        if (not isinstance(session, str)
-                or re.fullmatch(r"run-[0-9a-f]{7}", session) is None):
+        if not isinstance(session, str):
             return None
         project = row.get("project")
         if (not isinstance(project, str)
@@ -228,7 +246,8 @@ def _canonical_sanitized_replay(data: object) -> _SanitizedReplay | None:
             return None
 
         reason = row.get("reason")
-        if reason not in PUBLIC_REASONS and reason not in ("", "unknown"):
+        if (not isinstance(reason, str)
+                or (reason not in PUBLIC_REASONS and reason not in ("", "unknown"))):
             return None
         total_calls = _safe_count(row.get("total_calls"), default=-1)
         if total_calls < 0:
@@ -243,6 +262,18 @@ def _canonical_sanitized_replay(data: object) -> _SanitizedReplay | None:
         if row.get("calls_after_trip") != calls_after_trip:
             return None
         if row.get("detail") != _safe_detail(row, reason):
+            return None
+        public_row = {
+            "project": project,
+            "total_calls": total_calls,
+            "stuck": stuck,
+            "reason": reason,
+            "detail": row["detail"],
+            "fired_at_call": fired_at_call,
+            "calls_after_trip": calls_after_trip,
+        }
+        if not _is_proven_session_id(
+                session, _public_row_fingerprint(public_row)):
             return None
 
         out_results.append(
@@ -299,18 +330,31 @@ def sanitize(data: object) -> Mapping[str, object]:
         reason = _safe_reason(row.get("reason"))
         total_calls = _safe_count(row.get("total_calls"))
         fired_at_call = _safe_fired_at_call(row.get("fired_at_call"), total_calls)
+        stuck = row.get("stuck") if isinstance(row.get("stuck"), bool) else False
+        project = generic_project(str(row.get("project", "")), projects)
+        detail = _safe_detail(row, reason)
+        public_row = {
+            "project": project,
+            "total_calls": total_calls,
+            "stuck": stuck,
+            "reason": reason,
+            "detail": detail,
+            "fired_at_call": fired_at_call,
+            "calls_after_trip": _safe_calls_after_trip(total_calls, fired_at_call),
+        }
 
         out_results.append(
             _new_sanitized_mapping(
                 (
-                    ("session", _safe_session_id(row.get("session", ""))),
-                    ("project", generic_project(str(row.get("project", "")), projects)),
+                    ("session", _safe_session_id(
+                        row.get("session", ""), _public_row_fingerprint(public_row))),
+                    ("project", project),
                     ("total_calls", total_calls),
-                    ("stuck", row.get("stuck") if isinstance(row.get("stuck"), bool) else False),
+                    ("stuck", stuck),
                     ("reason", reason),
-                    ("detail", _safe_detail(row, reason)),
+                    ("detail", detail),
                     ("fired_at_call", fired_at_call),
-                    ("calls_after_trip", _safe_calls_after_trip(total_calls, fired_at_call)),
+                    ("calls_after_trip", public_row["calls_after_trip"]),
                 )
             )
         )
