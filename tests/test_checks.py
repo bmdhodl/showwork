@@ -438,6 +438,52 @@ def test_glob_count_limits_traversal_on_low_match_tree(tmp_path, monkeypatch):
     assert "traversal limit exceeded" in result["detail"], result
 
 
+def test_glob_count_stops_before_full_materialization(tmp_path, monkeypatch):
+    """Traversal must stop before reading unbounded entries from a single directory."""
+    monkeypatch.setattr(checks, "MAX_GLOB_TRAVERSAL", 5)
+    path = tmp_path / "entry.md"
+    path.write_text("x", encoding="utf-8")
+
+    def fake_itdir(_self) -> object:
+        for idx in range(20):
+            if idx > checks.MAX_GLOB_TRAVERSAL + 1:
+                raise AssertionError("directory enumeration exceeded bounded cap")
+            yield path
+
+    monkeypatch.setattr(type(tmp_path), "iterdir", fake_itdir)
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*.md", "op": "==", "n": 0}),
+        tmp_path,
+    )
+
+    assert result["status"] == "error", result
+    assert "traversal limit exceeded" in result["detail"], result
+
+
+def test_glob_count_respects_directory_only_trailing_separator(tmp_path):
+    """Trailing slash should count directories only, matching pathlib glob behavior."""
+    (tmp_path / "build").mkdir()
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "build.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "root_file.md").write_text("x", encoding="utf-8")
+
+    expected_root_glob = list(tmp_path.glob("*/"))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "*/", "op": "==", "n": len(expected_root_glob)}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert f"count {len(expected_root_glob)} ==" in result["detail"], result
+
+    expected_build_glob = list(tmp_path.glob("build/"))
+    result = verify_claim(
+        claim({"type": "glob_count", "pattern": "build/", "op": "==", "n": len(expected_build_glob)}),
+        tmp_path,
+    )
+    assert result["status"] == "pass", result
+    assert f"count {len(expected_build_glob)} ==" in result["detail"], result
+
+
 def test_glob_count_accepts_adjacent_star_patterns(tmp_path):
     """Exact-match `**` rejection should preserve non-recursive adjacent-star patterns."""
     (tmp_path / "foobar.md").write_text("x", encoding="utf-8")
