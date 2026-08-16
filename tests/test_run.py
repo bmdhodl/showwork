@@ -14,8 +14,8 @@ from showwork.ledger import record_claim, resolve_root, start_session
 
 def _sessions(root: Path) -> list[dict]:
     path = root / ".showwork" / "sessions.jsonl"
-    return [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()
-            if l.strip()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()]
 
 
 def test_run_wraps_and_records(tmp_path, capsys):

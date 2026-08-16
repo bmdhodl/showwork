@@ -68,8 +68,8 @@ def render(data: dict) -> str:
         (f"{wasted:,}", "calls after trip"),
     ]
     stat_html = "".join(
-        f'<div class="stat"><div class="n">{esc(n)}</div><div class="l">{esc(l)}</div></div>'
-        for n, l in stats
+        f'<div class="stat"><div class="n">{esc(number)}</div><div class="l">{esc(label)}</div></div>'
+        for number, label in stats
     )
 
     rows = []

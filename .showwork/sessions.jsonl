@@ -459,3 +459,6 @@
 {"event": "session.finish", "session": "sanitize-replay-session-proof-20260816", "ts": "2026-08-16T08:23:27", "status": "ok", "claims_verdict": "GREEN", "prev": "9777978fc90f806e8e17eb1209b9aabeb5ca230db9c991a4b6bee1917c2238ef"}
 {"event": "session.start", "session": "sanitize-replay-value-semantic-20260816", "ts": "2026-08-16T08:37:44", "agent": "codex", "prev": "2340b718f7b3015cdf63695a55e5f7a87e888c2a8ef2b1eb4bee10751fc7a2f3"}
 {"event": "session.finish", "session": "sanitize-replay-value-semantic-20260816", "ts": "2026-08-16T08:50:34", "status": "ok", "claims_verdict": "GREEN", "prev": "1048dcd6ecc6040169b308c27a835b77a13516bde185a5fc85dbd685fd183f56"}
+{"event": "session.start", "session": "ruff-cleanup-20260816", "ts": "2026-08-16T09:13:16", "agent": "codex", "prev": "c394fd377100b1fed625c126f8d1eda3ef69b89471ea3263da71d2a546550d66"}
+{"event": "session.finish", "session": "ruff-cleanup-20260816", "ts": "2026-08-16T09:14:16", "status": "ok", "claims_verdict": "YELLOW", "prev": "f83ccfc14fcccc31ac62e15ddb226656800f52e199452e1164a74265cde6cd97"}
+{"event": "session.finish", "session": "ruff-cleanup-20260816", "ts": "2026-08-16T09:16:06", "status": "ok", "claims_verdict": "GREEN", "prev": "76e92495cdca009ed1c5b60ab253bf93bda53b6e3e73af1085467752e5be1557"}
