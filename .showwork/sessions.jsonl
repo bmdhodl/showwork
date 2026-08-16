@@ -401,3 +401,7 @@
 {"event": "session.finish", "session": "stale-historical-receipt-claims-20260815", "ts": "2026-08-15T20:56:12", "status": "ok", "claims_verdict": "GREEN", "prev": "4d2bbd87472132aa7ef1c77669753fe8246a5e3ac3f28cd5b981e7a64b575ef5"}
 {"event": "session.start", "session": "sanitize-replay-hardening-20260816", "ts": "2026-08-16T04:14:31", "agent": "codex", "prev": "289dc1765b539332edf902ad4d2b0342cdda868075ef47a7ac8d0ab63bb9cdd6"}
 {"event": "session.finish", "session": "sanitize-replay-hardening-20260816", "ts": "2026-08-16T04:14:59", "status": "ok", "claims_verdict": "GREEN", "prev": "99860a294e572711af857a4c2210b31005c556403b0ef316af7c328d45eb52d1"}
+{"event": "session.start", "session": "sanitize-replay-compat-20260816", "ts": "2026-08-16T04:17:24", "agent": "codex", "prev": "4bd038c457ffb8ec0b0baf9b8c50272b93c23846c5f0d25139d2ed23a89c44fb"}
+{"event": "session.finish", "session": "sanitize-replay-compat-20260816", "ts": "2026-08-16T04:17:47", "status": "ok", "claims_verdict": "GREEN", "prev": "db56aa6ee62bb4e4f4fdfd4d13f1c41b287877b8cf9adcec0a78fa4aec95ba53"}
+{"event": "session.start", "session": "sanitize-replay-compat-boundary-20260816", "ts": "2026-08-16T04:17:55", "agent": "codex", "prev": "fbc8308777c6c114f826d94fb3223c7e71ea1dab1740890471e890c076f0c2b6"}
+{"event": "session.finish", "session": "sanitize-replay-compat-boundary-20260816", "ts": "2026-08-16T04:18:18", "status": "ok", "claims_verdict": "GREEN", "prev": "84119da45cb6b9691943f2e48acfcaed4776e62ebe3397fd7bb272867b1ed603"}

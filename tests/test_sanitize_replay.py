@@ -57,5 +57,9 @@ def test_sanitize_whitelists_untrusted_replay_fields():
     assert second["detail"] == "unclassified finding"
     assert "C:\\Users" not in json.dumps(clean)
 
+    empty = sanitize({"results": [{"reason": "", "detail": ""}]})["results"][0]
+    assert empty["reason"] == ""
+    assert empty["detail"] == ""
+
     # The sanitized shape remains consumable by the public renderer.
     assert "private" not in build(clean)

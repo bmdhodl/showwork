@@ -76,6 +76,8 @@ def _safe_thresholds(value: object) -> dict[str, int | None]:
 
 
 def _safe_reason(value: object) -> str:
+    if value == "":
+        return ""
     if isinstance(value, str) and value in PUBLIC_REASONS:
         return value
     return "unknown"
@@ -91,6 +93,8 @@ def _safe_tool_name(detail: object) -> str:
 
 def _safe_detail(row: dict, reason: str) -> str:
     """Rebuild the small public detail vocabulary from untrusted input."""
+    if reason == "":
+        return ""
     if reason == "repeat":
         return f"{_safe_tool_name(row.get('detail'))} called with identical input"
     if reason == "alternation":
