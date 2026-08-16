@@ -473,3 +473,5 @@
 {"event": "session.finish", "session": "glob-count-literal-prefix-compat-20260816", "ts": "2026-08-16T16:05:42", "status": "ok", "claims_verdict": "GREEN", "prev": "9c2dc0db622596b3b90404bed7119283ae230779c208fbeb63a8674d5188e394"}
 {"event": "session.start", "session": "glob-count-exit-gate-20260816", "ts": "2026-08-16T16:28:16", "agent": "codex", "prev": "c1bb2144ff3a345c1e6f3085e494d2914a9bdf1ecbee0c4b4c06cbe261e5bd26"}
 {"event": "session.finish", "session": "glob-count-exit-gate-20260816", "ts": "2026-08-16T16:32:00", "status": "ok", "claims_verdict": "GREEN", "prev": "b39954713c2e3bad07d54ecc97a62e8a5535a164eedf5b9e0ad1ccaa38ebc28a"}
+{"event": "session.start", "session": "glob-count-spec-limit-20260816", "ts": "2026-08-16T16:39:11", "agent": "codex", "prev": "b863934d8544af92a20eb7c39f24eb279676314eb93c1c077d14216e1f30f619"}
+{"event": "session.finish", "session": "glob-count-spec-limit-20260816", "ts": "2026-08-16T16:52:37", "status": "ok", "claims_verdict": "GREEN", "prev": "239e72248121254bc407196f932c53610c2709e5c253b76bff559d8d61ccd9a2"}

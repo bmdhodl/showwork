@@ -135,6 +135,8 @@ Recursive glob components are not supported in verifier context. The pattern MUS
 `error` before attempting match traversal. This is an explicit refusal boundary:
 recursive claims may not silently downgrade into a bounded-count comparison.
 
+Verifier-context `glob_count` uses a deterministic non-recursive traversal inspection limit of `MAX_GLOB_TRAVERSAL` (100000 inspected directory entries). If traversal would exceed that limit, the checker returns a verifier error/refusal rather than comparing a partial or actual count.
+
 ### `command`
 
 ```json
