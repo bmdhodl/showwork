@@ -48,17 +48,13 @@ PUBLIC_THRESHOLD_KEYS = (
 
 
 def _make_sanitized_types():
-    capability = object()
-
     class SanitizedMapping(tuple, Mapping[str, object]):
         """Immutable mapping whose items live in the tuple payload."""
 
         __slots__ = ()
 
-        def __new__(cls, items: Iterable[tuple[str, object]], _capability=None):
-            if _capability is not capability:
-                raise TypeError("sanitized replay mappings are internal only")
-            return tuple.__new__(cls, tuple(items))
+        def __new__(cls, *args, **kwargs):
+            raise TypeError("sanitized replay mappings are internal only")
 
         def __getitem__(self, key: str) -> object:
             for item_key, value in tuple.__iter__(self):
@@ -83,10 +79,10 @@ def _make_sanitized_types():
         __slots__ = ()
 
     def make_mapping(items: Iterable[tuple[str, object]]):
-        return SanitizedMapping(items, capability)
+        return tuple.__new__(SanitizedMapping, tuple(items))
 
     def make_replay(items: Iterable[tuple[str, object]]):
-        return SanitizedReplay(items, capability)
+        return tuple.__new__(SanitizedReplay, tuple(items))
 
     return SanitizedMapping, SanitizedReplay, make_mapping, make_replay
 

@@ -444,3 +444,6 @@
 {"event": "session.finish", "session": "sanitize-replay-object-immutable-20260816", "ts": "2026-08-16T06:09:01", "status": "ok", "claims_verdict": "GREEN", "prev": "b89b6587db82f338498f181dae710b8f064c383262237f581f506600af2e8415"}
 {"event": "session.start", "session": "sanitize-replay-constructor-boundary-20260816", "ts": "2026-08-16T06:21:15", "agent": "codex", "prev": "ad40454d8adb09c1efcd117f3e0f3314012a4d11f92b2b8aba15c97c3120c774"}
 {"event": "session.finish", "session": "sanitize-replay-constructor-boundary-20260816", "ts": "2026-08-16T06:21:39", "status": "ok", "claims_verdict": "GREEN", "prev": "88c5dbf4d44d73ffb0dac6cb38597a1fc5f92c4e9e3f8e4c9b7cb8b72f427b38"}
+{"event": "session.start", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:38:39", "agent": "codex", "prev": "404b509b454bc3403fa8c4974941d28315293e3559b559ad2203394fdae184f0"}
+{"event": "session.finish", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:39:59", "status": "ok", "claims_verdict": "GREEN", "prev": "4c760f24816474e9b6b2414080b2ee27b3e3c52f584c92b5ddbdd064e380a7a4"}
+{"event": "session.finish", "session": "sanitize-replay-constructor-flow-20260816", "ts": "2026-08-16T06:40:13", "status": "ok", "claims_verdict": "GREEN", "prev": "ab87d2f041294e7fbd5a59d80a287aaec7498474f1e4b1a9bcee958781562ff2"}
