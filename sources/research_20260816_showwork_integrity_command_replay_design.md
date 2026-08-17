@@ -320,6 +320,80 @@ stream below is grounded in `src/showwork/checks.py:736-759`, where
 scoring, and sets `total=len(scored)` after the drop.
 The bounded synthetic `evaluate_records()` fixture below proves the render
 semantics only; it is not a completed exact-tree CLI replay.
+The runnable fixture is synthetic and monkeypatched. It loads the pinned
+`99ad1df4b8e12b4a128f19d2059ab6613dc9931e` ledger with `git show`, calls
+`apply_append_retractions()`, drops retraction-marker rows, maps unretracted
+claims to pass and retracted claims to skipped/retracted without executing any
+claim commands, and then calls `evaluate_records()`.
+It asserts `raw_rows=223, claim_results=149, scored_total=76, passed=76, verdict=GREEN, render 76/76 verified` and prints the rendered `76/76 verified` receipt. That is a synthetic render proof, not a full CLI verification.
+
+```python
+# Synthetic / monkeypatched fixture. This does not execute claim commands.
+from __future__ import annotations
+
+import json
+import subprocess
+
+import showwork.checks as checks
+
+
+PINNED_SHA = "99ad1df4b8e12b4a128f19d2059ab6613dc9931e"
+
+
+def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
+    raw = subprocess.run(
+        [
+            "git",
+            "show",
+            f"{PINNED_SHA}:.showwork/claims-2026-08-16.jsonl",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    records = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    patched = checks.apply_append_retractions(records)
+    claim_rows = [
+        row for row in patched
+        if not (row.get("retracted") and isinstance(row.get("retracts"), dict))
+    ]
+
+    def synthetic_verify_claim(record, root):
+        if record.get("_append_retraction_reason"):
+            return {
+                "claim": record["claim"],
+                "session": record.get("session", ""),
+                "severity": record.get("severity", "RED"),
+                "type": None,
+                "status": "skipped",
+                "retracted": True,
+                "detail": f"retracted: {record['_append_retraction_reason']}",
+            }
+        return {
+            "claim": record["claim"],
+            "session": record.get("session", ""),
+            "severity": record.get("severity", "RED"),
+            "type": "synthetic",
+            "status": "pass",
+            "detail": "synthetic pass for bounded render proof",
+        }
+
+    monkeypatch.setattr(checks, "verify_claim", synthetic_verify_claim)
+    state = checks.evaluate_records(claim_rows, tmp_path, label=f"synthetic {PINNED_SHA}")
+    raw_rows = len(records)
+    claim_results = len(claim_rows)
+    scored_total = state["total"]
+    passed = state["passed"]
+
+    assert raw_rows == 223
+    assert claim_results == 149
+    assert scored_total == 76
+    assert passed == 76
+    assert state["verdict"] == "GREEN"
+    rendered = checks.render_report(state)
+    print(rendered)
+    assert "76/76 verified" in rendered
+```
 
 - `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
