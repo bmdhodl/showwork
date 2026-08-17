@@ -224,10 +224,16 @@ with TemporaryDirectory() as td:
         print(name, result['status'], result['detail'])
 
     import os
-    os.environ[NO_COMMANDS_ENV] = '1'
-    status, detail = chk_command({'type': 'command', 'argv': ['python', 'counter.py']}, root)
-    os.environ.pop(NO_COMMANDS_ENV, None)
-    print('no_commands', status, detail, (root / 'counter.txt').read_text(encoding='utf-8'))
+    saved_no_commands = os.environ.pop(NO_COMMANDS_ENV, None)
+    try:
+        os.environ[NO_COMMANDS_ENV] = '1'
+        status, detail = chk_command({'type': 'command', 'argv': ['python', 'counter.py']}, root)
+        print('no_commands', status, detail, (root / 'counter.txt').read_text(encoding='utf-8'))
+    finally:
+        if saved_no_commands is None:
+            os.environ.pop(NO_COMMANDS_ENV, None)
+        else:
+            os.environ[NO_COMMANDS_ENV] = saved_no_commands
 '@ | python -
 ```
 
@@ -240,6 +246,10 @@ Current rerun result:
 - `counter_1` → `pass`, `exit 0, stdout has '1'`
 - `counter_2` → `pass`, `exit 0, stdout has '2'`
 - `no_commands` → `error`, `command checks disabled by SHOWWORK_NO_COMMANDS (policy: do not execute repo code in this context)`, counter remained `2`
+
+The replay snippet is self-contained: it clears any inherited
+`SHOWWORK_NO_COMMANDS` value before the normal/predicate/counter rows, sets it
+only for the refusal row, and restores the original inherited value afterward.
 
 This is the evidence the earlier 2-row artifact was missing. It proves the
 same argv can produce different outcomes under different predicates, state, and
@@ -276,9 +286,9 @@ This lane ties each review-thread dimension to a concrete receipt:
 - Refusal: the `no_commands` row, the dedicated audit-session artifact, and the
   strict-audit comparison that remains `RED (369/401 records chained, 4 fork(s))`
   on both base and head.
-- Tamper: the same-argv/different-predicate rows (`A` vs `B`, exit `0` vs `1`,
-  counter `1` vs `2`) show that outcome depends on state and expectations, not
-  argv text alone.
+- Tamper: PR #62 tampered receipt job `95242167332` / run `31977845414`
+  SUCCESS (`2026-08-16T23:12:52Z-23:14:43Z`) is the actual tampered-receipt
+  verification; the same-argv rows stay under identity/expectation/state.
 - Append-only: the `.showwork/claims-2026-08-16.jsonl` retractions and
   replacement claims preserve history instead of rewriting it, and the matching
   `.showwork/sessions.jsonl` finish/refused transitions preserve session order.
