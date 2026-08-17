@@ -320,17 +320,14 @@ stream below is grounded in `src/showwork/checks.py:736-759`, where
 scoring, and sets `total=len(scored)` after the drop.
 The bounded synthetic `evaluate_records()` fixture below proves the render
 semantics only; it is not a completed exact-tree CLI replay.
-The runnable fixture is synthetic and monkeypatched. It loads the pinned
-`99ad1df4b8e12b4a128f19d2059ab6613dc9931e` ledger with `git show`, calls
-`apply_append_retractions()`, drops retraction-marker rows, maps unretracted
-claims to pass and retracted claims to skipped/retracted without executing any
-claim commands, and then calls `evaluate_records()`.
+The runnable fixture is synthetic and monkeypatched. It self-refuses unless it is executed from the detached exact checkout `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` and the imported `showwork.checks` module resolves to that checkout's `src/showwork/checks.py`. Only after those two pins match does it load the ledger from the same checkout, call `apply_append_retractions()`, drop retraction-marker rows, map unretracted claims to pass and retracted claims to skipped/retracted without executing any claim commands, and then call `evaluate_records()`.
 It asserts `raw_rows=223, claim_results=149, scored_total=76, passed=76, verdict=GREEN, render 76/76 verified` and prints the rendered `76/76 verified` receipt. That is a synthetic render proof, not a full CLI verification.
 
 ```python
 # Synthetic / monkeypatched fixture. This does not execute claim commands.
 from __future__ import annotations
 
+from pathlib import Path
 import json
 import subprocess
 
@@ -341,16 +338,20 @@ PINNED_SHA = "99ad1df4b8e12b4a128f19d2059ab6613dc9931e"
 
 
 def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
-    raw = subprocess.run(
-        [
-            "git",
-            "show",
-            f"{PINNED_SHA}:.showwork/claims-2026-08-16.jsonl",
-        ],
+    worktree = Path.cwd()
+    expected_checks = (worktree / "src" / "showwork" / "checks.py").resolve()
+    actual_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
         check=True,
         capture_output=True,
         text=True,
-    ).stdout
+    ).stdout.strip()
+    actual_checks = Path(checks.__file__).resolve()
+    assert actual_head == PINNED_SHA, (actual_head, PINNED_SHA)
+    assert actual_checks == expected_checks, (actual_checks, expected_checks)
+
+    ledger_path = worktree / ".showwork" / "claims-2026-08-16.jsonl"
+    raw = ledger_path.read_text(encoding="utf-8")
     records = [json.loads(line) for line in raw.splitlines() if line.strip()]
     patched = checks.apply_append_retractions(records)
     claim_rows = [
@@ -379,7 +380,7 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
         }
 
     monkeypatch.setattr(checks, "verify_claim", synthetic_verify_claim)
-    state = checks.evaluate_records(claim_rows, tmp_path, label=f"synthetic {PINNED_SHA}")
+    state = checks.evaluate_records(claim_rows, worktree, label=f"synthetic {PINNED_SHA}")
     raw_rows = len(records)
     claim_results = len(claim_rows)
     scored_total = state["total"]
@@ -398,9 +399,12 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
 - `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
-- `git show 99ad1df4b8e12b4a128f19d2059ab6613dc9931e:.showwork/claims-2026-08-16.jsonl`
-  piped through `apply_append_retractions()` yields `raw_rows=223`,
-  `claim_results=149`, `scored_total=76`, `retracted_or_skipped=73`
+- Detached-tree proof command from
+  `C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-99ad`
+  with `PYTHONPATH=src` produced `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
+  `CHECKS=C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-99ad\src\showwork\checks.py`,
+  `raw_rows=223`, `claim_results=149`, `scored_total=76`, `passed=76`,
+  `verdict=GREEN`, and rendered `76/76 verified`
 - The bounded synthetic `evaluate_records()` fixture on the pinned tree
   produces the expected all-pass render:
   `GREEN (76/76 verified)` for `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
