@@ -313,9 +313,10 @@ tamper behavior, and append-only history, not just argv equality.
 
 ## Validation summary
 
-The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
-(checked-out `src/` implementation) was revalidated with a clean detached-tree
-proof. It self-refuses unless git status --porcelain --untracked-files=all is empty before the run, and it rechecks that the checkout remains clean after the run with PYTHONDONTWRITEBYTECODE=1.
+The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` (checked-out `src/` implementation) was revalidated from a clean detached-tree proof worktree at `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817`.
+The runnable pytest fixture was materialized outside that checkout at `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`; the code block below is the exact external harness text.
+Detached-tree proof command from `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` used the external harness file `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`.
+It self-refuses unless git status --porcelain --untracked-files=all is empty before the run, and it rechecks that the checkout remains clean after the run with `PYTHONDONTWRITEBYTECODE=1`.
 
 The earlier `76/149` reading is withdrawn. It came from a mismatched
 source/root execution and is not the exact-tree receipt. The exact-tree claim
@@ -419,11 +420,13 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
 - `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
-- Detached-tree proof command from
-  `C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-clean-99ad`
-  with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` produced
-  `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
-  `CHECKS=C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-clean-99ad\src\showwork\checks.py`,
+- External-harness pytest command from
+  `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with
+  `PYTHONPATH=src`, `PYTHONDONTWRITEBYTECODE=1`, and
+  `python -m pytest -q -s -p no:cacheprovider`
+  `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`
+  produced `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
+  `CHECKS=C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817\src\showwork\checks.py`,
   `PRE_CLEAN=''`, `raw_rows=223`, `claim_results=149`, `scored_total=76`,
   `passed=76`, `verdict=GREEN`, `POST_CLEAN=''`, and rendered
   `76/76 verified`
