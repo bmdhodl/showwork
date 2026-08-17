@@ -425,11 +425,14 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
   `PYTHONPATH=src`, `PYTHONDONTWRITEBYTECODE=1`, and
   `python -m pytest -q -s -p no:cacheprovider`
   `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`
-  produced `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
+  printed the rendered `76/76 verified` receipt plus `PRE_CLEAN=''` and
+  `POST_CLEAN=''`
+- Within that same fixture, the run asserted pinned detached-tree identity and
+  bounded synthetic counts:
+  `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
   `CHECKS=C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817\src\showwork\checks.py`,
-  `PRE_CLEAN=''`, `raw_rows=223`, `claim_results=149`, `scored_total=76`,
-  `passed=76`, `verdict=GREEN`, `POST_CLEAN=''`, and rendered
-  `76/76 verified`
+  `raw_rows=223`, `claim_results=149`, `scored_total=76`, `passed=76`, and
+  `verdict=GREEN`; those values were fixture assertions, not console output
 - The bounded synthetic `evaluate_records()` fixture on the pinned tree
   produces the expected all-pass render:
   `GREEN (76/76 verified)` for `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`

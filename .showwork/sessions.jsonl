@@ -496,3 +496,4 @@
 {"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T21:14:43", "status": "ok", "claims_verdict": "GREEN", "prev": "8a8c23538e2be775ce2cb8070f8ba56dff48912c8c867cc4e9835e999b59baab"}
 {"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T21:34:04", "status": "ok", "claims_verdict": "GREEN", "prev": "caea600655d6abaa568fc079c23a7d65917ed023d63e5d4d9e179ebdb1d487f2"}
 {"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T22:06:14", "status": "ok", "claims_verdict": "GREEN", "prev": "e5929c77f3594641e2dc9f6281e5d821da2d3d10a0c2740912558c96790e5f35"}
+{"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T22:29:26", "status": "ok", "claims_verdict": "GREEN", "prev": "b0d7ba3065d282715ab860ad73a612e08d5741e80e4af0d3615ae810011c987a"}
