@@ -1,0 +1,454 @@
+# showwork integrity-command-replay design readout
+
+Date: 2026-08-16
+Scope: evidence-only. No verifier, receipt schema, workflow, runner, public
+copy, release, or production change was made.
+
+## Blocking finding
+
+PR #30 is still held because the earlier 2-row matrix was too narrow. It
+proved only a small session artifact and did not preserve the disposable-corpus
+matrix, the historical timing readout, or the raw-record history needed for a
+truthful closure.
+
+This report now preserves:
+
+- the local-only owner snapshot at `45d2420`
+- the reviewed replay receipt head at
+  `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`
+- the pre-follow-up merged-main snapshot at
+  `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`
+- the disposable semantic/refusal matrix
+
+Older local snapshots from other checkouts are kept separate from the exact
+working-tree truth and are not treated as current for this lane.
+
+## Raw-record comparison
+
+The raw-record method is explicit: iterate every `.showwork/claims-*.jsonl`
+file in the named commit, count records whose `check.type` is `command`, and
+separately count exact `argv == ["python", "scripts/run_tests.py"]`.
+
+```powershell
+@'
+import json
+import subprocess
+
+commits = [
+    "3b095d2bbc179ee6fb5a5e63bfdae245932111e7",
+    "2c6655cb684a73084dd32cd0a3ebbfe243ef13fd",
+]
+
+for commit in commits:
+    files = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", commit, ".showwork"],
+        text=True,
+    ).splitlines()
+    claim_files = [
+        path for path in files
+        if path.startswith(".showwork/claims-") and path.endswith(".jsonl")
+    ]
+    total = 0
+    run_tests = 0
+    for path in claim_files:
+        raw = subprocess.check_output(["git", "show", f"{commit}:{path}"], text=True)
+        for line in raw.splitlines():
+            if not line.strip():
+                continue
+            obj = json.loads(line)
+            if obj.get("check", {}).get("type") == "command":
+                total += 1
+                if obj["check"].get("argv") == ["python", "scripts/run_tests.py"]:
+                    run_tests += 1
+    print(commit, total, run_tests)
+'@ | python -
+```
+
+Results:
+
+- `3b095d2bbc179ee6fb5a5e63bfdae245932111e7` is the reviewed replay receipt
+  head. The same raw-record method on that exact SHA yields
+  `145` command records and `134` exact
+  `["python", "scripts/run_tests.py"]` claims.
+- `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd` is the pre-follow-up merged main
+  snapshot. The same
+  raw-record method on that exact SHA also yields
+  `145` command records and `134` exact
+  `["python", "scripts/run_tests.py"]` claims.
+- `PR63 reviewed-head ledger` is the live working-tree ledger after the
+  append-only receipt rows in this follow-up. The same raw-record method over
+  the PR working tree now yields `150` command records and `134` exact
+  `["python", "scripts/run_tests.py"]` claims.
+
+The local-only `45d2420` snapshot is preserved here only as a historical
+observation. It reproduces `96` command records and `92` exact
+`["python", "scripts/run_tests.py"]` claims, but it is not reproducible from
+origin/main and is not part of the runnable snippet above. Normal reviewers
+cannot derive it from the current working-tree truth.
+
+## PR63 reviewed-head ledger recompute
+
+The PR63 reviewed-head ledger recompute is pinned to the immutable reviewed
+commit, not the live working tree. The exact raw-record method names that SHA
+explicitly:
+
+```powershell
+@'
+import json
+import subprocess
+
+reviewed_commit = "c60f554dd3c46b7b06c5713c445dee996c771aa7"
+total = 0
+run_tests = 0
+files = subprocess.check_output(
+    ["git", "ls-tree", "-r", "--name-only", reviewed_commit, ".showwork"],
+    text=True,
+).splitlines()
+for path in sorted(
+    p for p in files if p.startswith(".showwork/claims-") and p.endswith(".jsonl")
+):
+    raw = subprocess.check_output(["git", "show", f"{reviewed_commit}:{path}"], text=True)
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        obj = json.loads(line)
+        if obj.get('check', {}).get('type') == 'command':
+            total += 1
+            if obj['check'].get('argv') == ['python', 'scripts/run_tests.py']:
+                run_tests += 1
+print(reviewed_commit, total, run_tests)
+'@ | python -
+```
+
+That immutable reviewed head returns `150` command records and `134` exact
+`["python", "scripts/run_tests.py"]` claims.
+
+## Replay receipt head and narrow audit artifact
+
+The exact replay receipt head is
+`3b095d2bbc179ee6fb5a5e63bfdae245932111e7`.
+
+The exact-head GitHub Codex review comment is `5310119545`, and the
+independent exact-head QA verdict was CLEAN.
+
+The dedicated audit-session artifact at
+`.showwork/audit-session-integrity-command-replay-design-20260816.md` is
+intentionally narrow and currently reads GREEN 2/2:
+
+- command checker preserves the `SHOWWORK_NO_COMMANDS` refusal boundary
+- full test suite passes for the replay readout
+
+That artifact is supporting evidence, not a substitute for the raw-record
+comparison above.
+
+## Terminal receipts and merge-main verification
+
+The replay lane's exact merged-main receipts are:
+
+- PR checks: `8/8 GREEN` after infra-only reruns
+- Merge commit: `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`
+- Merge-main CI run: `31979022686 GREEN`
+  - `test` job `95242774670`
+  - `conformance-js` job `95242774717`
+  - `receipts` job `95242774747`
+- Reviewed blobs are identical on origin/main
+
+The exact base/head strict-audit comparison recorded earlier was:
+
+- Detached base `43545d0f26f030a3f32af5f3fc28a6854416455e`
+- Replay head `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`
+- Result on both: `RED (369/401 records chained, 4 fork(s))`
+- That earlier comparison preserved the same four historical fork identities;
+  the live PR63 claim stream adds one new fork at shared `prev
+  7596a22c98baad0911317223eebfaef039b69bc064f35c42a70f23b3f093b902`, as
+  disclosed below.
+
+## Timing evidence
+
+The observed hosted strict step from job `95115458538` ran from
+`04:33:47Z` to `04:38:39Z`.
+
+The earlier `18–20m` figure was a local-runtime multiplication estimate, not
+an observed hosted duration. It is superseded by the observed hosted strict
+step window above.
+
+The preserved local timing fixture from the fixture run against source commit
+`5552954` remains separate and was reported as:
+
+```json
+{
+  "synthetic_claims": 96,
+  "command_execution_96_seconds": 6.280858,
+  "command_execution_result_counts": {"('pass', 'exit 0')": 96},
+  "evaluate_records_command_96_seconds": 5.810864,
+  "evaluate_records_command_state": {"verdict": "GREEN", "passed": 96, "total": 96},
+  "evaluate_records_file_96_seconds": 0.014913,
+  "evaluate_records_file_state": {"verdict": "GREEN", "passed": 96, "total": 96},
+  "receipt_write_96_bytes": 11990,
+  "receipt_write_96_seconds": 0.000421
+}
+```
+
+## Deterministic disposable-corpus reproducer
+
+The current PR63 clean worktree was rerun with the following self-contained
+command. It uses a disposable temp root, the public `verify_claim` API, and a
+tiny Python corpus to keep the evidence deterministic:
+
+```powershell
+$env:PYTHONPATH='src'
+@'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from showwork.checks import chk_command, verify_claim, NO_COMMANDS_ENV
+
+
+def rec(check, claim='test claim', severity='RED'):
+    return {'session': 'matrix', 'claim': claim, 'severity': severity, 'check': check}
+
+
+with TemporaryDirectory() as td:
+    root = Path(td)
+    (root / 'stdout_a.py').write_text("print('A')\n", encoding='utf-8')
+    (root / 'exit_zero.py').write_text('raise SystemExit(0)\n', encoding='utf-8')
+    (root / 'counter.py').write_text(
+        "from pathlib import Path\n"
+        "p = Path('counter.txt')\n"
+        "n = int(p.read_text()) if p.exists() else 0\n"
+        "p.write_text(str(n + 1))\n"
+        "print(n + 1)\n",
+        encoding='utf-8',
+    )
+
+    checks = [
+        ('stdout_A', {'type': 'command', 'argv': ['python', 'stdout_a.py'], 'stdout_contains': 'A'}),
+        ('stdout_B', {'type': 'command', 'argv': ['python', 'stdout_a.py'], 'stdout_contains': 'B'}),
+        ('exit_0', {'type': 'command', 'argv': ['python', 'exit_zero.py'], 'expect_exit': 0}),
+        ('exit_1', {'type': 'command', 'argv': ['python', 'exit_zero.py'], 'expect_exit': 1}),
+        ('counter_1', {'type': 'command', 'argv': ['python', 'counter.py'], 'stdout_contains': '1'}),
+        ('counter_2', {'type': 'command', 'argv': ['python', 'counter.py'], 'stdout_contains': '2'}),
+    ]
+
+    import os
+    saved_no_commands = os.environ.pop(NO_COMMANDS_ENV, None)
+    try:
+        for name, check in checks:
+            result = verify_claim(rec(check), root)
+            print(name, result['status'], result['detail'])
+        os.environ[NO_COMMANDS_ENV] = '1'
+        status, detail = chk_command({'type': 'command', 'argv': ['python', 'counter.py']}, root)
+        print('no_commands', status, detail, (root / 'counter.txt').read_text(encoding='utf-8'))
+    finally:
+        if saved_no_commands is None:
+            os.environ.pop(NO_COMMANDS_ENV, None)
+        else:
+            os.environ[NO_COMMANDS_ENV] = saved_no_commands
+'@ | python -
+```
+
+Current rerun result:
+
+- `stdout_A` → `pass`, `exit 0, stdout has 'A'`
+- `stdout_B` → `fail`, `stdout missing 'B'`
+- `exit_0` → `pass`, `exit 0`
+- `exit_1` → `fail`, `exit 0, expected 1`
+- `counter_1` → `pass`, `exit 0, stdout has '1'`
+- `counter_2` → `pass`, `exit 0, stdout has '2'`
+- `no_commands` → `error`, `command checks disabled by SHOWWORK_NO_COMMANDS (policy: do not execute repo code in this context)`, counter remained `2`
+
+The replay snippet is self-contained: it clears any inherited `SHOWWORK_NO_COMMANDS` value before the normal/predicate/counter rows, sets it only for the refusal row, and restores the original inherited value afterward.
+Before the row loop, it saves inherited SHOWWORK_NO_COMMANDS, clears it up front, and restores it afterward even when pre-exported.
+
+This is the evidence the earlier 2-row artifact was missing. It proves the
+same argv can produce different outcomes under different predicates, state, and
+policy, so argv is not a safe cache key.
+
+## Semantic and refusal matrix
+
+The disposable matrix for this lane is the deterministic one above, not the
+two-row session artifact. It covers:
+
+- same argv with different stdout predicates (`A` vs `B`)
+- same argv with different expected exits (`0` vs `1`)
+- repeated same argv with counter side effects (`1` then `2`)
+- `SHOWWORK_NO_COMMANDS=1` refusal with the counter unchanged
+
+That matrix is intentionally minimal but complete for the claim the card makes.
+
+## Evidence mapping
+
+This lane ties each review-thread dimension to a concrete receipt:
+
+- Identity: replay receipt head `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`,
+  pre-follow-up merged-main snapshot `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`,
+  exact-head review comment `5310119545`, and the live PR63 reviewed-head
+  ledger row.
+- Order/state: the raw-record counts above, the merged-main CI run
+  `31979022686`, and the observed hosted strict step window
+  `04:33:47Z-04:38:39Z`.
+- Environment/policy: the disposable matrix row that returns `error` under
+  `SHOWWORK_NO_COMMANDS=1`, plus the narrow audit artifact that records the same
+  refusal boundary.
+- Path/cwd: the raw-record snippet walks exact Git SHAs via `git show` and the
+  deterministic temp-root matrix uses an isolated `TemporaryDirectory()`.
+- Refusal: the `no_commands` row, the dedicated audit-session artifact, and the
+  strict-audit comparison that remains `RED (369/401 records chained, 4 fork(s))`
+  on both base and head.
+- Tamper: actual tampered-receipt verification is PR #62 job `95242167332` /
+  run `31977845414` SUCCESS (`2026-08-16T23:12:52Z-23:14:43Z`); the same-argv
+  rows stay under identity/expectation/state.
+- Append-only: the `.showwork/claims-2026-08-16.jsonl` retractions and
+  replacement claims preserve history instead of rewriting it, and the matching
+  `.showwork/sessions.jsonl` finish/refused transitions preserve session order.
+
+## Why equal argv is not a safe cache key
+
+The same `python scripts/run_tests.py` argv text appears many times across the
+ledger, but it is not equivalent to claim identity. The raw-record totals above
+show why: identical argv text exists in both the historical owner-only snapshot
+and the pre-follow-up merged-main snapshot, and now also in the live PR63
+reviewed-head ledger, yet the surrounding claim context, timing, and ledger
+history differ. Any optimization must preserve claim order, refusal semantics,
+tamper behavior, and append-only history, not just argv equality.
+
+## Validation summary
+
+The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` (checked-out `src/` implementation) was revalidated from a clean detached-tree proof worktree at `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817`.
+The runnable pytest fixture was materialized outside that checkout at `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`; the code block below is the exact external harness text.
+Detached-tree proof command from `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` used the external harness file `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`.
+It self-refuses unless git status --porcelain --untracked-files=all is empty before the run, and it rechecks that the checkout remains clean after the run with `PYTHONDONTWRITEBYTECODE=1`.
+
+The earlier `76/149` reading is withdrawn. It came from a mismatched
+source/root execution and is not the exact-tree receipt. The exact-tree claim
+stream below is grounded in `src/showwork/checks.py:736-759`, where
+`evaluate_records()` applies append retractions, drops retraction markers from
+scoring, and sets `total=len(scored)` after the drop.
+The bounded synthetic `evaluate_records()` fixture below proves the render
+semantics only; it is not a completed exact-tree CLI replay.
+The runnable fixture is synthetic and monkeypatched. It self-refuses unless it is executed from the detached exact checkout `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` and the imported `showwork.checks` module resolves to that checkout's `src/showwork/checks.py`. Only after those two pins match does it load the ledger from the same checkout, call `apply_append_retractions()`, drop retraction-marker rows, map unretracted claims to pass and retracted claims to skipped/retracted without executing any claim commands, and then call `evaluate_records()`.
+It asserts `raw_rows=223, claim_results=149, scored_total=76, passed=76, verdict=GREEN, render 76/76 verified` and prints the rendered `76/76 verified` receipt. That is a synthetic render proof, not a full CLI verification.
+
+```python
+# Synthetic / monkeypatched fixture. This does not execute claim commands.
+from __future__ import annotations
+
+from pathlib import Path
+import json
+import subprocess
+
+import showwork.checks as checks
+
+
+PINNED_SHA = "99ad1df4b8e12b4a128f19d2059ab6613dc9931e"
+
+
+def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
+    worktree = Path.cwd()
+    expected_checks = (worktree / "src" / "showwork" / "checks.py").resolve()
+    pre_status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert pre_status == "", pre_status
+    actual_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    actual_checks = Path(checks.__file__).resolve()
+    assert actual_head == PINNED_SHA, (actual_head, PINNED_SHA)
+    assert actual_checks == expected_checks, (actual_checks, expected_checks)
+
+    ledger_path = worktree / ".showwork" / "claims-2026-08-16.jsonl"
+    raw = ledger_path.read_text(encoding="utf-8")
+    records = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    patched = checks.apply_append_retractions(records)
+    claim_rows = [
+        row for row in patched
+        if not (row.get("retracted") and isinstance(row.get("retracts"), dict))
+    ]
+
+    def synthetic_verify_claim(record, root):
+        if record.get("_append_retraction_reason"):
+            return {
+                "claim": record["claim"],
+                "session": record.get("session", ""),
+                "severity": record.get("severity", "RED"),
+                "type": None,
+                "status": "skipped",
+                "retracted": True,
+                "detail": f"retracted: {record['_append_retraction_reason']}",
+            }
+        return {
+            "claim": record["claim"],
+            "session": record.get("session", ""),
+            "severity": record.get("severity", "RED"),
+            "type": "synthetic",
+            "status": "pass",
+            "detail": "synthetic pass for bounded render proof",
+        }
+
+    monkeypatch.setattr(checks, "verify_claim", synthetic_verify_claim)
+    state = checks.evaluate_records(claim_rows, worktree, label=f"synthetic {PINNED_SHA}")
+    raw_rows = len(records)
+    claim_results = len(claim_rows)
+    scored_total = state["total"]
+    passed = state["passed"]
+
+    assert raw_rows == 223
+    assert claim_results == 149
+    assert scored_total == 76
+    assert passed == 76
+    assert state["verdict"] == "GREEN"
+    rendered = checks.render_report(state)
+    print(rendered)
+    assert "76/76 verified" in rendered
+    post_status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert post_status == "", post_status
+    print(f"PRE_CLEAN={pre_status!r}")
+    print(f"POST_CLEAN={post_status!r}")
+```
+
+- `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
+- `python -m pytest tests/ -q` → `274 passed`
+- `python -m ruff check .` → `All checks passed!`
+- External-harness pytest command from
+  `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with
+  `PYTHONPATH=src`, `PYTHONDONTWRITEBYTECODE=1`, and
+  `python -m pytest -q -s -p no:cacheprovider`
+  `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`
+  printed the rendered `76/76 verified` receipt plus `PRE_CLEAN=''` and
+  `POST_CLEAN=''`
+- Within that same fixture, the run asserted pinned detached-tree identity and
+  bounded synthetic counts:
+  `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
+  `CHECKS=C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817\src\showwork\checks.py`,
+  `raw_rows=223`, `claim_results=149`, `scored_total=76`, `passed=76`, and
+  `verdict=GREEN`; those values were fixture assertions, not console output
+- The bounded synthetic `evaluate_records()` fixture on the pinned tree
+  produces the expected all-pass render:
+  `GREEN (76/76 verified)` for `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
+- `python -m showwork.cli audit --strict` → `RED (369/401 records chained, 4 fork(s))`
+
+The strict audit is intentionally still red on the replay receipt history and
+the live PR63 working tree. The live PR63 append-only claim stream also now
+introduces one new fork at shared `prev 7596a22c98baad0911317223eebfaef039b69bc064f35c42a70f23b3f093b902`
+between the two newly appended detached-proof guard claims, while the
+repository-wide strict audit remains `RED (369/401 records chained, 4 fork(s))`.
+This is consistent with the earlier base/head comparison above and with the
+pre-follow-up merged-main raw-record counts.
+
+## Boundaries
+
+This report does not change source code, workflow files, schema, or release
+controls. It records the evidence mismatch that keeps PR #30 held until the
+source evidence PR is merged and the Vault closure report is amended to match
+the exact follow-up truth.
