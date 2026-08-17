@@ -1,24 +1,28 @@
-# showwork integrity-command-replay design
+# showwork integrity-command-replay design readout
 
 Date: 2026-08-16
-
-Scope: evidence-only. No product, workflow, schema, or release change.
+Scope: evidence-only. No verifier, receipt schema, workflow, runner, public
+copy, release, or production change was made.
 
 ## Blocking finding
 
-This report exists because PR #30 was incorrectly worded as if the replay
-receipt evidence were already durably closed. It is not. The merged replay
-receipt artifact is only the narrow 2/2 session proof; it does not by itself
-ground the broader raw-count history, the hosted strict-step timing, or the
-semantic/refusal matrix that the closure wording must preserve.
+PR #30 is still held because the earlier 2-row matrix was too narrow. It
+proved only a small session artifact and did not preserve the disposable-corpus
+matrix, the historical timing readout, or the raw-record history needed for a
+truthful closure.
 
-The source evidence lane therefore keeps the card evidence-driven and
-separates:
+This report now preserves:
 
-- the local-only historical owner snapshot,
-- the reviewed replay receipt head,
-- the current merged main truth, and
-- the disposable semantic/refusal matrix.
+- the local-only owner snapshot at `45d2420`
+- the reviewed replay receipt head at
+  `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`
+- the current merged-main truth at
+  `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`
+- the disposable semantic/refusal matrix
+
+A separate `95/91` local snapshot from another checkout exists in the wider
+history, but this report does not treat it as current-main truth because it is
+not bound to the exact named merged-main SHA above.
 
 ## Raw-record comparison
 
@@ -30,7 +34,6 @@ separately count exact `argv == ["python", "scripts/run_tests.py"]`.
 @'
 import json
 import subprocess
-from collections import Counter
 
 commits = [
     "45d2420",
@@ -78,9 +81,8 @@ Results:
   `["python", "scripts/run_tests.py"]` claims.
 
 The important correction is that the local-only `45d2420` snapshot is not the
-same thing as the merged main ledger. The report therefore does not treat
-`95/91` as current main truth; the merged main truth is bound to
-`2c6655cb684a73084dd32cd0a3ebbfe243ef13fd` and its raw counts above.
+same thing as the merged-main ledger. This report therefore does not treat any
+other checkout-local `95/91` count as current main truth.
 
 ## Replay receipt head and narrow audit artifact
 
@@ -125,22 +127,103 @@ The observed hosted strict step from job `95115458538` ran from
 `04:33:47Z` to `04:38:39Z`.
 
 The earlier `18–20m` figure was a local-runtime multiplication estimate, not
-an observed hosted duration. It is superseded by the observed strict-step
-window above.
+an observed hosted duration. It is superseded by the observed hosted strict
+step window above.
+
+The preserved local timing fixture from the historical `5552954` receipt
+branch remains separate and was reported as:
+
+```json
+{
+  "synthetic_claims": 96,
+  "command_execution_96_seconds": 6.280858,
+  "command_execution_result_counts": {"('pass', 'exit 0')": 96},
+  "evaluate_records_command_96_seconds": 5.810864,
+  "evaluate_records_command_state": {"verdict": "GREEN", "passed": 96, "total": 96},
+  "evaluate_records_file_96_seconds": 0.014913,
+  "evaluate_records_file_state": {"verdict": "GREEN", "passed": 96, "total": 96},
+  "receipt_write_96_bytes": 11990,
+  "receipt_write_96_seconds": 0.000421
+}
+```
+
+## Deterministic disposable-corpus reproducer
+
+The current PR63 clean worktree was rerun with the following self-contained
+command. It uses a disposable temp root, the public `verify_claim` API, and a
+tiny Python corpus to keep the evidence deterministic:
+
+```powershell
+$env:PYTHONPATH='src'
+@'
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from showwork.checks import chk_command, verify_claim, NO_COMMANDS_ENV
+
+
+def rec(check, claim='test claim', severity='RED'):
+    return {'session': 'matrix', 'claim': claim, 'severity': severity, 'check': check}
+
+
+with TemporaryDirectory() as td:
+    root = Path(td)
+    (root / 'stdout_a.py').write_text("print('A')\n", encoding='utf-8')
+    (root / 'exit_zero.py').write_text('raise SystemExit(0)\n', encoding='utf-8')
+    (root / 'counter.py').write_text(
+        "from pathlib import Path\n"
+        "p = Path('counter.txt')\n"
+        "n = int(p.read_text()) if p.exists() else 0\n"
+        "p.write_text(str(n + 1))\n"
+        "print(n + 1)\n",
+        encoding='utf-8',
+    )
+
+    checks = [
+        ('stdout_A', {'type': 'command', 'argv': ['python', 'stdout_a.py'], 'stdout_contains': 'A'}),
+        ('stdout_B', {'type': 'command', 'argv': ['python', 'stdout_a.py'], 'stdout_contains': 'B'}),
+        ('exit_0', {'type': 'command', 'argv': ['python', 'exit_zero.py'], 'expect_exit': 0}),
+        ('exit_1', {'type': 'command', 'argv': ['python', 'exit_zero.py'], 'expect_exit': 1}),
+        ('counter_1', {'type': 'command', 'argv': ['python', 'counter.py'], 'stdout_contains': '1'}),
+        ('counter_2', {'type': 'command', 'argv': ['python', 'counter.py'], 'stdout_contains': '2'}),
+    ]
+
+    for name, check in checks:
+        result = verify_claim(rec(check), root)
+        print(name, result['status'], result['detail'])
+
+    import os
+    os.environ[NO_COMMANDS_ENV] = '1'
+    status, detail = chk_command({'type': 'command', 'argv': ['python', 'counter.py']}, root)
+    os.environ.pop(NO_COMMANDS_ENV, None)
+    print('no_commands', status, detail, (root / 'counter.txt').read_text(encoding='utf-8'))
+'@ | python -
+```
+
+Current rerun result:
+
+- `stdout_A` → `pass`, `exit 0, stdout has 'A'`
+- `stdout_B` → `fail`, `stdout missing 'B'`
+- `exit_0` → `pass`, `exit 0`
+- `exit_1` → `fail`, `exit 0, expected 1`
+- `counter_1` → `pass`, `exit 0, stdout has '1'`
+- `counter_2` → `pass`, `exit 0, stdout has '2'`
+- `no_commands` → `error`, `command checks disabled by SHOWWORK_NO_COMMANDS (policy: do not execute repo code in this context)`, counter remained `2`
+
+This is the evidence the earlier 2-row artifact was missing. It proves the
+same argv can produce different outcomes under different predicates, state, and
+policy, so argv is not a safe cache key.
 
 ## Semantic and refusal matrix
 
-The disposable matrix for this lane is the minimal pair already proven in the
-session artifact and preserved for closure reasoning:
+The disposable matrix for this lane is the deterministic one above, not the
+two-row session artifact. It covers:
 
-| Case | Command / check | Result |
-|---|---|---|
-| Refusal boundary | `SHOWWORK_NO_COMMANDS` file contains guard text | GREEN |
-| Replay command execution | `python scripts/run_tests.py` | GREEN exit 0 |
+- same argv with different stdout predicates (`A` vs `B`)
+- same argv with different expected exits (`0` vs `1`)
+- repeated same argv with counter side effects (`1` then `2`)
+- `SHOWWORK_NO_COMMANDS=1` refusal with the counter unchanged
 
-This matrix is intentionally small. It proves the refusal boundary and the
-successful replay command without pretending the command text is a safe cache
-key.
+That matrix is intentionally minimal but complete for the claim the card makes.
 
 ## Why equal argv is not a safe cache key
 
@@ -161,9 +244,9 @@ The current exact-main worktree was revalidated with:
 - `python -m showwork.cli audit --strict` → `RED (369/401 records chained, 4 fork(s))`
 
 The strict audit is intentionally still red on current main and on the replay
-receipt history, with the same four historical fork identities preserved.
-This is consistent with the earlier base/head comparison above and with the
-current merged-main raw-record counts.
+receipt history, with the same four historical fork identities preserved. This
+is consistent with the earlier base/head comparison above and with the current
+merged-main raw-record counts.
 
 ## Boundaries
 
