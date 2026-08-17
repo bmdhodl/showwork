@@ -158,7 +158,10 @@ The exact base/head strict-audit comparison recorded earlier was:
 - Detached base `43545d0f26f030a3f32af5f3fc28a6854416455e`
 - Replay head `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`
 - Result on both: `RED (369/401 records chained, 4 fork(s))`
-- Fork identities remained the same on both sides
+- That earlier comparison preserved the same four historical fork identities;
+  the live PR63 claim stream adds one new fork at shared `prev
+  7596a22c98baad0911317223eebfaef039b69bc064f35c42a70f23b3f093b902`, as
+  disclosed below.
 
 ## Timing evidence
 
@@ -311,7 +314,8 @@ tamper behavior, and append-only history, not just argv equality.
 ## Validation summary
 
 The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
-(checked-out `src/` implementation) was revalidated with:
+(checked-out `src/` implementation) was revalidated with a clean detached-tree
+proof. It self-refuses unless git status --porcelain --untracked-files=all is empty before the run, and it rechecks that the checkout remains clean after the run with PYTHONDONTWRITEBYTECODE=1.
 
 The earlier `76/149` reading is withdrawn. It came from a mismatched
 source/root execution and is not the exact-tree receipt. The exact-tree claim
@@ -340,6 +344,13 @@ PINNED_SHA = "99ad1df4b8e12b4a128f19d2059ab6613dc9931e"
 def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
     worktree = Path.cwd()
     expected_checks = (worktree / "src" / "showwork" / "checks.py").resolve()
+    pre_status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert pre_status == "", pre_status
     actual_head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         check=True,
@@ -394,26 +405,40 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
     rendered = checks.render_report(state)
     print(rendered)
     assert "76/76 verified" in rendered
+    post_status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert post_status == "", post_status
+    print(f"PRE_CLEAN={pre_status!r}")
+    print(f"POST_CLEAN={post_status!r}")
 ```
 
 - `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
 - Detached-tree proof command from
-  `C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-99ad`
-  with `PYTHONPATH=src` produced `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
-  `CHECKS=C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-99ad\src\showwork\checks.py`,
-  `raw_rows=223`, `claim_results=149`, `scored_total=76`, `passed=76`,
-  `verdict=GREEN`, and rendered `76/76 verified`
+  `C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-clean-99ad`
+  with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` produced
+  `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
+  `CHECKS=C:\Users\patri\.codex\tmp\showwork-integrity-command-replay-clean-99ad\src\showwork\checks.py`,
+  `PRE_CLEAN=''`, `raw_rows=223`, `claim_results=149`, `scored_total=76`,
+  `passed=76`, `verdict=GREEN`, `POST_CLEAN=''`, and rendered
+  `76/76 verified`
 - The bounded synthetic `evaluate_records()` fixture on the pinned tree
   produces the expected all-pass render:
   `GREEN (76/76 verified)` for `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
 - `python -m showwork.cli audit --strict` → `RED (369/401 records chained, 4 fork(s))`
 
 The strict audit is intentionally still red on the replay receipt history and
-the live PR63 working tree, with the same four historical fork identities
-preserved. This is consistent with the earlier base/head comparison above and
-with the pre-follow-up merged-main raw-record counts.
+the live PR63 working tree. The live PR63 append-only claim stream also now
+introduces one new fork at shared `prev 7596a22c98baad0911317223eebfaef039b69bc064f35c42a70f23b3f093b902`
+between the two newly appended detached-proof guard claims, while the
+repository-wide strict audit remains `RED (369/401 records chained, 4 fork(s))`.
+This is consistent with the earlier base/head comparison above and with the
+pre-follow-up merged-main raw-record counts.
 
 ## Boundaries
 

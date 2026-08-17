@@ -494,3 +494,4 @@
 {"event": "session.finish.refused", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T20:56:32", "status": "ok", "claims_verdict": "RED", "prev": "45c5563aacd577b692d5a340b255a32b348e7e5f3ba85a9dc9d2cfc1b4ffa554"}
 {"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T20:57:15", "status": "ok", "claims_verdict": "GREEN", "prev": "8f9166305a16f3f153e46015acd8e9cf493952ad39fa01aba0e1eb4648c6cd04"}
 {"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T21:14:43", "status": "ok", "claims_verdict": "GREEN", "prev": "8a8c23538e2be775ce2cb8070f8ba56dff48912c8c867cc4e9835e999b59baab"}
+{"event": "session.finish", "session": "integrity-command-replay-design-pr63-20260816", "ts": "2026-08-16T21:34:04", "status": "ok", "claims_verdict": "GREEN", "prev": "caea600655d6abaa568fc079c23a7d65917ed023d63e5d4d9e179ebdb1d487f2"}
