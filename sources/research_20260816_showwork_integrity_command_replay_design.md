@@ -16,13 +16,12 @@ This report now preserves:
 - the local-only owner snapshot at `45d2420`
 - the reviewed replay receipt head at
   `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`
-- the current merged-main truth at
+- the pre-follow-up merged-main snapshot at
   `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`
 - the disposable semantic/refusal matrix
 
-A separate `95/91` local snapshot from another checkout exists in the wider
-history, but this report does not treat it as current-main truth because it is
-not bound to the exact named merged-main SHA above.
+Older local snapshots from other checkouts are kept separate from the exact
+working-tree truth and are not treated as current for this lane.
 
 ## Raw-record comparison
 
@@ -36,7 +35,6 @@ import json
 import subprocess
 
 commits = [
-    "45d2420",
     "3b095d2bbc179ee6fb5a5e63bfdae245932111e7",
     "2c6655cb684a73084dd32cd0a3ebbfe243ef13fd",
 ]
@@ -68,21 +66,55 @@ for commit in commits:
 
 Results:
 
-- `45d2420` is the local-only owner snapshot. It reproduces
-  `96` command records and `92` exact
-  `["python", "scripts/run_tests.py"]` claims.
 - `3b095d2bbc179ee6fb5a5e63bfdae245932111e7` is the reviewed replay receipt
   head. The same raw-record method on that exact SHA yields
   `145` command records and `134` exact
   `["python", "scripts/run_tests.py"]` claims.
-- `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd` is current merged main. The same
+- `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd` is the pre-follow-up merged main
+  snapshot. The same
   raw-record method on that exact SHA also yields
   `145` command records and `134` exact
   `["python", "scripts/run_tests.py"]` claims.
+- `PR63 reviewed-head ledger` is the live working-tree ledger after the
+  append-only receipt rows in this follow-up. The same raw-record method over
+  the PR working tree now yields `150` command records and `134` exact
+  `["python", "scripts/run_tests.py"]` claims.
 
-The important correction is that the local-only `45d2420` snapshot is not the
-same thing as the merged-main ledger. This report therefore does not treat any
-other checkout-local `95/91` count as current main truth.
+The local-only `45d2420` snapshot is preserved here only as a historical
+observation. It reproduces `96` command records and `92` exact
+`["python", "scripts/run_tests.py"]` claims, but it is not reproducible from
+origin/main and is not part of the runnable snippet above. Normal reviewers
+cannot derive it from the current working-tree truth.
+
+## PR63 reviewed-head ledger recompute
+
+The live working-tree ledger after the append-only receipt rows was recomputed
+with the same raw-record method, but against the current `.showwork` files in
+the PR working tree:
+
+```powershell
+@'
+import json
+from pathlib import Path
+
+root = Path('.showwork')
+total = 0
+run_tests = 0
+for path in sorted(root.glob('claims-*.jsonl')):
+    for line in path.read_text(encoding='utf-8').splitlines():
+        if not line.strip():
+            continue
+        obj = json.loads(line)
+        if obj.get('check', {}).get('type') == 'command':
+            total += 1
+            if obj['check'].get('argv') == ['python', 'scripts/run_tests.py']:
+                run_tests += 1
+print(total, run_tests)
+'@ | python -
+```
+
+That PR63 reviewed-head ledger recompute returns `150` command records and
+`134` exact `["python", "scripts/run_tests.py"]` claims.
 
 ## Replay receipt head and narrow audit artifact
 
@@ -130,8 +162,8 @@ The earlier `18–20m` figure was a local-runtime multiplication estimate, not
 an observed hosted duration. It is superseded by the observed hosted strict
 step window above.
 
-The preserved local timing fixture from the historical `5552954` receipt
-branch remains separate and was reported as:
+The preserved local timing fixture from the fixture run against source commit
+`5552954` remains separate and was reported as:
 
 ```json
 {
@@ -225,32 +257,60 @@ two-row session artifact. It covers:
 
 That matrix is intentionally minimal but complete for the claim the card makes.
 
+## Evidence mapping
+
+This lane ties each review-thread dimension to a concrete receipt:
+
+- Identity: replay receipt head `3b095d2bbc179ee6fb5a5e63bfdae245932111e7`,
+  pre-follow-up merged-main snapshot `2c6655cb684a73084dd32cd0a3ebbfe243ef13fd`,
+  exact-head review comment `5310119545`, and the live PR63 reviewed-head
+  ledger row.
+- Order/state: the raw-record counts above, the merged-main CI run
+  `31979022686`, and the observed hosted strict step window
+  `04:33:47Z-04:38:39Z`.
+- Environment/policy: the disposable matrix row that returns `error` under
+  `SHOWWORK_NO_COMMANDS=1`, plus the narrow audit artifact that records the same
+  refusal boundary.
+- Path/cwd: the raw-record snippet walks exact Git SHAs via `git show` and the
+  deterministic temp-root matrix uses an isolated `TemporaryDirectory()`.
+- Refusal: the `no_commands` row, the dedicated audit-session artifact, and the
+  strict-audit comparison that remains `RED (369/401 records chained, 4 fork(s))`
+  on both base and head.
+- Tamper: the same-argv/different-predicate rows (`A` vs `B`, exit `0` vs `1`,
+  counter `1` vs `2`) show that outcome depends on state and expectations, not
+  argv text alone.
+- Append-only: the `.showwork/claims-2026-08-16.jsonl` retractions and
+  replacement claims preserve history instead of rewriting it, and the matching
+  `.showwork/sessions.jsonl` finish/refused transitions preserve session order.
+
 ## Why equal argv is not a safe cache key
 
 The same `python scripts/run_tests.py` argv text appears many times across the
 ledger, but it is not equivalent to claim identity. The raw-record totals above
 show why: identical argv text exists in both the historical owner-only snapshot
-and the current merged main, yet the surrounding claim context, timing, and
-ledger history differ. Any optimization must preserve claim order, refusal
-semantics, tamper behavior, and append-only history, not just argv equality.
+and the pre-follow-up merged-main snapshot, and now also in the live PR63
+reviewed-head ledger, yet the surrounding claim context, timing, and ledger
+history differ. Any optimization must preserve claim order, refusal semantics,
+tamper behavior, and append-only history, not just argv equality.
 
 ## Validation summary
 
 The current exact-main worktree was revalidated with:
 
+- `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
-- `python -m showwork.cli verify --no-report` → `GREEN (49/112 verified)`
+- `python -m showwork.cli verify --no-report --date 2026-08-16` → `GREEN (49/112 verified)`
 - `python -m showwork.cli audit --strict` → `RED (369/401 records chained, 4 fork(s))`
 
-The strict audit is intentionally still red on current main and on the replay
-receipt history, with the same four historical fork identities preserved. This
-is consistent with the earlier base/head comparison above and with the current
-merged-main raw-record counts.
+The strict audit is intentionally still red on the replay receipt history and
+the live PR63 working tree, with the same four historical fork identities
+preserved. This is consistent with the earlier base/head comparison above and
+with the pre-follow-up merged-main raw-record counts.
 
 ## Boundaries
 
 This report does not change source code, workflow files, schema, or release
 controls. It records the evidence mismatch that keeps PR #30 held until the
 source evidence PR is merged and the Vault closure report is amended to match
-the exact merged-main truth.
+the exact follow-up truth.
