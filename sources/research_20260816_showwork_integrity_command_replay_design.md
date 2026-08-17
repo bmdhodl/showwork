@@ -313,11 +313,23 @@ tamper behavior, and append-only history, not just argv equality.
 The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
 (checked-out `src/` implementation) was revalidated with:
 
+The earlier `76/149` reading is withdrawn. It came from a mismatched
+source/root execution and is not the exact-tree receipt. The exact-tree claim
+stream below is grounded in `src/showwork/checks.py:736-759`, where
+`evaluate_records()` applies append retractions, drops retraction markers from
+scoring, and sets `total=len(scored)` after the drop.
+The bounded synthetic `evaluate_records()` fixture below proves the render
+semantics only; it is not a completed exact-tree CLI replay.
+
 - `python -m pytest tests/test_checks.py -q` → `76 passed in 10.21s`
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
-- `python -m showwork.cli verify --no-report --date 2026-08-16` →
-  `GREEN (76/149 verified)` on `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
+- `git show 99ad1df4b8e12b4a128f19d2059ab6613dc9931e:.showwork/claims-2026-08-16.jsonl`
+  piped through `apply_append_retractions()` yields `raw_rows=223`,
+  `claim_results=149`, `scored_total=76`, `retracted_or_skipped=73`
+- The bounded synthetic `evaluate_records()` fixture on the pinned tree
+  produces the expected all-pass render:
+  `GREEN (76/76 verified)` for `99ad1df4b8e12b4a128f19d2059ab6613dc9931e`
 - `python -m showwork.cli audit --strict` → `RED (369/401 records chained, 4 fork(s))`
 
 The strict audit is intentionally still red on the replay receipt history and
