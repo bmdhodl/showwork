@@ -88,20 +88,27 @@ cannot derive it from the current working-tree truth.
 
 ## PR63 reviewed-head ledger recompute
 
-The live working-tree ledger after the append-only receipt rows was recomputed
-with the same raw-record method, but against the current `.showwork` files in
-the PR working tree:
+The PR63 reviewed-head ledger recompute is pinned to the immutable reviewed
+commit, not the live working tree. The exact raw-record method names that SHA
+explicitly:
 
 ```powershell
 @'
 import json
-from pathlib import Path
+import subprocess
 
-root = Path('.showwork')
+reviewed_commit = "c60f554dd3c46b7b06c5713c445dee996c771aa7"
 total = 0
 run_tests = 0
-for path in sorted(root.glob('claims-*.jsonl')):
-    for line in path.read_text(encoding='utf-8').splitlines():
+files = subprocess.check_output(
+    ["git", "ls-tree", "-r", "--name-only", reviewed_commit, ".showwork"],
+    text=True,
+).splitlines()
+for path in sorted(
+    p for p in files if p.startswith(".showwork/claims-") and p.endswith(".jsonl")
+):
+    raw = subprocess.check_output(["git", "show", f"{reviewed_commit}:{path}"], text=True)
+    for line in raw.splitlines():
         if not line.strip():
             continue
         obj = json.loads(line)
@@ -109,12 +116,12 @@ for path in sorted(root.glob('claims-*.jsonl')):
             total += 1
             if obj['check'].get('argv') == ['python', 'scripts/run_tests.py']:
                 run_tests += 1
-print(total, run_tests)
+print(reviewed_commit, total, run_tests)
 '@ | python -
 ```
 
-That PR63 reviewed-head ledger recompute returns `150` command records and
-`134` exact `["python", "scripts/run_tests.py"]` claims.
+That immutable reviewed head returns `150` command records and `134` exact
+`["python", "scripts/run_tests.py"]` claims.
 
 ## Replay receipt head and narrow audit artifact
 
@@ -219,13 +226,12 @@ with TemporaryDirectory() as td:
         ('counter_2', {'type': 'command', 'argv': ['python', 'counter.py'], 'stdout_contains': '2'}),
     ]
 
-    for name, check in checks:
-        result = verify_claim(rec(check), root)
-        print(name, result['status'], result['detail'])
-
     import os
     saved_no_commands = os.environ.pop(NO_COMMANDS_ENV, None)
     try:
+        for name, check in checks:
+            result = verify_claim(rec(check), root)
+            print(name, result['status'], result['detail'])
         os.environ[NO_COMMANDS_ENV] = '1'
         status, detail = chk_command({'type': 'command', 'argv': ['python', 'counter.py']}, root)
         print('no_commands', status, detail, (root / 'counter.txt').read_text(encoding='utf-8'))
@@ -247,9 +253,8 @@ Current rerun result:
 - `counter_2` → `pass`, `exit 0, stdout has '2'`
 - `no_commands` → `error`, `command checks disabled by SHOWWORK_NO_COMMANDS (policy: do not execute repo code in this context)`, counter remained `2`
 
-The replay snippet is self-contained: it clears any inherited
-`SHOWWORK_NO_COMMANDS` value before the normal/predicate/counter rows, sets it
-only for the refusal row, and restores the original inherited value afterward.
+The replay snippet is self-contained: it clears any inherited `SHOWWORK_NO_COMMANDS` value before the normal/predicate/counter rows, sets it only for the refusal row, and restores the original inherited value afterward.
+Before the row loop, it saves inherited SHOWWORK_NO_COMMANDS, clears it up front, and restores it afterward even when pre-exported.
 
 This is the evidence the earlier 2-row artifact was missing. It proves the
 same argv can produce different outcomes under different predicates, state, and
@@ -286,9 +291,9 @@ This lane ties each review-thread dimension to a concrete receipt:
 - Refusal: the `no_commands` row, the dedicated audit-session artifact, and the
   strict-audit comparison that remains `RED (369/401 records chained, 4 fork(s))`
   on both base and head.
-- Tamper: PR #62 tampered receipt job `95242167332` / run `31977845414`
-  SUCCESS (`2026-08-16T23:12:52Z-23:14:43Z`) is the actual tampered-receipt
-  verification; the same-argv rows stay under identity/expectation/state.
+- Tamper: actual tampered-receipt verification is PR #62 job `95242167332` /
+  run `31977845414` SUCCESS (`2026-08-16T23:12:52Z-23:14:43Z`); the same-argv
+  rows stay under identity/expectation/state.
 - Append-only: the `.showwork/claims-2026-08-16.jsonl` retractions and
   replacement claims preserve history instead of rewriting it, and the matching
   `.showwork/sessions.jsonl` finish/refused transitions preserve session order.
