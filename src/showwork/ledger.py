@@ -20,7 +20,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from .checks import evaluate_records
+from .checks import evaluate_records, gaps_payload
 
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
@@ -373,8 +373,10 @@ def finish_session(root: Path, session: str, status: str = "ok",
                    no_verify: bool = False, note: str | None = None) -> tuple[int, dict | None]:
     """Close a session. A clean close (`status=ok`) verifies this session's own
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
-    ledger is not done. `status=blocked` or `no_verify=True` closes without
-    gating, and the bypass is stamped on the event as a durable residual.
+    ledger is not done. A clean close also REFUSES when the session has no
+    check-backed claims (prose-only or empty is not proof). `status=blocked` or
+    `no_verify=True` closes without gating, and the bypass is stamped on the
+    event as a durable residual.
 
     Status is matched case-insensitively (`OK` == `ok`) so the Python API cannot
     silently skip the gate with a capitalization variant.
@@ -388,9 +390,32 @@ def finish_session(root: Path, session: str, status: str = "ok",
     if status == "ok" and not no_verify:
         state = verify_session(root, session)
         verdict = state["verdict"]
-        if verdict == "RED":
+        live_checked = [r for r in state["results"] if r["status"] != "skipped"]
+        refuse_reason = None
+        unverified = gaps_payload(state)
+        if not live_checked:
+            refuse_reason = "no_check_backed_claims"
+            verdict = "RED"
+            unverified = [{
+                "claim": "(session has no check-backed claims)",
+                "severity": "RED",
+                "status": "fail",
+                "detail": "clean close needs at least one falsifiable claim that verifies",
+                "type": None,
+            }]
+        elif verdict == "RED":
+            refuse_reason = "claims_red"
+        if refuse_reason is not None:
             record_event(root, "session.finish.refused", session,
-                         status=status, claims_verdict=verdict, note=note)
+                         status=status, claims_verdict=verdict, note=note,
+                         refuse_reason=refuse_reason,
+                         claims_unverified=unverified)
+            if refuse_reason == "no_check_backed_claims" and state is not None:
+                # Surface the refuse reason on the returned state for CLI/tests.
+                state = dict(state)
+                state["verdict"] = "RED"
+                state["gaps"] = unverified
+                state["refuse_reason"] = refuse_reason
             return 2, state
     record_event(root, "session.finish", session, status=status,
                  claims_verdict=verdict,

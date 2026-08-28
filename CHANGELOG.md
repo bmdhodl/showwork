@@ -4,6 +4,15 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Claim-time shape validation** - `validate_check_shape` rejects invalid
+  `command` / `glob_count` checks before append; command lock errors point at
+  `scripts/run_tests.py` + `stdout_contains=passed`.
+- **Minimum-proof finish** - `finish --status ok` refuses empty or prose-only
+  sessions; refused events stamp `claims_unverified` and `refuse_reason`.
+- **`showwork status` / `showwork report`** - open-session view and FDR/usage
+  window (`--since`, `--exclude-campaign`); FDR core lives in `showwork.report`.
+- **Stop-hook session binding** - prefers `SHOWWORK_SESSION`; stamps
+  `session_unbound` when falling back to the host payload id.
 - **PyPI publish workflow pinning** - pinned checkout, Python setup, and PyPI
   publishing actions to audited commit SHAs; the owner-gated release path keeps
   the same behavior while avoiding floating action refs.

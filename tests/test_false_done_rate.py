@@ -70,7 +70,7 @@ def test_bypass_counts_as_false_done(tmp_path):
 def test_uncheckable_session_not_eligible(tmp_path):
     start_session(tmp_path, "prose")
     record_claim(tmp_path, "prose", "vibes only")  # no check
-    finish_session(tmp_path, "prose")
+    assert finish_session(tmp_path, "prose")[0] == 2  # refuse: no check-backed
     r = analyze_root(tmp_path)
     assert r["eligible_sessions"] == 0
     assert r["fdr_session"] is None

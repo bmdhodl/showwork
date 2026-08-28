@@ -57,7 +57,7 @@ Three rules drive every design decision below:
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 
 `src/showwork/__init__.py` re-exports the public Python API and pins
-`__version__ = "0.3.0"`, matching `pyproject.toml`.
+`__version__ = "0.3.1"`, matching `pyproject.toml`.
 
 ## Data model
 
@@ -499,7 +499,7 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 
 ## Public surface
 
-- PyPI package `showwork`, version 0.3.0, `requires-python >= 3.10`, zero
+- PyPI package `showwork`, version 0.3.1, `requires-python >= 3.10`, zero
   runtime dependencies, MIT licensed. The console script `showwork` maps to
   `showwork.cli:main` (`pyproject.toml`).
 - The Python API re-exported from `showwork/__init__.py`. `record_claim`,
@@ -508,7 +508,7 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 - `SPEC.md`, the portable `spec-v0.2` ledger format. Every normative
   requirement names a behavioral test beside it, and reader-only conformance
   is defined there for auditors like `js/showwork-audit`.
-- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.0`.
+- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.1`.
   `docs/ci.md` covers pinning.
 - `docs/`: adapters, CI gating, the Claude Code Stop hook, fleet adoption,
   concurrency rationale, compliance mapping, live enforcement, the False Done

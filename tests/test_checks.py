@@ -863,6 +863,23 @@ def test_command_lock_rejects_shell_meta(tmp_path):
 def test_command_lock_rejects_non_python(tmp_path):
     r = verify_claim(claim({"type": "command", "argv": ["bash", "x.sh"]}), tmp_path)
     assert r["status"] == "error"
+    assert "scripts/run_tests.py" in r["detail"]
+
+
+def test_command_lock_rejects_python_dash_m(tmp_path):
+    r = verify_claim(claim({"type": "command", "argv": ["python", "-m", "pytest"]}),
+                     tmp_path)
+    assert r["status"] == "error"
+    assert "-m" in r["detail"]
+
+
+def test_validate_check_shape_rejects_eq_op(tmp_path):
+    from showwork.checks import validate_check_shape
+    err = validate_check_shape(
+        {"type": "glob_count", "pattern": "*.md", "op": "eq", "n": 1}, tmp_path
+    )
+    assert err is not None
+    assert "eq" in err
 
 
 def test_command_lock_rejects_powershell(tmp_path):

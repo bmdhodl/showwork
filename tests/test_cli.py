@@ -42,7 +42,94 @@ def test_retraction_unblocks_close(tmp_path):
     assert run(tmp_path, "finish", "--session", "s3") == 2
     assert run(tmp_path, "retract", "--session", "s3", "--claim", "made a file",
                "--reason", "it never happened") == 0
+    # Minimum-proof: retracting alone leaves no check-backed claims; re-claim.
+    (tmp_path / "real.txt").write_text("ok", encoding="utf-8")
+    assert run(tmp_path, "claim", "--session", "s3", "--claim", "wrote real.txt",
+               "--type", "file_exists", "--path", "real.txt") == 0
     assert run(tmp_path, "finish", "--session", "s3") == 0
+
+
+def test_exit_gate_refuses_empty_session(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "empty")
+    assert run(tmp_path, "finish", "--session", "empty") == 2
+    err = capsys.readouterr().err
+    assert "REFUSED" in err
+    assert "no_check_backed_claims" in err
+    events = [json.loads(line) for line in
+              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    assert events[-1]["event"] == "session.finish.refused"
+    assert events[-1]["refuse_reason"] == "no_check_backed_claims"
+    assert events[-1]["claims_unverified"]
+
+
+def test_exit_gate_refuses_prose_only_session(tmp_path):
+    run(tmp_path, "start", "--session", "prose")
+    run(tmp_path, "claim", "--session", "prose", "--claim", "vibes only")
+    assert run(tmp_path, "finish", "--session", "prose") == 2
+    events = [json.loads(line) for line in
+              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    assert events[-1]["refuse_reason"] == "no_check_backed_claims"
+
+
+def test_refused_finish_records_claims_unverified(tmp_path):
+    run(tmp_path, "start", "--session", "s-gap")
+    run(tmp_path, "claim", "--session", "s-gap", "--claim", "made a file",
+        "--type", "file_exists", "--path", "never-created.txt")
+    assert run(tmp_path, "finish", "--session", "s-gap") == 2
+    events = [json.loads(line) for line in
+              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    refused = events[-1]
+    assert refused["event"] == "session.finish.refused"
+    assert refused["refuse_reason"] == "claims_red"
+    assert refused["claims_unverified"][0]["claim"] == "made a file"
+    assert refused["claims_unverified"][0]["type"] == "file_exists"
+
+
+def test_claim_rejects_invalid_command_shape(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "bad-cmd")
+    code = run(tmp_path, "claim", "--session", "bad-cmd", "--claim", "ran git",
+               "--check-json",
+               json.dumps({"type": "command", "argv": ["git", "status"]}))
+    assert code == 2
+    assert "claim rejected" in capsys.readouterr().err
+    # Nothing appended for the rejected claim.
+    from showwork.ledger import claims_for_session
+    assert claims_for_session(tmp_path, "bad-cmd") == []
+
+
+def test_claim_rejects_bad_glob_op(tmp_path, capsys):
+    code = run(tmp_path, "claim", "--session", "g", "--claim", "count",
+               "--check-json",
+               json.dumps({"type": "glob_count", "pattern": "*.md", "op": "eq", "n": 1}))
+    assert code == 2
+    assert "eq" in capsys.readouterr().err
+
+
+def test_claim_warns_on_brittle_pass_count(tmp_path, capsys):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "run_tests.py").write_text("print('ok')\n", encoding="utf-8")
+    code = run(tmp_path, "claim", "--session", "w", "--claim", "tests",
+               "--type", "command",
+               "--command-arg", "python", "--command-arg", "scripts/run_tests.py",
+               "--expect-exit", "0", "--stdout-contains", "42 passed")
+    assert code == 0
+    assert "goes stale" in capsys.readouterr().err
+
+
+def test_status_and_report_smoke(tmp_path, capsys):
+    (tmp_path / "f.txt").write_text("x", encoding="utf-8")
+    run(tmp_path, "start", "--session", "s-rep", "--agent", "test")
+    run(tmp_path, "claim", "--session", "s-rep", "--claim", "f",
+        "--type", "file_exists", "--path", "f.txt")
+    run(tmp_path, "finish", "--session", "s-rep")
+    capsys.readouterr()
+    assert run(tmp_path, "status", "--session", "s-rep", "--json") == 0
+    status = json.loads(capsys.readouterr().out)
+    assert status["sessions"][0]["live_verdict"] == "GREEN"
+    assert run(tmp_path, "report", "--json") == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["fdr"]["eligible_sessions"] == 1
+    assert report["agents"]["test"] == 1
 
 
 def test_no_verify_bypass_is_stamped(tmp_path):

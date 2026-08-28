@@ -306,12 +306,21 @@ Session events use the same JSONL framing:
 
 An explicit clean finish MUST [test:
 tests/test_cli.py::test_exit_gate_refuses_red_close] verify that session's own
-claims and refuse with exit code `2` when any active RED claim fails. A bypass
-MUST [test: tests/test_cli.py::test_no_verify_bypass_is_stamped] remain visible
-on the finish event. A Stop-hook adapter MUST [test:
+claims and refuse with exit code `2` when any active RED claim fails. A clean
+finish MUST [test: tests/test_cli.py::test_exit_gate_refuses_empty_session]
+also refuse when the session has no check-backed claims (prose-only or empty
+is not proof). A refused finish MUST [test:
+tests/test_cli.py::test_refused_finish_records_claims_unverified] stamp
+`claims_unverified` (and `refuse_reason` when applicable) on the event. A
+bypass MUST [test: tests/test_cli.py::test_no_verify_bypass_is_stamped] remain
+visible on the finish event. A Stop-hook adapter MUST [test:
 tests/test_hooks.py::test_stop_hook_records_red_but_exits_zero] record the
 verdict and unverified claims but exit zero because hooks observe rather than
-gate.
+gate. When `SHOWWORK_SESSION` is set, the Stop hook MUST [test:
+tests/test_hooks.py::test_stop_hook_prefers_showwork_session_env] bind to that
+id and stamp `session_bound_from`; otherwise it MUST [test:
+tests/test_hooks.py::test_stop_hook_marks_unbound_payload_session] stamp
+`session_unbound` on the observed finish.
 
 ## Verdict algebra
 

@@ -5,6 +5,8 @@
     showwork retract --session S --claim TEXT --reason R
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
+    showwork status [--session S] [--json]
+    showwork report [--since YYYY-MM-DD] [--exclude-campaign] [--json]
 
 Exit codes: 0 GREEN, 3 YELLOW, 2 RED (and `finish --status ok` exits 2 when
 this session's own claims do not verify).
@@ -21,7 +23,12 @@ from pathlib import Path
 
 from .audit import audit_root, render_audit
 from .budgets import RunBudget
-from .checks import EXIT_BY_VERDICT, render_report
+from .checks import (
+    EXIT_BY_VERDICT,
+    command_stdout_warning,
+    render_report,
+    validate_check_shape,
+)
 from .dashboard import render as render_dashboard
 from .control import (
     RiskPolicy,
@@ -44,6 +51,7 @@ from .ledger import (
     verify_date,
     verify_session,
 )
+from .report import render_status, render_usage, session_status, usage_report
 
 SESSION_ENV = "SHOWWORK_SESSION"
 
@@ -207,6 +215,16 @@ def main(argv: list[str] | None = None) -> int:
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
 
+    p = sub.add_parser("status", help="show open/closed sessions and live verdicts")
+    p.add_argument("--session", help="one session id (default: all)")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("report", help="usage + False Done Rate for a date window")
+    p.add_argument("--since", help="include ledger rows on/after YYYY-MM-DD")
+    p.add_argument("--exclude-campaign", action="store_true",
+                   help="omit proof/research/dashboard campaign sessions from FDR")
+    p.add_argument("--json", action="store_true")
+
     p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--json", action="store_true")
     p.add_argument("--strict", action="store_true",
@@ -257,6 +275,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "claim":
         check = _build_check(args)
+        if check is not None:
+            shape_err = validate_check_shape(check, root)
+            if shape_err is not None:
+                print(f"claim rejected: {shape_err}", file=sys.stderr)
+                return 2
+            warn = command_stdout_warning(check) if check.get("type") == "command" else None
+            if warn:
+                print(f"warning: {warn}", file=sys.stderr)
         record_claim(root, args.session, args.claim, check=check,
                      severity=args.severity, artifact=args.artifact)
         print("claim recorded" + ("" if check else " (no check: recorded, not verifiable)"))
@@ -288,12 +314,34 @@ def main(argv: list[str] | None = None) -> int:
         if state is not None:
             print(f"claims: {state['verdict']} ({state['passed']}/{state['total']} verified)")
         if code != 0:
-            print("REFUSED: a clean close requires this session's claims to verify. "
-                  "Fix the gap, retract the claim, or finish --status blocked.",
+            reason = (state or {}).get("refuse_reason")
+            extra = f" ({reason})" if reason else ""
+            print("REFUSED: a clean close requires this session's claims to verify"
+                  f"{extra}. Fix the gap, retract the claim, or finish --status blocked.",
                   file=sys.stderr)
         else:
             print(f"session.finish recorded: {args.session}")
         return code
+
+    if args.cmd == "status":
+        status = session_status(root, session=args.session)
+        if args.json:
+            print(json.dumps(status, indent=2))
+        else:
+            print(render_status(status))
+        return 0
+
+    if args.cmd == "report":
+        try:
+            report = usage_report(root, since=args.since,
+                                  exclude_campaign=args.exclude_campaign)
+        except ValueError as e:
+            raise SystemExit(str(e)) from e
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            print(render_usage(report))
+        return 0
 
     if args.cmd == "audit":
         state = audit_root(root, strict=args.strict)

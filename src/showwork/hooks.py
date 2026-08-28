@@ -8,10 +8,14 @@ command remains the gate that can refuse a false clean close.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import TextIO
 
+from .checks import gaps_payload
 from .ledger import record_event, verify_session
+
+SESSION_ENV = "SHOWWORK_SESSION"
 
 
 def read_stop_payload(stream: TextIO) -> dict:
@@ -41,6 +45,19 @@ def payload_session_id(payload: dict) -> str:
     return "unknown-session"
 
 
+def resolve_stop_session(payload: dict) -> tuple[str, bool]:
+    """Prefer SHOWWORK_SESSION so Stop binds to the agent task slug.
+
+    Returns (session_id, bound_from_env). When the env var is unset, the hook
+    falls back to the payload id and stamps ``session_unbound`` when that id
+    looks like a host UUID with no matching showwork start (callers decide).
+    """
+    env = os.environ.get(SESSION_ENV, "").strip()
+    if env:
+        return env, True
+    return payload_session_id(payload), False
+
+
 def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, dict]:
     """Verify the hook session and append an observed finish event.
 
@@ -48,25 +65,24 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
     it is RED because a Stop hook observes a completed stop; it is not the
     explicit exit gate.
     """
-    session = payload_session_id(payload)
+    session, bound = resolve_stop_session(payload)
+    payload_id = payload_session_id(payload)
     state = verify_session(root, session)
-    unverified = [
-        {
-            "claim": gap["claim"],
-            "severity": gap["severity"],
-            "status": gap["status"],
-            "detail": gap["detail"],
-            "type": gap["type"],
-        }
-        for gap in state["gaps"]
-    ]
-    event = record_event(
-        root,
-        "session.finish",
-        session,
-        status=status,
-        observed_by="stop-hook",
-        claims_verdict=state["verdict"],
-        claims_unverified=unverified,
-    )
+    unverified = gaps_payload(state)
+    fields: dict = {
+        "status": status,
+        "observed_by": "stop-hook",
+        "claims_verdict": state["verdict"],
+        "claims_unverified": unverified,
+    }
+    if bound:
+        fields["session_bound_from"] = SESSION_ENV
+        if payload_id not in ("unknown-session", session):
+            fields["hook_payload_session"] = payload_id
+    else:
+        # Explicit: this finish used the host id, not SHOWWORK_SESSION.
+        fields["session_unbound"] = True
+        if payload_id != session:
+            fields["hook_payload_session"] = payload_id
+    event = record_event(root, "session.finish", session, **fields)
     return event, state

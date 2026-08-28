@@ -68,6 +68,19 @@ GIT_TIMEOUT_S = 10
 
 EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 
+GLOB_OPS = frozenset({"==", ">=", "<=", ">", "<"})
+
+# Claim-time and verify-time hint when a command check cannot run.
+COMMAND_REMEDIATION = (
+    "use: python <script under project root> [args]; "
+    "for tests prefer scripts/run_tests.py with expect_exit=0 "
+    "and stdout_contains='passed' "
+    "(not exact 'N passed', not git, not python -m)"
+)
+
+# Exact pytest-style counts go stale when the suite grows.
+_BRITTLE_PASSED_COUNT = re.compile(r"^\d+\s+passed$")
+
 
 # ---------- per-type checkers: return (status, detail) ----------
 # status in {"pass", "fail", "error"}.
@@ -396,6 +409,101 @@ def chk_glob_count(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", f"count {n} {op} {want}") if ok else ("fail", f"count {n} !{op} {want}")
 
 
+def _command_shape_error(c: dict, root: Path, *, require_script_file: bool) -> str | None:
+    """Shared lock checks for claim-time validation and verify-time execution."""
+    argv = c.get("argv")
+    if not isinstance(argv, list) or not argv:
+        return "command.argv must be a non-empty list"
+    if any((not isinstance(t, str)) or (set(t) & SHELL_META) for t in argv):
+        return "command contains a non-string or shell metacharacter"
+    argv0_name = Path(argv[0]).name.lower()
+    if argv0_name in ("powershell", "powershell.exe", "pwsh", "pwsh.exe") \
+            or any(a.lower().endswith(".ps1") for a in argv):
+        return f"shell scripts are locked; {COMMAND_REMEDIATION}"
+    if argv0_name not in ("python", "python.exe", "python3"):
+        return f"command must invoke python; {COMMAND_REMEDIATION}"
+    if len(argv) < 2:
+        return f"command needs a script path; {COMMAND_REMEDIATION}"
+    if argv[1] in ("-m", "-c") or argv[1].startswith("-"):
+        return f"python flags like -m/-c are locked; {COMMAND_REMEDIATION}"
+    script = (root / argv[1]).resolve()
+    try:
+        script.relative_to(root.resolve())
+    except ValueError:
+        return (f"script must live under the project root: {argv[1]}; "
+                f"{COMMAND_REMEDIATION}")
+    if require_script_file and not script.is_file():
+        return f"script not found: {argv[1]}; {COMMAND_REMEDIATION}"
+    raw_expect = c.get("expect_exit", 0)
+    if isinstance(raw_expect, bool) or (
+        not isinstance(raw_expect, int)
+        and not (isinstance(raw_expect, str) and raw_expect.strip().lstrip("-").isdigit())
+    ):
+        return f"expect_exit must be an integer, got {raw_expect!r}"
+    try:
+        int(raw_expect)
+    except (TypeError, ValueError):
+        return f"expect_exit must be an integer, got {raw_expect!r}"
+    needle = c.get("stdout_contains")
+    if needle is not None and needle != "" and not isinstance(needle, str):
+        return f"stdout_contains must be a string, got {type(needle).__name__}"
+    return None
+
+
+def command_stdout_warning(c: dict) -> str | None:
+    """Warn when stdout_contains uses a brittle exact pass count."""
+    needle = c.get("stdout_contains")
+    if isinstance(needle, str) and _BRITTLE_PASSED_COUNT.match(needle.strip()):
+        return (
+            f"stdout_contains={needle!r} goes stale when the suite grows; "
+            "prefer stdout_contains='passed' with expect_exit=0"
+        )
+    return None
+
+
+def validate_check_shape(check: dict, root: Path) -> str | None:
+    """Return an error if the check can never verify; else None.
+
+    Claim-time guardrail: reject known-invalid shapes before they pollute the
+    ledger. Does not require the command script file to exist yet (agents often
+    claim then write the script).
+    """
+    if not isinstance(check, dict):
+        return f"check must be a JSON object, got {type(check).__name__}"
+    ctype = check.get("type")
+    if ctype not in CHECKERS:
+        return f"unknown check type {ctype!r}"
+    if ctype == "command":
+        return _command_shape_error(check, root, require_script_file=False)
+    if ctype == "glob_count":
+        op = check.get("op")
+        if op not in GLOB_OPS:
+            return (f"glob_count.op must be one of {sorted(GLOB_OPS)}, "
+                    f"got {op!r} (use '==', not 'eq')")
+        raw_n = check.get("n")
+        if isinstance(raw_n, bool) or raw_n is None:
+            return f"glob_count.n must be an integer, got {type(raw_n).__name__}"
+        try:
+            want = int(raw_n) if not isinstance(raw_n, int) else raw_n
+            if isinstance(raw_n, float) and float(want) != float(raw_n):
+                return f"glob_count.n must be an integer, got {raw_n!r}"
+        except (TypeError, ValueError):
+            return f"glob_count.n must be an integer, got {raw_n!r}"
+        if (op == ">=" and want <= 0) or (op == ">" and want < 0):
+            return f"count {op} {want} is always true (vacuous check); tighten it"
+        pattern = check.get("pattern")
+        if not isinstance(pattern, str) or pattern == "":
+            return "glob pattern must be a non-empty string"
+        pattern_path = Path(pattern)
+        if pattern_path.is_absolute() or ".." in pattern_path.parts:
+            return f"glob escapes project root: {pattern}"
+        pattern_parts, _ = _glob_parts(pattern)
+        if _has_recursive_glob(pattern_parts):
+            return "glob pattern must be non-recursive in verifier context"
+        return None
+    return None
+
+
 def chk_command(c: dict, root: Path) -> tuple[str, str]:
     """Run a LOCKED command. Only `python <script under the project root>`,
     no shell, no metacharacters, no `..` escape. A ledger data file must never
@@ -405,36 +513,12 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
                          "(policy: do not execute repo code in this context)")
     if os.environ.get(VERIFYING_ENV):
         return ("error", "nested command verification refused (recursion guard)")
-    argv = c.get("argv")
-    if not isinstance(argv, list) or not argv:
-        return ("error", "command.argv must be a non-empty list")
-    if any((not isinstance(t, str)) or (set(t) & SHELL_META) for t in argv):
-        return ("error", "command contains a non-string or shell metacharacter")
-    argv0_name = Path(argv[0]).name.lower()
-    if argv0_name in ("powershell", "powershell.exe", "pwsh", "pwsh.exe") \
-            or any(a.lower().endswith(".ps1") for a in argv):
-        return ("error", "shell scripts are locked; command must invoke a python script")
-    if argv0_name not in ("python", "python.exe", "python3"):
-        return ("error", "command must invoke python")
-    if len(argv) < 2:
-        return ("error", "command needs a script path")
+    shape_err = _command_shape_error(c, root, require_script_file=True)
+    if shape_err is not None:
+        return ("error", shape_err)
+    argv = c["argv"]
+    expect = int(c.get("expect_exit", 0))
     script = (root / argv[1]).resolve()
-    try:
-        script.relative_to(root.resolve())
-    except ValueError:
-        return ("error", f"script must live under the project root: {argv[1]}")
-    if not script.is_file():
-        return ("error", f"script not found: {argv[1]}")
-    raw_expect = c.get("expect_exit", 0)
-    if isinstance(raw_expect, bool) or (
-        not isinstance(raw_expect, int)
-        and not (isinstance(raw_expect, str) and raw_expect.strip().lstrip("-").isdigit())
-    ):
-        return ("error", f"expect_exit must be an integer, got {raw_expect!r}")
-    try:
-        expect = int(raw_expect)
-    except (TypeError, ValueError):
-        return ("error", f"expect_exit must be an integer, got {raw_expect!r}")
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
     try:
@@ -446,9 +530,6 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
         return ("fail", f"exit {proc.returncode}, expected {expect}")
     needle = c.get("stdout_contains")
     if needle is not None and needle != "":
-        if not isinstance(needle, str):
-            return ("error",
-                    f"stdout_contains must be a string, got {type(needle).__name__}")
         if needle not in proc.stdout:
             return ("fail", f"stdout missing {needle!r}")
     return ("pass", f"exit {proc.returncode}"
@@ -750,9 +831,7 @@ def evaluate_records(records: list[dict], root: Path, label: str = "") -> dict:
         verdict = "YELLOW"
     else:
         verdict = "GREEN"
-    gaps = [{"claim": r["claim"], "severity": r["severity"], "status": r["status"],
-             "detail": r["detail"], "type": r["type"]}
-            for r in results if r["status"] in ("fail", "error")]
+    gaps = gaps_payload({"results": results})
     # A retracted claim is withdrawn, not outstanding. It can never pass, so
     # counting it in the denominator makes a clean run look incomplete. It is
     # still rendered; it just is not scored.
@@ -760,6 +839,24 @@ def evaluate_records(records: list[dict], root: Path, label: str = "") -> dict:
     passed = sum(1 for r in scored if r["status"] == "pass")
     return {"label": label, "verdict": verdict, "total": len(scored),
             "passed": passed, "results": results, "gaps": gaps}
+
+
+def gaps_payload(state: dict) -> list[dict]:
+    """Compact unverified-claim list for refuse events and stop-hook stamps."""
+    rows = state.get("results")
+    if rows is None:
+        rows = state.get("gaps", [])
+    return [
+        {
+            "claim": r["claim"],
+            "severity": r["severity"],
+            "status": r["status"],
+            "detail": r["detail"],
+            "type": r.get("type"),
+        }
+        for r in rows
+        if r.get("status") in ("fail", "error")
+    ]
 
 
 def render_report(state: dict) -> str:
