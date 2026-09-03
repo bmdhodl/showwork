@@ -149,6 +149,20 @@ def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path |
     exactly one other jsonl already holds this session, keep appending there.
     """
     if current.is_file():
+        owners: set[str] = set()
+        for rec in _read_jsonl(current):
+            name = rec.get("session")
+            if isinstance(name, str) and name:
+                owners.add(name)
+            retracts = rec.get("retracts")
+            if isinstance(retracts, dict):
+                other = retracts.get("session")
+                if isinstance(other, str) and other:
+                    owners.add(other)
+        if owners and session not in owners:
+            raise ValueError(
+                f"session file stem collides with existing ledger {current.name}"
+            )
         return current
     if not folder.is_dir():
         return None
@@ -527,12 +541,10 @@ def load_all_claims(root: Path) -> list[dict]:
 
 
 def load_all_events(root: Path) -> list[dict]:
-    streams: list[list[dict]] = []
+    records: list[dict] = []
     for path in iter_session_event_paths(root):
-        recs = _read_jsonl(path)
-        if recs:
-            streams.append(recs)
-    return _merge_record_streams(streams)
+        records.extend(_read_jsonl(path))
+    return records
 
 
 def claims_for_session(root: Path, session: str) -> list[dict]:

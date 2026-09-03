@@ -335,3 +335,16 @@ def test_append_order_inside_file_beats_timestamp(tmp_path):
     live = [r for r in state["results"] if not r.get("retracted")]
     assert len(live) == 1
     assert live[0]["status"] == "pass"
+
+
+def test_writer_refuses_current_file_owned_by_another_session(tmp_path):
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    path = ledger / "foo-9520437ce8.jsonl"
+    path.write_text(
+        json.dumps({"session": "FOO", "ts": "2026-09-02T20:00:00", "claim": "x"})
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="collides"):
+        session_claims_path(tmp_path, "foo-9520437ce8")

@@ -25,6 +25,7 @@ compliance evidence packs all closed through the exit gate.
 - [x] Hashed session stems use `h-` so they stay outside the exact namespace (Codex P2 PR 66)
 - [x] Split session files merge by first-record timestamp; keep append order in each file (Codex P1 PR 66)
 - [x] Writers reuse a leftover session file; current write-path stream is last (Codex P1 PR 66)
+- [x] Refuse a current stem file owned by another session; keep leftover sessions.jsonl first (Codex P2 PR 66)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

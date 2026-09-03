@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr66-owner-check-20260902", "ts": "2026-09-02T22:47:31", "agent": "cursor", "prev": "5098e0887eb106eaf778bcd54759dd8eaf1774ce50c2266ab52871b05aee2934"}
+{"event": "session.finish", "session": "cursor-pr66-owner-check-20260902", "ts": "2026-09-02T22:48:01", "status": "ok", "claims_verdict": "GREEN", "prev": "3f7bf6198c200179936f018792c464473f8415445bcf5693fbe11dd9612e9dec"}

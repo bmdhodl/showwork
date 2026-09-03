@@ -84,3 +84,23 @@ def test_split_event_files_keep_later_start_open(tmp_path):
     assert not (events_dir / "split-e.jsonl").exists()
     status = session_status(tmp_path, session="split-e")
     assert status["sessions"][0]["open"] is True
+
+
+def test_legacy_sessions_file_stays_before_per_session_events(tmp_path):
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    (ledger / "sessions.jsonl").write_text(
+        json.dumps({"event": "session.start", "session": "s",
+                    "ts": "2026-09-02T20:00:00"}) + "\n"
+        + json.dumps({"event": "session.finish", "session": "s",
+                      "ts": "2026-09-02T20:01:00", "status": "ok"}) + "\n",
+        encoding="utf-8",
+    )
+    (ledger / "sessions").mkdir()
+    (ledger / "sessions" / "s.jsonl").write_text(
+        json.dumps({"event": "session.start", "session": "s",
+                    "ts": "2026-09-02T19:00:00"}) + "\n",
+        encoding="utf-8",
+    )
+    status = session_status(tmp_path, session="s")
+    assert status["sessions"][0]["open"] is True

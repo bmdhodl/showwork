@@ -64,7 +64,10 @@ tests/test_session_files.py::test_append_order_inside_file_beats_timestamp]
 keep append order inside each file. Writers MUST [test:
 tests/test_session_files.py::test_writer_reuses_existing_session_file]
 append to an existing leftover file for that session when the current stem
-has no file yet. Linked worktrees MUST [test:
+has no file yet. A current stem file that already belongs to a different
+session MUST [test:
+tests/test_session_files.py::test_writer_refuses_current_file_owned_by_another_session]
+be refused. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
 receipts in that worktree's own `.showwork/` so the receipt ships with the
 branch.
