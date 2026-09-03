@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr66-lossy-line-20260902", "ts": "2026-09-02T21:56:48", "agent": "cursor", "prev": "d8df54e3a3e1fae7715d541fb246e2544418efedd18780c505cd67bad39455c6"}
+{"event": "session.finish", "session": "cursor-pr66-lossy-line-20260902", "ts": "2026-09-02T21:57:24", "status": "ok", "claims_verdict": "GREEN", "prev": "fb5baae7be2fff6ed3d9795ac07c4372f9bb377dc159c94bfbb27b2b471584a7"}

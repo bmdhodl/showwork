@@ -114,12 +114,7 @@ def session_file_stem(session: str) -> str:
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     # Lossy when whitespace was stripped, characters were rewritten, reserved
     # names were prefixed, case differs, or the id was truncated.
-    lossy = (
-        cleaned != raw
-        or len(raw) > 120
-        or original != raw
-        or cleaned != cleaned.lower()
-    )
+    lossy = cleaned != raw or len(raw) > 120 or original != raw or cleaned != cleaned.lower()
     if lossy:
         max_base = 120 - 1 - len(digest)  # room for "-<digest>"
         if len(cleaned) > max_base:
