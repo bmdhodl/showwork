@@ -1,0 +1,28 @@
+---
+description: Record falsifiable showwork claims and close through the exit gate.
+alwaysApply: true
+---
+
+# showwork
+
+Start material work with:
+
+    python -m showwork start --session cursor-<task-slug> --agent cursor
+
+Set SHOWWORK_SESSION=cursor-<task-slug> in the same shell.
+
+After each completed change, record a claim that can fail:
+
+    python -m showwork claim --session cursor-<task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"
+
+Prefer git_state or glob_count when they fit. For tests:
+
+    python -m showwork claim --session cursor-<task-slug> --claim "tests pass" --type command --command-arg python --command-arg scripts/run_tests.py --expect-exit 0 --stdout-contains passed
+
+Before reporting success:
+
+    python -m showwork finish --session cursor-<task-slug> --status ok
+
+If finish exits 2, the claimed done is not real. Fix the gap or retract the claim. Never pass --no-verify to manufacture a clean close.
+
+Commit .showwork/ with the work. The ledger is part of the change.

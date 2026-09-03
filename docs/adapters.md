@@ -3,6 +3,22 @@
 The ledger is the interface. Anything that can run a CLI can record claims
 and close through the gate — the adapters below are just lifecycle glue.
 
+## Cursor
+
+`showwork init --cursor` writes `.cursor/rules/showwork.mdc`. The rule tells
+the agent to start a session, record claims, and close through `finish`.
+Walk: [walks/cursor.md](walks/cursor.md).
+
+## pytest
+
+If pytest is installed, `pip install showwork` registers a plugin. It is
+silent unless you pass `--showwork-session`. Then a passing run records a
+`file_contains` claim on `.showwork/pytest-last.json`.
+
+```bash
+pytest -q --showwork-session cursor-fix-nav
+```
+
 ## Claude Code
 
 Stop-hook + prompt contract: see [claude-code.md](claude-code.md).
@@ -45,7 +61,7 @@ adapter accepts any JSON payload carrying `session_id`/`sessionId`.
 ## Reading the ledger from JavaScript
 
 [`js/showwork-audit`](../js/showwork-audit/) is a zero-dependency Node
-implementation of the spec-v0.3 **reading half**: it parses ledgers, verifies
+implementation of the spec-v0.4 **reading half**: it parses ledgers, verifies
 the integrity chain, and reports verdicts (`node js/showwork-audit/index.mjs
 <root>`, exit 0/3/2). It re-executes no checks — what it does not verify it
 reports, never skips. Both implementations are held to the same frozen

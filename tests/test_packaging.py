@@ -35,6 +35,7 @@ def test_sdist_contains_readme_targets(tmp_path):
     required = {
         "SPEC.md",
         "docs/claude-code.md",
+        "docs/walks/cursor.md",
         "docs/ci.md",
         "docs/adapters.md",
         "docs/false-done-rate.md",

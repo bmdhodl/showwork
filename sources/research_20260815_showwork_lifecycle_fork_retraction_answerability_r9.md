@@ -47,8 +47,8 @@ The field and query choices follow the existing local readouts:
 
 - `K:\showwork\sources\research_20260815_showwork_proof_pack_query_answerability_r8.md`
 - `K:\showwork\sources\research_20260815_showwork_scope_state_answer_contract_r8.md`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-proof-pack-query-answerability-2026-08-15.md`
-- `C:\Users\patri\AppData\Local\Temp\showwork-governance-human-authority-20260815-r1`
+- `<vault>\Reports\Research\showwork-proof-pack-query-answerability-2026-08-15.md`
+- `<temp>\showwork-governance-human-authority-20260815-r1`
 
 The existing audit already exposes fork counts and heads, while the evidence
 pack is not a complete lifecycle graph. The human-authority fixture exposes

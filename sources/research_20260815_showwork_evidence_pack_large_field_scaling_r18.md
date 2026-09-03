@@ -58,4 +58,4 @@ parsing and date filtering separately, then repeat with representative,
 redacted receipts. Do not publish these numbers or promise a scaling/SLA
 boundary from them.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r18-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r18-full-20260815` -> **239 passed**.

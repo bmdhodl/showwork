@@ -9,7 +9,7 @@ Session: `test-source-isolation-r27-20260815`
 
 Before this change, `python -c "import showwork"` from `K:\showwork` resolved
 to the unrelated editable clone at
-`C:\Users\patri\Documents\GitHub\showwork\src\showwork\__init__.py`, even
+`<showwork-checkout>\src\showwork\__init__.py`, even
 though `pyproject.toml` declared `pythonpath = ["src"]`. The existing test
 gate therefore depended on interpreter-installed path ordering and could test
 the wrong checkout. This was the same harness distinction found during the
@@ -27,7 +27,7 @@ explicit environment or reinstall; those remain operator-environment facts.
 
 ## Evidence
 
-- Before the guard, default import path: `C:\Users\patri\Documents\GitHub\showwork\src\showwork`.
+- Before the guard, default import path: `<showwork-checkout>\src\showwork`.
 - After the guard, the regression test passed and asserted the K checkout path.
 - Focused behavior gate: `python -m pytest tests/test_checks.py tests/test_source_checkout.py -q` -> `66 passed`.
 - Default full gate after the guard: `python -m pytest tests/ -q` -> `242 passed`.

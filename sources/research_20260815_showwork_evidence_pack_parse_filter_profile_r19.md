@@ -47,4 +47,4 @@ measure raw ledger decoding and chain audit with representative redacted
 receipts, then separately evaluate caching or pagination. Do not change the
 packer or publish an SLA from this sample.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r19-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r19-full-20260815` -> **239 passed**.

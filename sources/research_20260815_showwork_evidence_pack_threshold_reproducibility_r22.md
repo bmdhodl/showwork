@@ -31,4 +31,4 @@ design a broader corpus, but must not call it an SLA, throughput limit,
 performance guarantee, or production crossover. No packer, serializer, schema,
 dashboard, storage, or adoption change was made.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r22-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r22-full-20260815 -> **240 passed**

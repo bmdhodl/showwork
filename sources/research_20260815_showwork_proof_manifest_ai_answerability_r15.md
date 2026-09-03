@@ -37,4 +37,4 @@ copy from this synthetic readout.
 
 Canonical local evidence: `K:\showwork\sources\research_20260815_showwork_proof_bundle_ai_answerability_boundary_r13.md` and the r14 reader reports.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r15-full-20260815` -> **234 passed in 13.27s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r15-full-20260815` -> **234 passed in 13.27s**.

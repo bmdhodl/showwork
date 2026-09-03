@@ -5,6 +5,11 @@ enforced contracts: a job fails when the ledger's integrity chain is broken,
 when a session's claims do not verify, or when the session was closed with a
 `--no-verify` bypass (the bypass is stamped on the record; CI reads it).
 
+A full drop-in workflow lives at [verify.yml](ci/verify.yml). Copy it to
+`.github/workflows/showwork.yml`. `showwork init --ci` writes the same file
+to `docs/ci/showwork-verify.yml` so this repository's `.github/workflows/`
+stays owner-gated.
+
 ## Usage
 
 ```yaml

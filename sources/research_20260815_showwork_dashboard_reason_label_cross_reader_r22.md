@@ -28,4 +28,4 @@ An owner-gated minimal content contract may choose a label/reason pair after
 review. No dashboard implementation, UI, tracking, public-copy, accessibility,
 schema, adoption, or compliance change is supported.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r22-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r22-full-20260815 -> **240 passed**

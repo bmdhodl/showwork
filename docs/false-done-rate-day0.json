@@ -97,7 +97,7 @@
     ]
   },
   "fleet-web": {
-    "root": "C:\\Users\\patri\\Documents\\GitHub\\bmdpat",
+    "root": "<fleet-web>",
     "eligible_sessions": 8,
     "false_done_sessions": 5,
     "fdr_session": 0.625,
@@ -196,7 +196,7 @@
     ]
   },
   "fleet-trading": {
-    "root": "K:\\autotrader",
+    "root": "<fleet-trading>",
     "eligible_sessions": 5,
     "false_done_sessions": 1,
     "fdr_session": 0.2,

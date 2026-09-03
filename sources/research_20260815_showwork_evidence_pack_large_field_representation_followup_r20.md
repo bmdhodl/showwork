@@ -23,4 +23,4 @@ Representation choice changes what a reader can prove even when the underlying c
 
 No serialization change, redaction of production receipts, schema change, performance claim, or hosted-service behavior is supported by this fixture.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r20-full-20260815` -> **239 passed**
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r20-full-20260815` -> **239 passed**

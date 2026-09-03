@@ -31,4 +31,4 @@ publication authorization. A future owner-gated release must recheck the
 intended public version, rendered description, action references, artifact
 hashes, and checkout-only script boundary before publishing.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-release-hardening-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-release-hardening-full-20260815 -> **240 passed**

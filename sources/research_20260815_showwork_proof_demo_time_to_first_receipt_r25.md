@@ -10,7 +10,7 @@ The run installed the published [showwork 0.3.0 package from PyPI](https://pypi.
 with `--index-url https://pypi.org/simple` in a fresh virtual environment.
 The observed import location was:
 
-`C:\Users\patri\AppData\Local\Temp\showwork-r25-first-receipt-20260815\venv\Lib\site-packages\showwork\__init__.py`
+`<temp>\showwork-r25-first-receipt-20260815\venv\Lib\site-packages\showwork\__init__.py`
 
 The location was outside the checkout, and the local checkout version `0.3.1`
 was not imported. No package was published or changed.
@@ -19,7 +19,7 @@ was not imported. No package was published or changed.
 
 Disposable project root:
 
-`C:\Users\patri\AppData\Local\Temp\showwork-r25-first-receipt-20260815\project`
+`<temp>\showwork-r25-first-receipt-20260815\project`
 
 It contained only a redacted `receipt.txt`. The first-proof path used five
 showwork commands:

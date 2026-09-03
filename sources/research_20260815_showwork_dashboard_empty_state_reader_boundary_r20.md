@@ -24,4 +24,4 @@ The current output is not answerable as a proof-state reader for empty or failed
 
 An **owner-gated** content-contract review may define explicit state labels and a zero-claim rule. This is a recommendation only. No dashboard implementation, schema, tracking, accessibility, adoption, or compliance change belongs to this readout.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r20-full-20260815` -> **239 passed**
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r20-full-20260815` -> **239 passed**

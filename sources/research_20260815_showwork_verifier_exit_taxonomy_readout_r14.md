@@ -40,4 +40,4 @@ close event with a fresh audit and current-state verification.
 matrix only as an internal reading aid. The explicit rule remains:
 `GREEN (0/0)` is vacuous when no non-empty closed claim set exists.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r14-full-20260815` -> **234 passed in 11.67s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r14-full-20260815` -> **234 passed in 11.67s**.

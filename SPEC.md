@@ -1,6 +1,6 @@
 # showwork Claims Ledger Specification
 
-**Specification version:** `spec-v0.3`
+**Specification version:** `spec-v0.4`
 
 This document defines a portable, append-only format for falsifiable agent
 claims, deterministic verification, retractions, session lifecycle events, and
@@ -33,6 +33,7 @@ The reference layout is:
 .showwork/
   sessions/<session-stem>.jsonl   one session's start / finish events
   claims/<session-stem>.jsonl     that session's claims and retractions
+  snapshots/<session-stem>.json   tree snapshot taken at session.start
   claims-YYYY-MM-DD.jsonl         legacy shared day file (read, not written)
   sessions.jsonl                  legacy shared session file (read, not written)
   audit-<label>.md
@@ -350,9 +351,26 @@ claims MAY be read for compatibility.
 Session events use the same JSONL framing:
 
 ```json
-{"event":"session.start","session":"deploy-fix","ts":"...","agent":"codex"}
+{"event":"session.start","session":"deploy-fix","ts":"...","agent":"codex","tree_snapshot":{"count":12,"sha256":"..."}}
 {"event":"session.finish","session":"deploy-fix","ts":"...","status":"ok","claims_verdict":"GREEN"}
 ```
+
+A `session.start` MUST [test:
+tests/test_snapshot.py::test_start_records_tree_snapshot] record
+`tree_snapshot` with `count` and `sha256` for a sidecar at
+`.showwork/snapshots/<stem>.json`. The sidecar is not a JSONL chain file.
+`verify --session` and a clean `finish` MUST [test:
+tests/test_snapshot.py::test_undeclared_delete_is_red] fail RED when a file
+that existed at start is gone or its content hash changed, and no active
+claim named that path (`path`, `from`, `to`, `artifact`, or a relative
+`command` argv path). New files created after start are out of this check.
+Sessions whose start event has no `tree_snapshot` MUST [test:
+tests/test_snapshot.py::test_legacy_session_without_snapshot_skips] skip
+this check so older ledgers stay readable. A missing or digest-mismatched
+sidecar for a start that declared `tree_snapshot.sha256` MUST [test:
+tests/test_snapshot.py::test_missing_snapshot_is_red] fail RED. A named
+path MAY [test: tests/test_snapshot.py::test_declared_path_may_change]
+change. `.showwork/` is excluded from the snapshot.
 
 An explicit clean finish MUST [test:
 tests/test_cli.py::test_exit_gate_refuses_red_close] verify that session's own
@@ -391,7 +409,7 @@ tests/test_checks.py::test_checker_error_is_yellow] prevent a GREEN verdict.
 
 ## Conformance
 
-An implementation conforms to `spec-v0.3` when:
+An implementation conforms to `spec-v0.4` when:
 
 - every normative requirement has a behavioral test named beside it;
 - new writes use per-session files and leftover shared files remain readable;
@@ -401,6 +419,7 @@ An implementation conforms to `spec-v0.3` when:
   (a `prev` re-anchored to an earlier line) as GREEN and reporting them;
 - all eight checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
+- sessions with `tree_snapshot` fail RED on undeclared deletes and edits;
 - parse and checker errors stay visible.
 
 A reader-only implementation (an auditor that verifies chains and computes

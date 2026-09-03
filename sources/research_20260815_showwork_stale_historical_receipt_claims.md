@@ -83,6 +83,6 @@ unverified while the sole matching self-hosted runner is offline.
 - No public URL, PyPI publish, tag, GitHub release, or adoption claim was
   made.
 - The runner condition remains separate: six CI runs are queued behind the
-  offline `fluarmn-wsl-showwork` runner.
+  offline `self-hosted-wsl-showwork` runner.
 - Release eligibility remains owner-gated and RED until a remote run actually
   completes with the repaired receipt set and all required release checks.

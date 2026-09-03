@@ -4,6 +4,21 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **PyPI still serves 0.3.0.** This tree is 0.4.0 / spec-v0.4. Publish,
+  tag, and GitHub release steps are owner-gated. See
+  docs/requests/publish-0.4.0.md.
+- **Empty-dir quickstart** - the README paste now claims a missing file
+  first. `finish --status ok` exits 2. Recovery is a retract plus a real
+  file. `python -m showwork` works. `tests/test_quickstart.py` runs that
+  walk in CI.
+- **Undeclared damage (issue #64, spec-v0.4)** - `session.start` snapshots
+  the tree. `verify` / `finish` go RED when a file that existed at start is
+  deleted or changed and no active claim named that path. Old ledgers
+  without `tree_snapshot` stay readable.
+- **`showwork init`** - Cursor rule, Claude Stop hook, CI draft under
+  `docs/ci/` (does not write `.github/workflows/`).
+- **pytest plugin** - opt-in `--showwork-session`. Silent without the flag.
+
 - **Empty check is invalid** - `record_claim(..., check={})` is rejected at
   claim time. Only `check=None` is prose.
 - **Hashed stems use an `h-` prefix** - a mixed-case id cannot collide with a

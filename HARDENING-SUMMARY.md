@@ -63,5 +63,5 @@ None. Full suite green on `main` baseline throughout (~94–97 tests). Publishin
 
 ## Evidence
 
-- Scratch: `C:\Users\patri\AppData\Local\Temp\grok-goal-b2fc7844fb97\implementer\` (`prs.txt`, `pytest-full-*.txt`, `repro-*.txt`)
+- Scratch: `<temp>\grok-goal-b2fc7844fb97\implementer\` (`prs.txt`, `pytest-full-*.txt`, `repro-*.txt`)
 - Per-branch dogfood sessions: `showwork-harden-*` in `.showwork/`

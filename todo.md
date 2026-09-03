@@ -1,5 +1,17 @@
 # showwork build plan
 
+## v0.4.0 stranger onboarding — 2026-09-03  [status: in tree, unreleased]
+
+- [x] README quickstart refuses in an empty directory, then recovers
+- [x] `python -m showwork` (`__main__.py`)
+- [x] issue #64 undeclared delete/edit is RED (`spec-v0.4` tree snapshot)
+- [x] `showwork init` for Cursor, Claude Stop hook, docs/ci draft
+- [x] pytest plugin, opt-in `--showwork-session`
+- [x] `docs/walks/cursor.md`, `docs/ci/verify.yml`, launch drafts
+- [ ] Owner: publish 0.4.0, tag, GitHub release
+- [ ] Owner: post issue #64 reply
+- [ ] Owner: Show HN after PyPI serves 0.4.0
+
 ## v0.2 five phases — DONE (2026-07-16)
 
 See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →

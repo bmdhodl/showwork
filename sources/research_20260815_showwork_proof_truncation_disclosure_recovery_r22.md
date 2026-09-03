@@ -26,4 +26,4 @@ it is not a recovery guarantee, signature, provenance proof, or exact-replay
 claim. Any future two-tier reader contract is owner-gated and must keep
 identity mismatch, missing evidence, and contradictory fields fail-closed.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r22-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r22-full-20260815 -> **240 passed**

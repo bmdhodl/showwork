@@ -1,6 +1,6 @@
 /**
  * showwork-audit: reader-side implementation of the showwork ledger's
- * integrity chain (SPEC.md, spec-v0.3 "Integrity chain").
+ * integrity chain (SPEC.md, spec-v0.4 "Integrity chain").
  *
  * Zero dependencies; node:crypto + node:fs only. This package audits chains
  * and reports verdicts. It re-executes NO checks - per the specification's

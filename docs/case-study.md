@@ -59,4 +59,4 @@ same inputs produces the same aggregate and fingerprint.
 6. Keep the entire history.
 
 That pattern matters more than the Python package. A different implementation
-can follow [`spec-v0.3`](../SPEC.md) and produce the same kind of evidence.
+can follow [`spec-v0.4`](../SPEC.md) and produce the same kind of evidence.

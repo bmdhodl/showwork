@@ -28,4 +28,4 @@ question across these public surfaces, recording reachability, indexability,
 comprehension, and adoption as separate gates. It must not copy positioning or
 promote a visible command into an adoption claim.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r22-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r22-full-20260815 -> **240 passed**

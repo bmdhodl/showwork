@@ -9,7 +9,7 @@ Source card: `checker-outcome-remediation-readout-20260815-r27.md`
 
 The first inline fixture was not valid product evidence. The default Python
 process imported the editable package at
-`C:\Users\patri\Documents\GitHub\showwork\src\showwork`, not this checkout's
+`<showwork-checkout>\src\showwork`, not this checkout's
 `K:\showwork\src\showwork`. The two `checks.py` files had different SHA-256
 hashes. That process reported `http_probe` and `git_state` as
 `unknown check type`, even though the K checkout maps both types in

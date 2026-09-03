@@ -75,4 +75,4 @@ the missing-file classification into a stale-copy risk.
 
 Sources: https://pypi.org/pypi/showwork/0.3.0/json, https://pypi.org/project/showwork/0.3.0/, and the local `pyproject.toml`, `README.md`, `SPEC.md`, `docs/`, `scripts/`, and `actions/` paths.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r18-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r18-full-20260815` -> **239 passed**.

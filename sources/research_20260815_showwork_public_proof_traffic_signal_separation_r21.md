@@ -32,4 +32,4 @@ surface and retrieval context, and separately instrument a reviewed experiment.
 No signal may be promoted from reachability or answerability to traffic or
 adoption without its own evidence gate.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r21-full-20260815 -> **239 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r21-full-20260815 -> **239 passed**

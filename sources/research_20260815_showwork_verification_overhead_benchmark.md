@@ -32,7 +32,7 @@ verification. These are local measurements, not a capacity guarantee.
   and two-branch fork.
 
 The exact temporary generator was
-`C:\Users\patri\AppData\Local\Temp\showwork-verification-overhead-20260815.py`.
+`<temp>\showwork-verification-overhead-20260815.py`.
 Its reproducible recipe is:
 
 ```python

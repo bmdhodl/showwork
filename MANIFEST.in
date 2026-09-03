@@ -1,5 +1,7 @@
 include LICENSE README.md CHANGELOG.md SPEC.md
 recursive-include docs *.md *.json *.yml *.sh
+recursive-include src/showwork/templates *
+recursive-include examples *
 recursive-include scripts *.py *.sh
 recursive-include actions *.yml
 recursive-include js *.mjs *.json

@@ -42,4 +42,4 @@ packaging change was made.
 
 Sources: https://pypi.org/project/showwork/0.3.0/, https://pypi.org/pypi/showwork/0.3.0/json, https://github.com/bmdhodl/showwork/blob/main/README.md, and https://github.com/bmdhodl/showwork/tree/v0.3.0.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r19-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r19-full-20260815` -> **239 passed**.
