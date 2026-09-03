@@ -84,7 +84,10 @@ agent a distinct slug (`cursor-fix-nav`, `codex-fix-nav`).
 tests/test_checks.py::test_no_check_is_skipped] remain recorded but cannot count
 as verified proof. A writer MUST [test:
 tests/test_checks.py::test_claim_rejects_file_exists_without_path] reject a
-check at claim time when required fields for that type are missing. Severity is `RED` or `YELLOW`.
+check at claim time when required fields for that type are missing. The Python
+`record_claim` writer MUST [test:
+tests/test_checks.py::test_record_claim_rejects_file_exists_without_path] apply
+the same shape check. Severity is `RED` or `YELLOW`.
 
 ## Check semantics
 

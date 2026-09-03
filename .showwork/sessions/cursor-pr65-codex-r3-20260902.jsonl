@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr65-codex-r3-20260902", "ts": "2026-09-02T21:46:26", "agent": "cursor", "prev": "ac52e2c125fb6a88d61b31d408c2fe0b56fb1932cb5f48026b24bebc65976c90"}
+{"event": "session.finish", "session": "cursor-pr65-codex-r3-20260902", "ts": "2026-09-02T21:46:56", "status": "ok", "claims_verdict": "GREEN", "prev": "df6c2402d716c072d862ea5b6e4bb1e2c746a916aeff37f35af16649b895dfdd"}
