@@ -21,7 +21,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from .checks import evaluate_records, gaps_payload
+from .checks import evaluate_records, gaps_payload, validate_check_shape
 
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
@@ -108,12 +108,18 @@ def session_file_stem(session: str) -> str:
         raise ValueError(f"session id is not a safe file stem: {session!r}")
     cleaned = _SESSION_UNSAFE_RE.sub("-", raw).strip(".-")
     cleaned = re.sub(r"-{2,}", "-", cleaned)
-    if cleaned.lower() in _WINDOWS_RESERVED:
+    base = cleaned.split(".")[0].lower()
+    if cleaned.lower() in _WINDOWS_RESERVED or base in _WINDOWS_RESERVED:
         cleaned = f"sess-{cleaned}"
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     # Lossy when whitespace was stripped, characters were rewritten, reserved
-    # names were prefixed, or the id was truncated. Bind the original bytes.
-    lossy = cleaned != raw or len(raw) > 120 or original != raw
+    # names were prefixed, case differs, or the id was truncated.
+    lossy = (
+        cleaned != raw
+        or len(raw) > 120
+        or original != raw
+        or cleaned != cleaned.lower()
+    )
     if lossy:
         max_base = 120 - 1 - len(digest)  # room for "-<digest>"
         if len(cleaned) > max_base:
@@ -375,6 +381,10 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def record_claim(root: Path, session: str, claim: str, check: dict | None = None,
                  severity: str = "RED", artifact: str | None = None) -> dict:
+    if check:
+        shape_err = validate_check_shape(check, root)
+        if shape_err is not None:
+            raise ValueError(shape_err)
     rec: dict = {"session": session, "ts": _now(), "claim": claim,
                  "severity": severity.upper()}
     if check:

@@ -70,6 +70,8 @@ def test_session_file_stem_rejects_path_escape():
     padded = session_file_stem(" foo ")
     assert padded != session_file_stem("foo")
     assert padded.startswith("foo-")
+    assert session_file_stem("FOO") != session_file_stem("foo")
+    assert session_file_stem("con.txt").startswith("sess-con")
 
 
 def test_legacy_shared_files_remain_readable(tmp_path):
