@@ -26,6 +26,7 @@ from .budgets import RunBudget
 from .checks import (
     EXIT_BY_VERDICT,
     command_stdout_warning,
+    gaps_payload,
     render_report,
     validate_check_shape,
 )
@@ -42,6 +43,7 @@ from .hooks import observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
     finish_session,
+    has_minimum_proof,
     ledger_dir,
     record_claim,
     record_event,
@@ -402,6 +404,41 @@ def main(argv: list[str] | None = None) -> int:
             return 127
         state = verify_session(root, args.session)
         verdict = budget.check()
+        gate_refuse = (
+            args.gate and proc_code == 0
+            and (state["verdict"] == "RED" or not has_minimum_proof(state))
+        )
+        if gate_refuse:
+            refuse_reason = (
+                "claims_red" if state["verdict"] == "RED" else "no_check_backed_claims"
+            )
+            unverified = gaps_payload(state)
+            if refuse_reason == "no_check_backed_claims":
+                unverified = [{
+                    "claim": "(session has no check-backed claims)",
+                    "severity": "RED",
+                    "status": "fail",
+                    "detail": "clean close needs at least one falsifiable claim that verifies",
+                    "type": None,
+                }]
+            record_event(
+                root, "session.finish.refused", args.session,
+                status="ok",
+                claims_verdict=("RED" if refuse_reason == "no_check_backed_claims"
+                                else state["verdict"]),
+                command_exit=proc_code, observed_by="run-wrapper",
+                refuse_reason=refuse_reason,
+                claims_unverified=unverified,
+                budget_max_seconds=args.max_seconds,
+                budget_elapsed_seconds=round(budget.elapsed, 3),
+                budget_exceeded=verdict.exceeded,
+                budget_reason=verdict.reason,
+            )
+            print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
+                  f"({state['passed']}/{state['total']} verified)")
+            print("GATE: the command reported success but this session's "
+                  "claims do not meet the exit gate.", file=sys.stderr)
+            return 2
         record_event(root, "session.finish", args.session,
                      status=("ok" if proc_code == 0 else "error"),
                      claims_verdict=state["verdict"], command_exit=proc_code,
@@ -412,10 +449,6 @@ def main(argv: list[str] | None = None) -> int:
                      budget_reason=verdict.reason)
         print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
               f"({state['passed']}/{state['total']} verified)")
-        if args.gate and proc_code == 0 and state["verdict"] == "RED":
-            print("GATE: the command reported success but this session's "
-                  "claims do not verify.", file=sys.stderr)
-            return 2
         return proc_code
 
     if args.cmd == "stop-hook":

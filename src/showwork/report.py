@@ -223,7 +223,12 @@ def session_status(root: Path, session: str | None = None) -> dict:
         refused = [e for e in evs if e.get("event") == "session.finish.refused"]
         last_finish = finishes[-1] if finishes else None
         last_refuse = refused[-1] if refused else None
-        open_ = started and last_finish is None
+        open_ = False
+        for e in evs:
+            if e.get("event") == "session.start":
+                open_ = True
+            elif e.get("event") == "session.finish":
+                open_ = False
         # Prefer live verify for open sessions; else last stamped verdict.
         state = evaluate_records(claims_for_session(root, name), root,
                                  label=f"session {name}")

@@ -44,7 +44,20 @@ def test_run_gate_refuses_success_with_red_claims(tmp_path, capsys):
     code = main(["--root", str(tmp_path), "run", "--session", "w", "--gate",
                  "--", sys.executable, "-c", "print('all good, boss')"])
     assert code == 2
-    assert _sessions(tmp_path)[-1]["claims_verdict"] == "RED"
+    last = _sessions(tmp_path)[-1]
+    assert last["event"] == "session.finish.refused"
+    assert last["claims_verdict"] == "RED"
+    assert last["refuse_reason"] == "claims_red"
+
+
+def test_run_gate_refuses_success_with_no_claims(tmp_path, capsys):
+    code = main(["--root", str(tmp_path), "run", "--session", "empty-gate",
+                 "--gate", "--", sys.executable, "-c", "print('ok')"])
+    assert code == 2
+    last = _sessions(tmp_path, "empty-gate")[-1]
+    assert last["event"] == "session.finish.refused"
+    assert last["refuse_reason"] == "no_check_backed_claims"
+    assert "GATE" in capsys.readouterr().err
 
 
 def test_run_without_gate_reports_but_propagates(tmp_path):

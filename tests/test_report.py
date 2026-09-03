@@ -41,3 +41,6 @@ def test_session_status_open_vs_closed(tmp_path):
     finish_session(tmp_path, "open-s")
     status = session_status(tmp_path, session="open-s")
     assert status["sessions"][0]["open"] is False
+    start_session(tmp_path, "open-s")
+    status = session_status(tmp_path, session="open-s")
+    assert status["sessions"][0]["open"] is True

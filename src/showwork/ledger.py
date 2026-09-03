@@ -94,22 +94,38 @@ def _git_value(root: Path, flag: str) -> str:
 def session_file_stem(session: str) -> str:
     """Turn a session id into a single path component.
 
-    Two agents that share a slug still collide. Distinct slugs (agent prefix
-    plus task) produce distinct files. Empty ids, path separators, and
-    Windows reserved device names are rejected or rewritten, never joined.
+    Two agents that share a slug still collide. Distinct slugs must map to
+    distinct files: when sanitization or truncation would collide distinct
+    inputs, append a short hash of the original id so the stem stays injective.
+    Empty ids, path separators, and Windows reserved device names are rejected
+    or rewritten, never joined.
     """
     raw = (session or "").strip()
     if not raw:
         raise ValueError("session id is empty")
+    if raw in {".", ".."}:
+        raise ValueError(f"session id is not a safe file stem: {session!r}")
     cleaned = _SESSION_UNSAFE_RE.sub("-", raw).strip(".-")
     cleaned = re.sub(r"-{2,}", "-", cleaned)
     if cleaned.lower() in _WINDOWS_RESERVED:
         cleaned = f"sess-{cleaned}"
-    if len(cleaned) > 120:
-        cleaned = cleaned[:120].rstrip(".-")
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
+    # Lossy when characters were rewritten, reserved names were prefixed, or
+    # the id was truncated. Bind the original bytes with a hash suffix.
+    lossy = cleaned != raw or len(raw) > 120
+    if lossy:
+        max_base = 120 - 1 - len(digest)  # room for "-<digest>"
+        if len(cleaned) > max_base:
+            cleaned = cleaned[:max_base].rstrip(".-")
+        cleaned = f"{cleaned}-{digest}" if cleaned else f"sess-{digest}"
     if not cleaned or cleaned in {".", ".."} or not _SESSION_STEM_RE.fullmatch(cleaned):
         raise ValueError(f"session id is not a safe file stem: {session!r}")
     return cleaned
+
+
+def has_minimum_proof(state: dict) -> bool:
+    """True when the verify state has at least one non-skipped check result."""
+    return any(r.get("status") != "skipped" for r in state.get("results", []))
 
 
 def _session_subdir_path(root: Path, subdir: str, session: str) -> Path:
@@ -503,10 +519,9 @@ def finish_session(root: Path, session: str, status: str = "ok",
         state = verify_session(root, session)
         verdict = state["verdict"]
     if status == "ok" and not no_verify:
-        live_checked = [r for r in state["results"] if r["status"] != "skipped"]
         refuse_reason = None
         unverified = gaps_payload(state)
-        if not live_checked:
+        if not has_minimum_proof(state):
             refuse_reason = "no_check_backed_claims"
             verdict = "RED"
             unverified = [{

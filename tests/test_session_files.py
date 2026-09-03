@@ -54,13 +54,19 @@ def test_session_file_stem_rejects_path_escape():
         session_file_stem("..")
     with pytest.raises(ValueError):
         session_file_stem(".")
-    assert session_file_stem("foo/bar") == "foo-bar"
-    assert session_file_stem("con") == "sess-con"
+    slash = session_file_stem("foo/bar")
+    qmark = session_file_stem("foo?bar")
+    assert slash != qmark
+    assert slash.startswith("foo-bar-")
+    assert qmark.startswith("foo-bar-")
+    assert session_file_stem("con").startswith("sess-con-")
     assert ".." not in session_file_stem("..\\..\\escaped")
     path = session_file_stem("a" * 200)
     assert len(path) <= 120
     assert "/" not in path
     assert "\\" not in path
+    # Safe ids stay exact so existing receipts keep their paths.
+    assert session_file_stem("claude-fix") == "claude-fix"
 
 
 def test_legacy_shared_files_remain_readable(tmp_path):
