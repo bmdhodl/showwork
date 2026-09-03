@@ -51,7 +51,7 @@ Evidence paths:
 - `K:\showwork\sources\research_20260815_showwork_receipt_compatibility_evidence_matrix_r8.md`
 - `K:\showwork\.showwork\claims-2026-08-15.jsonl`
 - `K:\showwork\.showwork\sessions.jsonl`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-scope-state-answer-contract-2026-08-15.md`
+- `<vault>\Reports\Research\showwork-scope-state-answer-contract-2026-08-15.md`
 
 ## Decision
 

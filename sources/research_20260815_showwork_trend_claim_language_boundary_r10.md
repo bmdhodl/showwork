@@ -45,7 +45,7 @@ Evidence paths:
 - `K:\showwork\.showwork\claims-2026-08-10.jsonl`
 - `K:\showwork\.showwork\claims-2026-08-14.jsonl`
 - `K:\showwork\.showwork\claims-2026-08-15.jsonl`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-date-sample-selection-readout-2026-08-15.md`
+- `<vault>\Reports\Research\showwork-date-sample-selection-readout-2026-08-15.md`
 
 ## Decision
 

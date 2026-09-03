@@ -51,4 +51,4 @@ whether a separate, cross-platform process-tree design is worth its test and
 maintenance cost. Do not describe the current wrapper as a security,
 compliance, SLA, or universal process-isolation mechanism.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r18-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r18-full-20260815` -> **239 passed**.

@@ -37,8 +37,8 @@ Evidence paths:
 - `K:\showwork\.showwork\claims-2026-08-10.jsonl`
 - `K:\showwork\.showwork\claims-2026-08-14.jsonl`
 - `K:\showwork\.showwork\claims-2026-08-15.jsonl`
-- `C:\Users\patri\AppData\Local\Temp\showwork-governance-human-authority-20260815-r1`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-rolling-health-trend-readout-2026-08-15.md`
+- `<temp>\showwork-governance-human-authority-20260815-r1`
+- `<vault>\Reports\Research\showwork-rolling-health-trend-readout-2026-08-15.md`
 
 ## Interpretation rule
 

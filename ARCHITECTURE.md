@@ -47,7 +47,9 @@ Three rules drive every design decision below:
 | `src/showwork/ledger.py` | Append-only storage, record framing, hash chain writes, session lifecycle, the `finish` gate |
 | `src/showwork/checks.py` | The eight deterministic checkers, the verification driver, verdict algebra, retraction resolution |
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
-| `src/showwork/cli.py` | Argument parsing and the ten subcommands; exit codes |
+| `src/showwork/cli.py` | Argument parsing and the subcommands; exit codes |
+| `src/showwork/snapshot.py` | Session-start tree snapshot and undeclared-change detection |
+| `src/showwork/scaffold.py` | `showwork init` writes Cursor/Claude/CI glue |
 | `src/showwork/hooks.py` | Stop-hook adapter. Observes, never gates |
 | `src/showwork/control.py` | PreToolUse approval rules, PostToolUse payload plumbing, Claude Code hook JSON |
 | `src/showwork/guards.py` | `StuckDetector`: repeat / alternation / no-progress signatures |
@@ -73,6 +75,7 @@ so two agents in two worktrees write two `.showwork/` trees.
 .showwork/
   sessions/<id>.jsonl       session.start / session.finish for one session
   claims/<id>.jsonl         claims and retractions for that session
+  snapshots/<id>.json       tree snapshot taken at session.start
   claims-YYYY-MM-DD.jsonl   leftover shared day file (read, not written)
   sessions.jsonl            leftover shared session file (read, not written)
   audit-<label>.md          human-readable report written by `verify`
@@ -475,7 +478,7 @@ the tool stream alone, before the money is spent rather than after.
 
 ## Two implementations, one conformance suite
 
-`js/showwork-audit/index.mjs` implements the **reading half** of `spec-v0.3`:
+`js/showwork-audit/index.mjs` implements the **reading half** of `spec-v0.4`:
 chain verification and verdicts, `node:crypto` and `node:fs` only. It
 re-executes no checks. Per the spec's reader-only conformance clause it reports
 what it does not verify rather than skipping it silently.
@@ -512,7 +515,7 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 - The Python API re-exported from `showwork/__init__.py`. `record_claim`,
   `verify_session`, `verify_date`, `resolve_root`, `finish_session`,
   `audit_root`, plus the control-plane types.
-- `SPEC.md`, the portable `spec-v0.3` ledger format. Every normative
+- `SPEC.md`, the portable `spec-v0.4` ledger format. Every normative
   requirement names a behavioral test beside it, and reader-only conformance
   is defined there for auditors like `js/showwork-audit`.
 - `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.1`.

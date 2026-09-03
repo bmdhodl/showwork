@@ -23,4 +23,4 @@ For a future documentation review, versioned GitHub URLs are the clearest replay
 
 This readout does not prove package reproducibility, exact replay, adoption, supply-chain integrity, or release readiness. No signing, schema, verifier, packaging, or public-copy change is authorized.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r20-full-20260815` -> **239 passed**
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r20-full-20260815` -> **239 passed**

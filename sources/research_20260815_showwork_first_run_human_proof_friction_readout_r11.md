@@ -12,7 +12,7 @@ evidence.
 - Python: `3.13.2`, `C:\Python313\python.exe`.
 - Venv creation: 5.940 seconds.
 - `pip install showwork`: exit 0, 1.518 seconds, installed `showwork 0.3.0`.
-- Proof root: `C:\Users\patri\AppData\Local\Temp\showwork-first-run-r11-fff6b2c164994077bc2d23b5545f2ad4\proof-root`.
+- Proof root: `<temp>\showwork-first-run-r11-fff6b2c164994077bc2d23b5545f2ad4\proof-root`.
 - Input: one synthetic `artifact.txt`; no customer or private data.
 
 ## Exact transcript

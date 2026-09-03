@@ -7,6 +7,7 @@
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
     showwork status [--session S] [--json]
     showwork report [--since YYYY-MM-DD] [--exclude-campaign] [--json]
+    showwork init [--cursor] [--claude] [--ci] [--force]
 
 Exit codes: 0 GREEN, 3 YELLOW, 2 RED (and `finish --status ok` exits 2 when
 this session's own claims do not verify).
@@ -54,6 +55,7 @@ from .ledger import (
     verify_date,
     verify_session,
 )
+from .scaffold import init_project
 from .report import render_status, render_usage, session_status, usage_report
 
 SESSION_ENV = "SHOWWORK_SESSION"
@@ -161,6 +163,7 @@ def _print_state(state: dict, as_json: bool) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog="showwork",
                                  description="falsifiable claims + deterministic verification for AI agents")
     ap.add_argument("--root", default=None,
@@ -267,6 +270,23 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--repeat-threshold", type=int, default=3)
     p.add_argument("--state", default=".showwork/guard-state.json",
                    help="where PostToolUse keeps its rolling call window")
+
+    p = sub.add_parser(
+        "init",
+        help="write Cursor rule, Claude Stop hook, and a CI workflow draft",
+    )
+    p.add_argument("--cursor", action="store_true",
+                   help="write .cursor/rules/showwork.mdc")
+    p.add_argument("--claude", action="store_true",
+                   help="write or merge .claude/settings.json Stop hook")
+    p.add_argument("--ci", action="store_true",
+                   help="write docs/ci/showwork-verify.yml (does not touch .github/)")
+    p.add_argument("--force", action="store_true",
+                   help="overwrite files that already exist")
+
+    if not argv:
+        ap.print_help()
+        return 0
 
     args = ap.parse_args(argv)
     root = resolve_root(args.root)
@@ -531,6 +551,22 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"showwork guard: {exc}", file=sys.stderr)
             return 0
+
+    if args.cmd == "init":
+        selected = args.cursor or args.claude or args.ci
+        notes = init_project(
+            root,
+            cursor=args.cursor or not selected,
+            claude=args.claude or not selected,
+            ci=args.ci or not selected,
+            force=args.force,
+        )
+        for note in notes:
+            print(note)
+        print("Next: python -m showwork start --session first-look --agent cursor")
+        print("Then claim a file that does not exist and run finish --status ok.")
+        print("The gate should refuse. That refusal is the product.")
+        return 0
 
     return 2  # unreachable
 

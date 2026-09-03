@@ -42,4 +42,4 @@ traffic instrumentation is warranted by this readout.
 
 Sources: https://pypi.org/project/showwork/0.3.0/, https://pypi.org/pypi/showwork/0.3.0/json, https://github.com/bmdhodl/showwork, https://raw.githubusercontent.com/bmdhodl/showwork/main/README.md, and https://raw.githubusercontent.com/bmdhodl/showwork/v0.3.0/README.md.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r19-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r19-full-20260815` -> **239 passed**.

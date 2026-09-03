@@ -5,12 +5,19 @@
 
 **Make your AI agents show their work.**
 
-Observability tools log what an agent *did*. showwork verifies what an agent *claimed* it did — deterministically, against reality — and refuses to bless a "done" that isn't real.
+Observability tools log what an agent *did*. showwork verifies what an agent *claimed* it did, deterministically, against reality, and refuses to bless a "done" that isn't real.
 
 Zero dependencies. Stdlib only. One append-only ledger.
 
-[Read the portable `spec-v0.3` ledger specification](SPEC.md) or install the
-[Claude Code Stop-hook adapter](docs/claude-code.md).
+[Read the portable `spec-v0.4` ledger specification](SPEC.md). Install the
+[Claude Code Stop-hook adapter](docs/claude-code.md) or run
+`showwork init` for Cursor, Claude, and a CI draft.
+
+Surveyed 2026-09-03: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads.
+Day-0 False Done Rate on the author's fleet: 21 sessions, 42.9% contained a
+false done. Every one was caught by the gate. Source:
+[docs/false-done-rate-day0.md](docs/false-done-rate-day0.md).
+The published PyPI package is still 0.3.0. This tree is 0.4.0.
 
 ## The problem
 
@@ -22,49 +29,61 @@ That gap is why agent pilots die before production, and it's what audit-trail re
 
 1. **Claims are falsifiable or they're just prose.** When an agent (or its harness) reports a completed change, it appends a structured claim to the ledger: a file changed, a path moved, a metric holds, a command passes. Free-form prose is recorded but never counted as proof.
 2. **Verification is deterministic.** `showwork verify` re-checks every claim against the filesystem and locked commands. No LLM judges an LLM.
-3. **The exit gate refuses false dones.** `showwork finish --status ok` verifies the session's own claims first. If any is RED, the close is refused (exit 2). Fix it, retract it, or close as `blocked` — the bypass is stamped on the record either way.
+3. **The exit gate refuses false dones.** `showwork finish --status ok` verifies the session's own claims first. If any is RED, the close is refused (exit 2). Fix it, retract it, or close as `blocked`. The bypass is stamped on the record either way.
 4. **The ledger is append-only.** Corrections are retraction records that reference the original claim. History is never rewritten.
+5. **Undeclared damage is not GREEN.** `session.start` snapshots the project tree. `verify` and `finish` go RED if a file that existed at start is deleted or changed and no active claim named that path. That is issue #64.
 
 ## Quickstart
+
+Paste this into an empty directory. The first close is supposed to fail.
+The refusal is the product.
 
 ```bash
 pip install showwork
 ```
 
+`python -m showwork` is the same CLI after install. Use it if `showwork` is not on PATH.
+
 ```bash
-# an agent session starts
-showwork start --session deploy-fix --agent claude-code
-
-# the agent claims what it did, with a check that can fail
-showwork claim --session deploy-fix \
-  --claim "bumped the API timeout in config" \
-  --type file_contains --path config/api.yaml --pattern "timeout: 30"
-
-showwork claim --session deploy-fix \
-  --claim "tests pass" \
-  --type command --command-arg python --command-arg scripts/run_tests.py
-
-# the close is gated: exit 0 only if every claim verifies
-showwork finish --session deploy-fix --status ok
+showwork start --session first-look --agent cursor
+showwork claim --session first-look --claim "config/api.yaml exists" --type file_exists --path config/api.yaml
+showwork finish --session first-look --status ok
 ```
 
 ```
-claims: GREEN (2/2 verified)
-session.finish recorded: deploy-fix
-```
-
-If a claim doesn't hold:
-
-```
-claims: RED (1/2 verified)
+claims: RED (0/1 verified)
 REFUSED: a clean close requires this session's claims to verify.
 ```
+
+Then make the claim true and close clean:
+
+```bash
+python -c "from pathlib import Path; p=Path('config'); p.mkdir(exist_ok=True); (p/'api.yaml').write_text('timeout: 30\n')"
+showwork retract --session first-look --claim "config/api.yaml exists" --reason "file was not written yet"
+showwork claim --session first-look --claim "config/api.yaml exists" --type file_exists --path config/api.yaml
+showwork finish --session first-look --status ok
+```
+
+```
+claims: GREEN (1/1 verified)
+session.finish recorded: first-look
+```
+
+Put the same loop on your own repo in one command:
+
+```bash
+showwork init
+```
+
+That writes a Cursor rule, a Claude Code Stop hook, and `docs/ci/showwork-verify.yml`.
+Copy the YAML into `.github/workflows/` when you are ready to gate CI.
+A Cursor walk is in [docs/walks/cursor.md](docs/walks/cursor.md).
 
 Audit any day or any session after the fact:
 
 ```bash
-showwork verify --date 2026-07-09        # exit 0 GREEN, 3 YELLOW, 2 RED
-showwork verify --session deploy-fix --json
+showwork verify --date 2026-07-09
+showwork verify --session first-look --json
 ```
 
 ## Check types
@@ -76,7 +95,7 @@ showwork verify --session deploy-fix --json
 | `path_moved` | source is gone, destination exists |
 | `frontmatter` | a YAML frontmatter field equals a value |
 | `glob_count` | a glob's match count satisfies `== >= <= > <` |
-| `command` | a **locked** command exits as expected (`python <script under project root>` only — no shell, no metacharacters, no escape) |
+| `command` | a **locked** command exits as expected (`python <script under project root>` only; no shell, no metacharacters, no escape) |
 | `http_probe` | an HTTP(S) endpoint returns an exact status and optional body substring, with redirects disabled |
 | `git_state` | the local tree is clean/dirty, on an exact branch, or at a commit prefix |
 
@@ -127,7 +146,7 @@ concurrency can pass `showwork audit --strict`. Rationale:
 ```
 
 Fails the job on a chain break, failed claims, a missing exit-gate close, or
-a `--no-verify` bypass stamp — and renders the receipt into the step summary.
+a `--no-verify` bypass stamp, and renders the receipt into the step summary.
 Fork-safe by default ([docs/ci.md](docs/ci.md)).
 
 ## Wrap any agent, no integration
@@ -154,14 +173,14 @@ generic subprocess wrapper cannot see an agent's internal tool stream; use the
 
 Receipts make a new number measurable: **how often agents claim work that is
 not backed by reality.** Day-0 on our own production fleet: **21 sessions,
-42.9% contained a false done — every one caught by the gate.** Methodology
+42.9% contained a false done, every one caught by the gate.** Methodology
 pre-registered, corpus honesty rules included:
 [docs/false-done-rate.md](docs/false-done-rate.md).
 
 ## Evidence packs for auditors
 
 `scripts/evidence_pack.py` maps a date range of chain-verified receipts to
-EU AI Act Art. 12/26(6), SOC 2, and HIPAA record-keeping language — and
+EU AI Act Art. 12/26(6), SOC 2, and HIPAA record-keeping language, and
 refuses to generate from a tampered ledger
 ([docs/compliance.md](docs/compliance.md)).
 
@@ -207,7 +226,7 @@ The survey predates this package and does not cite it. It is context for the pro
 
 - Not observability. Traces show what happened; showwork proves what was *claimed* to have happened.
 - Not agent testing. Test frameworks check behavior pre-deployment; showwork verifies outcomes at runtime, every session.
-- Not an LLM judge. Every check is deterministic and reproducible — which is what makes the record audit-grade.
+- Not an LLM judge. Every check is deterministic and reproducible, which is what makes the record audit-grade.
 
 ## Roadmap
 

@@ -4,6 +4,7 @@ Layout (under the project root):
     .showwork/
       sessions/<id>.jsonl       session.start / session.finish for one session
       claims/<id>.jsonl         claims and retractions for one session
+      snapshots/<id>.json       tree snapshot taken at session.start
       claims-YYYY-MM-DD.jsonl   legacy shared day file (read, not written)
       sessions.jsonl            legacy shared session file (read, not written)
 
@@ -22,6 +23,12 @@ from datetime import datetime
 from pathlib import Path
 
 from .checks import evaluate_records, gaps_payload, validate_check_shape
+from .snapshot import (
+    merge_undeclared,
+    snapshot_file,
+    undeclared_results,
+    write_tree_snapshot,
+)
 
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
@@ -635,8 +642,23 @@ def verify_date(root: str | Path | None = None, date_str: str | None = None) -> 
 
 def verify_session(root: str | Path | None = None, session: str = "") -> dict:
     rt = resolve_root(root)
-    return evaluate_records(claims_for_session(rt, session), rt,
-                            label=f"session {session}")
+    claims = claims_for_session(rt, session)
+    state = evaluate_records(claims, rt, label=f"session {session}")
+    start = _latest_session_start(rt, session)
+    try:
+        snap = snapshot_file(ledger_dir(rt), session_file_stem(session))
+    except ValueError:
+        return state
+    extra = undeclared_results(rt, claims, start, snap)
+    return merge_undeclared(state, extra)
+
+
+def _latest_session_start(root: Path, session: str) -> dict | None:
+    starts = [
+        rec for rec in load_all_events(root)
+        if rec.get("session") == session and rec.get("event") == "session.start"
+    ]
+    return starts[-1] if starts else None
 
 
 # ---------- session lifecycle ----------
@@ -644,7 +666,12 @@ def verify_session(root: str | Path | None = None, session: str = "") -> dict:
 
 def start_session(root: Path, session: str, agent: str | None = None,
                   note: str | None = None) -> dict:
-    return record_event(root, "session.start", session, agent=agent, note=note)
+    snap_path = snapshot_file(ledger_dir(root), session_file_stem(session))
+    tree_snapshot = write_tree_snapshot(root, snap_path)
+    return record_event(
+        root, "session.start", session, agent=agent, note=note,
+        tree_snapshot=tree_snapshot,
+    )
 
 
 def finish_session(root: Path, session: str, status: str = "ok",

@@ -19,4 +19,4 @@ Search-result presence does not establish ranking, impressions, clicks, qualifie
 
 An **owner-gated** distribution experiment could compare one versioned proof landing surface against the current public artifact with predeclared query and reader checks. It would need explicit instrumentation and review. This report does not authorize that experiment or any public copy change.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r20-full-20260815` -> **239 passed**
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r20-full-20260815` -> **239 passed**

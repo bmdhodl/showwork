@@ -45,4 +45,4 @@ or “verified by an outside observer.”
 reader may expose age/revision metadata beside a proof artifact, but this card
 does not add fields, rewrite old receipts, or change public copy.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r14-full-20260815` -> **234 passed in 11.67s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r14-full-20260815` -> **234 passed in 11.67s**.

@@ -41,4 +41,4 @@ partial claim currently verifies.
 the termination/receipt semantics. Do not call it a process-tree supervisor or
 hard real-time timer.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r15-full-20260815` -> **234 passed in 13.27s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r15-full-20260815` -> **234 passed in 13.27s**.

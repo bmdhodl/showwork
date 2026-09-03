@@ -35,7 +35,7 @@ The bounded sample and its interpretation are recorded in:
 - `K:\showwork\.showwork\sessions.jsonl`
 - `K:\showwork\sources\research_20260815_showwork_receipt_compatibility_evidence_matrix_r8.md`
 - `K:\showwork\sources\research_20260815_showwork_proof_pack_query_answerability_r8.md`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-receipt-compatibility-evidence-matrix-2026-08-15.md`
+- `<vault>\Reports\Research\showwork-receipt-compatibility-evidence-matrix-2026-08-15.md`
 
 The compatibility sample records three historical test expectations for the
 same command: `218 passed` and `226 passed` were retracted after the suite

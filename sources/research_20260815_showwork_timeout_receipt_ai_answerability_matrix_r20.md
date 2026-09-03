@@ -24,4 +24,4 @@ The safe consumer contract is to separate answer, qualify, unknown, and refuse. 
 
 No new field, verifier, signer, schema, model integration, process-tree policy, adoption claim, or exact-replay claim is supported by this readout.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r20-full-20260815` -> **239 passed**
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r20-full-20260815` -> **239 passed**

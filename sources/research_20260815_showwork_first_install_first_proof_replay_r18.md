@@ -57,4 +57,4 @@ clean environment after reconciling versioned action references and stable
 links for repository-only proof context. Keep this result as a reproducible
 fixture, not as a traffic, citation, or adoption metric.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r18-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r18-full-20260815` -> **239 passed**.

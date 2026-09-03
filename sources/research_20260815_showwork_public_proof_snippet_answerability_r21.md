@@ -26,4 +26,4 @@ An owner-gated distribution follow-up could predeclare a query set and
 separate direct answerability from measured traffic. This report does not
 authorize public-copy, package, release, tracking, or adoption work.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r21-full-20260815 -> **239 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r21-full-20260815 -> **239 passed**

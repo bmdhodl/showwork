@@ -35,4 +35,4 @@ evidence, verified empty, RED, refused, and blocked.
 No dashboard implementation, UI, tracking, public-copy, accessibility,
 schema, adoption, or compliance change belongs to this readout.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r21-full-20260815 -> **239 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r21-full-20260815 -> **239 passed**

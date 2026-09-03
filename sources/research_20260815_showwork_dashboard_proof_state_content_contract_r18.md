@@ -67,4 +67,4 @@ the receipt/report. Keep the existing replay warning and add explicit
 or imply adoption, authority, compliance, or current truth from this static
 artifact.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r18-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r18-full-20260815` -> **239 passed**.

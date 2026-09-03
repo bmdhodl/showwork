@@ -43,4 +43,4 @@ time, source revision, claim count, audit/session verdict, exit-gate state,
 fork heads, provenance, and explicit links. Keep replay/refusal boundaries
 visible and do not infer authority, compliance, adoption, or current truth.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r19-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r19-full-20260815` -> **239 passed**.

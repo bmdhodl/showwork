@@ -30,7 +30,7 @@ The bounded receipt inventory is in:
 - `K:\showwork\sources\research_20260815_showwork_receipt_compatibility_evidence_matrix_r8.md`
 - `K:\showwork\.showwork\claims-2026-08-15.jsonl`
 - `K:\showwork\.showwork\sessions.jsonl`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-receipt-reproducibility-metadata-gap-2026-08-15.md`
+- `<vault>\Reports\Research\showwork-receipt-reproducibility-metadata-gap-2026-08-15.md`
 
 The compatibility evidence contains session/time/argv and expected predicates
 for historical test counts. It does not bind those records to a source commit,

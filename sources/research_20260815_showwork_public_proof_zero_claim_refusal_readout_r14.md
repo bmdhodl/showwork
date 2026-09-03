@@ -47,4 +47,4 @@ This is a content-level recommendation only. No public text was changed.
 **NO CHANGE.** Preserve the current reader contract and use non-empty claim
 evidence as the minimum threshold for a positive proof statement.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r14-full-20260815` -> **234 passed in 11.67s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r14-full-20260815` -> **234 passed in 11.67s**.

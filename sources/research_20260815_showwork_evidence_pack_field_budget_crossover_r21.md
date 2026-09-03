@@ -32,4 +32,4 @@ whether a bounded reader is acceptable for a specific use. Any chosen bound
 must make truncation and proof loss explicit. No packer, serializer, schema,
 dashboard, performance, SLA, hosted-service, or adoption claim is supported.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r21-full-20260815 -> **239 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r21-full-20260815 -> **239 passed**

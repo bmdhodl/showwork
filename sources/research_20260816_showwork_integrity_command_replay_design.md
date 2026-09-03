@@ -313,9 +313,9 @@ tamper behavior, and append-only history, not just argv equality.
 
 ## Validation summary
 
-The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` (checked-out `src/` implementation) was revalidated from a clean detached-tree proof worktree at `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817`.
-The runnable pytest fixture was materialized outside that checkout at `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`; the code block below is the exact external harness text.
-Detached-tree proof command from `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` used the external harness file `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`.
+The current exact-tree `99ad1df4b8e12b4a128f19d2059ab6613dc9931e` (checked-out `src/` implementation) was revalidated from a clean detached-tree proof worktree at `<codex-tmp>\showwork-pr63-99ad-clean-ext-20260817`.
+The runnable pytest fixture was materialized outside that checkout at `<codex-tmp>\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`; the code block below is the exact external harness text.
+Detached-tree proof command from `<codex-tmp>\showwork-pr63-99ad-clean-ext-20260817` with `PYTHONPATH=src` and `PYTHONDONTWRITEBYTECODE=1` used the external harness file `<codex-tmp>\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`.
 It self-refuses unless git status --porcelain --untracked-files=all is empty before the run, and it rechecks that the checkout remains clean after the run with `PYTHONDONTWRITEBYTECODE=1`.
 
 The earlier `76/149` reading is withdrawn. It came from a mismatched
@@ -421,16 +421,16 @@ def test_synthetic_exact_tree_receipt(monkeypatch, tmp_path):
 - `python -m pytest tests/ -q` → `274 passed`
 - `python -m ruff check .` → `All checks passed!`
 - External-harness pytest command from
-  `C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817` with
+  `<codex-tmp>\showwork-pr63-99ad-clean-ext-20260817` with
   `PYTHONPATH=src`, `PYTHONDONTWRITEBYTECODE=1`, and
   `python -m pytest -q -s -p no:cacheprovider`
-  `C:\Users\patri\.codex\tmp\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`
+  `<codex-tmp>\showwork-pr63-external-fixture-20260817\test_synthetic_exact_tree_receipt.py`
   printed the rendered `76/76 verified` receipt plus `PRE_CLEAN=''` and
   `POST_CLEAN=''`
 - Within that same fixture, the run asserted pinned detached-tree identity and
   bounded synthetic counts:
   `HEAD=99ad1df4b8e12b4a128f19d2059ab6613dc9931e`,
-  `CHECKS=C:\Users\patri\.codex\tmp\showwork-pr63-99ad-clean-ext-20260817\src\showwork\checks.py`,
+  `CHECKS=<codex-tmp>\showwork-pr63-99ad-clean-ext-20260817\src\showwork\checks.py`,
   `raw_rows=223`, `claim_results=149`, `scored_total=76`, `passed=76`, and
   `verdict=GREEN`; those values were fixture assertions, not console output
 - The bounded synthetic `evaluate_records()` fixture on the pinned tree

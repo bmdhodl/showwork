@@ -21,7 +21,7 @@ record. It does not establish a future evidence-pack parser contract.
 
 Disposable root:
 
-`C:\Users\patri\AppData\Local\Temp\showwork-r25-parser-fixture-20260815`
+`<temp>\showwork-r25-parser-fixture-20260815`
 
 The fixture contained only a redacted `marker.txt` with `verified` and one
 `claims-2026-08-15.jsonl` record. The base record was:

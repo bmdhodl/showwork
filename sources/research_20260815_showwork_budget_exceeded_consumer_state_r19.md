@@ -41,4 +41,4 @@ Keep the existing event fields and document a consumer mapping that treats
 wrapper outcome, proof verdict, and process observation as separate facts. Do
 not add schema or process-tree behavior from this readout.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r19-full-20260815` -> **239 passed**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r19-full-20260815` -> **239 passed**.

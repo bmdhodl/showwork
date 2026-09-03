@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-showwork-stranger-20260903", "ts": "2026-09-03T14:35:12", "agent": "cursor", "tree_snapshot": {"count": 370, "sha256": "82969c2d1c97a01e9be67a24dc6ee793e9963872a6e54327905678c3c568ad26"}, "prev": "b14ba4926954090a13fafca0b3197fd6342dc1a778a3d014b2075946b618fa5d"}
+{"event": "session.finish", "session": "cursor-showwork-stranger-20260903", "ts": "2026-09-03T14:36:00", "status": "ok", "claims_verdict": "GREEN", "prev": "4117811d01b8402fb734a5552674af813ea50c39b31a53eac98d68f51882380a"}

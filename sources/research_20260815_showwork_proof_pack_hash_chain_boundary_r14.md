@@ -55,4 +55,4 @@ chooses to distribute a pack digest or a chain head, it must be labeled as an
 external comparison anchor and must not be described as authorization,
 security, compliance, or adoption proof.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r14-full-20260815` -> **234 passed in 11.67s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r14-full-20260815` -> **234 passed in 11.67s**.

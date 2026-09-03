@@ -35,4 +35,4 @@ enable it or publish a detection rate.
 Canonical local evidence: `src/showwork/guards.py`,
 `docs/live-enforcement.md`, and `tests/test_guards.py`.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r15-full-20260815` -> **234 passed in 13.27s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r15-full-20260815` -> **234 passed in 13.27s**.

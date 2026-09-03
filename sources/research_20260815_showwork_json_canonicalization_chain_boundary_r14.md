@@ -57,4 +57,4 @@ only as an external comparison. Do not canonicalize historical receipts,
 claim cross-language interoperability, or add a signing/verifier surface from
 this readout.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r14-full-20260815` -> **234 passed in 11.67s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r14-full-20260815` -> **234 passed in 11.67s**.

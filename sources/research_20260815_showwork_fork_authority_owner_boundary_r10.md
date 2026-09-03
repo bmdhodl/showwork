@@ -43,7 +43,7 @@ Evidence paths:
 - `K:\showwork\sources\research_20260815_showwork_provenance_field_crosswalk_readout_r9.md`
 - `K:\showwork\sources\research_20260815_showwork_scope_state_answer_contract_r8.md`
 - `K:\showwork\.showwork\claims-2026-08-15.jsonl`
-- `C:\Users\patri\Documents\Obsidian Vault\Reports\Research\showwork-lifecycle-fork-retraction-answerability-2026-08-15.md`
+- `<vault>\Reports\Research\showwork-lifecycle-fork-retraction-answerability-2026-08-15.md`
 
 ## Decision
 

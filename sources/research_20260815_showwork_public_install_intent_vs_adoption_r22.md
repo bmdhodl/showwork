@@ -27,4 +27,4 @@ evidence separately, with explicit attribution. No telemetry, tracking,
 metadata, package, release, public-copy, ranking, traffic, or adoption claim
 was made.
 
-Validation: python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r22-full-20260815 -> **240 passed**
+Validation: python -m pytest tests/ -q --basetemp=<temp>\showwork-r22-full-20260815 -> **240 passed**

@@ -21,7 +21,7 @@ Decision: **KEEP** the current product surface and refusal language.
 
 - Windows 11 build `10.0.26200`.
 - Python `3.13.2` from `C:\Python313\python.exe`.
-- Clean proof root: `C:\Users\patri\AppData\Local\Temp\showwork-powershell-r12-20260815-clean`.
+- Clean proof root: `<temp>\showwork-powershell-r12-20260815-clean`.
 - Venv creation: exit 0, 4,300.4 ms.
 - `pip install showwork`: exit 0, 1,389.0 ms, installed `0.3.0`.
 - Input: `marker.txt` containing synthetic local text.

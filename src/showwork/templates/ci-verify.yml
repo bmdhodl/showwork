@@ -1,0 +1,27 @@
+# Drop-in GitHub Actions workflow: gate the job on showwork receipts.
+#
+# Copy this file to .github/workflows/showwork.yml in your repository.
+# Pin the action to a release tag. Do not use @main on a gate you trust.
+#
+# This file lives under docs/ci/ on purpose. showwork's own GitHub
+# workflows are owner-gated and are not edited by agents.
+
+name: showwork receipts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  receipts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bmdhodl/showwork/actions/verify@v0.3.0
+        with:
+          session: ${{ github.head_ref || github.ref_name }}
+          # Fork PRs stay safe: command and network checks refuse to run.
+          # Enable them only for same-repository branches you trust.
+          # allow-commands: ${{ github.event.pull_request.head.repo.full_name == github.repository }}

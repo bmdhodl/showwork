@@ -38,8 +38,14 @@ Issues = "https://github.com/bmdhodl/showwork/issues"
 [project.scripts]
 showwork = "showwork.cli:main"
 
+[project.entry-points."pytest11"]
+showwork = "showwork.pytest_plugin"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+showwork = ["templates/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -41,4 +41,4 @@ mapping. Do not enable either opt-in for fork-shaped input.
 Canonical local evidence: `.github/workflows/clean-room-action.yml`,
 `.github/workflows/ci.yml`, `actions/verify/action.yml`, and `docs/ci.md`.
 
-Validation: `python -m pytest tests/ -q --basetemp=C:\Users\patri\AppData\Local\Temp\showwork-r15-full-20260815` -> **234 passed in 13.27s**.
+Validation: `python -m pytest tests/ -q --basetemp=<temp>\showwork-r15-full-20260815` -> **234 passed in 13.27s**.
