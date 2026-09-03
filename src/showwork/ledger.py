@@ -96,7 +96,8 @@ def session_file_stem(session: str) -> str:
 
     Two agents that share a slug still collide. Distinct slugs must map to
     distinct files: when sanitization or truncation would collide distinct
-    inputs, append a short hash of the original id so the stem stays injective.
+    inputs, prefix the stem with h- and a short hash of the original id so
+    the stem stays injective.
     Empty ids, path separators, and Windows reserved device names are rejected
     or rewritten, never joined.
     """
@@ -114,12 +115,16 @@ def session_file_stem(session: str) -> str:
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     # Lossy when whitespace was stripped, characters were rewritten, reserved
     # names were prefixed, case differs, or the id was truncated.
-    lossy = cleaned != raw or len(raw) > 120 or original != raw or cleaned != cleaned.lower()
+    # Hashed stems live under h- so they cannot collide with an exact id,
+    # including a lowercase id that looks like "{cleaned}-{digest}".
+    lossy = cleaned != raw or len(raw) > 120 or original != raw or cleaned != cleaned.lower() or cleaned.lower().startswith("h-")
     if lossy:
-        max_base = 120 - 1 - len(digest)  # room for "-<digest>"
-        if len(cleaned) > max_base:
-            cleaned = cleaned[:max_base].rstrip(".-")
-        cleaned = f"{cleaned}-{digest}" if cleaned else f"sess-{digest}"
+        base = cleaned.lower()
+        prefix = f"h-{digest}-"
+        max_base = 120 - len(prefix)
+        if len(base) > max_base:
+            base = base[:max_base].rstrip(".-")
+        cleaned = f"{prefix}{base}" if base else f"h-{digest}"
     if not cleaned or cleaned in {".", ".."} or not _SESSION_STEM_RE.fullmatch(cleaned):
         raise ValueError(f"session id is not a safe file stem: {session!r}")
     return cleaned

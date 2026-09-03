@@ -51,8 +51,10 @@ a single path component matching `[A-Za-z0-9._-]{1,120}` before it is joined;
 empty ids, `.`, `..`, and path separators are rejected or rewritten, never
 used as directory traversal. When rewrite or truncation would map two distinct
 ids onto one stem, the writer MUST [test:
-tests/test_session_files.py::test_session_file_stem_rejects_path_escape] append
-a short hash of the original id so the mapping stays injective. Distinct session files MUST [test:
+tests/test_session_files.py::test_session_file_stem_rejects_path_escape] prefix
+the stem with `h-` and a short hash of the original id so the mapping stays
+injective and hashed stems cannot collide with an exact id on a
+case-insensitive filesystem. Distinct session files MUST [test:
 tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conflict]
 merge in git without a same-path conflict. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write

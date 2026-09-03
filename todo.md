@@ -22,6 +22,7 @@ compliance evidence packs all closed through the exit gate.
 - [x] Status uses the latest close attempt (Codex P2 round 2)
 - [x] Keep `lossy = cleaned != raw` as a one-line assignment (CI verify)
 - [x] `record_claim` treats `check={}` as invalid, not prose (Codex P2 PR 66)
+- [x] Hashed session stems use `h-` so they stay outside the exact namespace (Codex P2 PR 66)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

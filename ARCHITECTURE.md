@@ -81,8 +81,8 @@ so two agents in two worktrees write two `.showwork/` trees.
 
 New writes use the per-session files. `session_file_stem()` turns the session
 id into one path component. Empty ids, `.`, and `..` are rejected. Unsafe
-characters are rewritten, and a short hash of the original id is appended
-when that rewrite would collide distinct slugs.
+characters are rewritten. Lossy stems start with `h-` plus a short hash of
+the original id so they cannot collide with an exact slug.
 `claims_path()` remains for leftover day files and for `verify --date`.
 
 `_audit_report_path()` in `cli.py` does the same job for report labels: session

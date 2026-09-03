@@ -1,5 +1,6 @@
 """Per-session ledger files: one writer per path, legacy files still readable."""
 
+import hashlib
 import json
 import subprocess
 
@@ -57,9 +58,13 @@ def test_session_file_stem_rejects_path_escape():
     slash = session_file_stem("foo/bar")
     qmark = session_file_stem("foo?bar")
     assert slash != qmark
-    assert slash.startswith("foo-bar-")
-    assert qmark.startswith("foo-bar-")
-    assert session_file_stem("con").startswith("sess-con-")
+    assert slash.startswith("h-")
+    assert qmark.startswith("h-")
+    assert "foo-bar" in slash
+    assert "foo-bar" in qmark
+    con_stem = session_file_stem("con")
+    assert con_stem.startswith("h-")
+    assert "sess-con" in con_stem
     assert ".." not in session_file_stem("..\\..\\escaped")
     path = session_file_stem("a" * 200)
     assert len(path) <= 120
@@ -69,9 +74,16 @@ def test_session_file_stem_rejects_path_escape():
     assert session_file_stem("claude-fix") == "claude-fix"
     padded = session_file_stem(" foo ")
     assert padded != session_file_stem("foo")
-    assert padded.startswith("foo-")
+    assert padded.startswith("h-")
     assert session_file_stem("FOO") != session_file_stem("foo")
-    assert session_file_stem("con.txt").startswith("sess-con")
+    foo_hashed = session_file_stem("FOO")
+    assert foo_hashed.startswith("h-")
+    assert foo_hashed.lower() != session_file_stem(foo_hashed).lower()
+    lookalike = "foo-" + hashlib.sha256(b"FOO").hexdigest()[:10]
+    assert foo_hashed.lower() != session_file_stem(lookalike).lower()
+    con_txt = session_file_stem("con.txt")
+    assert con_txt.startswith("h-")
+    assert "sess-con" in con_txt
 
 
 def test_legacy_shared_files_remain_readable(tmp_path):
