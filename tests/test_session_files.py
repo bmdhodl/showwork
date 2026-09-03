@@ -18,6 +18,7 @@ from showwork.ledger import (
     session_events_path,
     session_file_stem,
     start_session,
+    verify_date,
     verify_session,
 )
 
@@ -268,6 +269,8 @@ def test_cross_file_clock_rollback_keeps_reclaim_live(tmp_path):
     assert state["verdict"] == "RED"
     live = [r for r in state["results"] if not r.get("retracted")]
     assert any(r["claim"] == "x" and r["status"] == "fail" for r in live)
+    dated = verify_date(tmp_path, "2026-09-02")
+    assert dated["verdict"] == "RED"
 
 
 def test_legacy_parse_error_is_visible(tmp_path):

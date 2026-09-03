@@ -490,6 +490,54 @@ def _merge_record_streams(
     return out
 
 
+def _session_ids_in(records: list[dict]) -> set[str]:
+    names: set[str] = set()
+    for rec in records:
+        name = rec.get("session")
+        if isinstance(name, str) and name:
+            names.add(name)
+        retracts = rec.get("retracts")
+        if isinstance(retracts, dict):
+            other = retracts.get("session")
+            if isinstance(other, str) and other:
+                names.add(other)
+    return names
+
+
+def _merge_files_for_sessions(
+    root: Path, file_streams: list[tuple[Path, list[dict]]]
+) -> list[dict]:
+    """Merge file streams per session, with the current write-path last."""
+    by_session: dict[str, list[tuple[Path, list[dict]]]] = {}
+    leftover: list[list[dict]] = []
+    for path, recs in file_streams:
+        names = _session_ids_in(recs)
+        if not names:
+            leftover.append(recs)
+            continue
+        for sess in names:
+            subset = [
+                rec for rec in recs
+                if _record_belongs_to_session(rec, sess) or rec.get("_parse_error")
+            ]
+            by_session.setdefault(sess, []).append((path, subset))
+    out = list(_merge_record_streams(leftover))
+    for sess in sorted(by_session):
+        try:
+            current = session_claims_path(root, sess).resolve()
+        except ValueError:
+            current = None
+        others: list[list[dict]] = []
+        trailing: list[dict] = []
+        for path, recs in by_session[sess]:
+            if current is not None and path.resolve() == current:
+                trailing = recs
+            else:
+                others.append(recs)
+        out.extend(_merge_record_streams(others, trailing=trailing))
+    return out
+
+
 def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     """Claims for one calendar day.
 
@@ -500,11 +548,11 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     label = date_str if date_str is not None else _today()
     if not _CLAIMS_DATE_RE.fullmatch(str(label)):
         raise ValueError(f"claims date must be YYYY-MM-DD, got {date_str!r}")
-    streams: list[list[dict]] = []
+    file_streams: list[tuple[Path, list[dict]]] = []
     daily = claims_path(root, label)
     daily_key = daily.resolve() if daily.is_file() else None
     if daily.is_file():
-        streams.append(_read_jsonl(daily))
+        file_streams.append((daily, _read_jsonl(daily)))
     for path in iter_claim_paths(root):
         if daily_key is not None and path.resolve() == daily_key:
             continue
@@ -518,7 +566,7 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
             if rec.get("_parse_error"):
                 errors.append(rec)
         if dated:
-            streams.append(dated + errors)
+            file_streams.append((path, dated + errors))
             continue
         if not errors:
             continue
@@ -527,17 +575,17 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
         except OSError:
             continue
         if mtime_day == str(label):
-            streams.append(errors)
-    return _merge_record_streams(streams)
+            file_streams.append((path, errors))
+    return _merge_files_for_sessions(root, file_streams)
 
 
 def load_all_claims(root: Path) -> list[dict]:
-    streams: list[list[dict]] = []
+    file_streams: list[tuple[Path, list[dict]]] = []
     for path in iter_claim_paths(root):
         recs = _read_jsonl(path)
         if recs:
-            streams.append(recs)
-    return _merge_record_streams(streams)
+            file_streams.append((path, recs))
+    return _merge_files_for_sessions(root, file_streams)
 
 
 def load_all_events(root: Path) -> list[dict]:
@@ -548,14 +596,17 @@ def load_all_events(root: Path) -> list[dict]:
 
 
 def claims_for_session(root: Path, session: str) -> list[dict]:
-    current = session_claims_path(root, session).resolve()
+    try:
+        current: Path | None = session_claims_path(root, session).resolve()
+    except ValueError:
+        current = None
     others: list[list[dict]] = []
     trailing: list[dict] = []
     for path in iter_claim_paths(root):
         recs: list[dict] = []
         errors: list[dict] = []
         belongs = False
-        is_current = path.resolve() == current
+        is_current = current is not None and path.resolve() == current
         for rec in _read_jsonl(path):
             if rec.get("_parse_error"):
                 errors.append(rec)
