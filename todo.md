@@ -12,6 +12,15 @@
 - [ ] Owner: post issue #64 reply
 - [ ] Owner: Show HN after PyPI serves 0.4.0
 
+## BMD supervisor overlay — 2026-09-03  [status: in tree]
+
+- [x] `showwork.receipts` read-only overlay (verified/claimed/failed/unknown)
+- [x] `showwork receipts --json|--html`
+- [x] Dispatch env + prompt helpers; no `--gate`
+- [x] `examples/bmd/` pin, hiddenimports, copy-paste for the private BMD repo
+- [x] Track remaining BMD work as a vault request (`docs/requests/bmd-overlay-receipts.md`), not GitHub Projects
+- [ ] BMD repo: import overlay in `lab/verification_badges.py` (private; vault card is the tracker)
+
 ## v0.2 five phases — DONE (2026-07-16)
 
 See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →
