@@ -144,11 +144,16 @@ def test_no_verify_bypass_is_stamped(tmp_path):
     assert events[-1]["verify_bypassed"] is True
 
 
-def test_blocked_close_does_not_gate(tmp_path):
+def test_blocked_close_stamps_claims_verdict(tmp_path):
     run(tmp_path, "start", "--session", "s5")
     run(tmp_path, "claim", "--session", "s5", "--claim", "made a file",
         "--type", "file_exists", "--path", "never-created.txt")
     assert run(tmp_path, "finish", "--session", "s5", "--status", "blocked") == 0
+    events = _events(tmp_path, "s5")
+    assert events[-1]["event"] == "session.finish"
+    assert events[-1]["status"] == "blocked"
+    assert events[-1]["claims_verdict"] == "RED"
+    assert "verify_bypassed" not in events[-1]
 
 
 def test_finish_status_ok_is_case_insensitive_gate(tmp_path):

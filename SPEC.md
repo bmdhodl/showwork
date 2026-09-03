@@ -222,7 +222,7 @@ declared hexadecimal prefix. A non-repository root or failed Git query MUST
 [test: tests/test_checks.py::test_git_state_errors_outside_repository] return
 an error.
 
-## Integrity chain
+## Integrity chain (`spec-v0.2`)
 
 Append-only stops being a promise and becomes provable. Chain hashing is
 unchanged from `spec-v0.2`. Every record a
@@ -339,7 +339,9 @@ is not proof). A refused finish MUST [test:
 tests/test_cli.py::test_refused_finish_records_claims_unverified] stamp
 `claims_unverified` (and `refuse_reason` when applicable) on the event. A
 bypass MUST [test: tests/test_cli.py::test_no_verify_bypass_is_stamped] remain
-visible on the finish event. A Stop-hook adapter MUST [test:
+visible on the finish event. A blocked finish MUST [test:
+tests/test_cli.py::test_blocked_close_stamps_claims_verdict] stamp
+`claims_verdict` without refusing the close. A Stop-hook adapter MUST [test:
 tests/test_hooks.py::test_stop_hook_records_red_but_exits_zero] record the
 verdict and unverified claims but exit zero because hooks observe rather than
 gate. When `SHOWWORK_SESSION` is set, the Stop hook MUST [test:

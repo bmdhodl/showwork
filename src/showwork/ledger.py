@@ -486,8 +486,9 @@ def finish_session(root: Path, session: str, status: str = "ok",
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
     ledger is not done. A clean close also REFUSES when the session has no
     check-backed claims (prose-only or empty is not proof). `status=blocked` or
-    `no_verify=True` closes without gating, and the bypass is stamped on the
-    event as a durable residual.
+    `no_verify=True` closes without gating. `--no-verify` stamps
+    `verify_bypassed` on an `ok` close. A blocked close still verifies and
+    stamps `claims_verdict` so FDR does not treat it as a clean close.
 
     Status is matched case-insensitively (`OK` == `ok`) so the Python API cannot
     silently skip the gate with a capitalization variant.
@@ -498,9 +499,10 @@ def finish_session(root: Path, session: str, status: str = "ok",
     status = status_norm
     state = None
     verdict = None
-    if status == "ok" and not no_verify:
+    if not no_verify:
         state = verify_session(root, session)
         verdict = state["verdict"]
+    if status == "ok" and not no_verify:
         live_checked = [r for r in state["results"] if r["status"] != "skipped"]
         refuse_reason = None
         unverified = gaps_payload(state)

@@ -57,6 +57,17 @@ def test_retraction_counts_as_false_done(tmp_path):
     assert r["sessions"]["s"]["retractions"] == 1
 
 
+def test_blocked_red_close_is_false_done(tmp_path):
+    start_session(tmp_path, "stuck")
+    record_claim(tmp_path, "stuck", "made g",
+                 check={"type": "file_exists", "path": "missing.txt"})
+    assert finish_session(tmp_path, "stuck", status="blocked")[0] == 0
+    r = analyze_root(tmp_path)
+    assert r["sessions"]["stuck"]["red_closes"] == 1
+    assert r["sessions"]["stuck"]["clean_closes"] == 0
+    assert r["false_done_sessions"] == 1
+
+
 def test_bypass_counts_as_false_done(tmp_path):
     start_session(tmp_path, "b")
     record_claim(tmp_path, "b", "unverified",

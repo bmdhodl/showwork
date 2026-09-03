@@ -336,12 +336,12 @@ same verdict and only some of them are allowed to act on it.
 
 1. Normalizes `status` case-insensitively and rejects anything but `ok` or
    `blocked`. `OK` must not silently skip the gate.
-2. If `status=ok` and `--no-verify` was not passed, it verifies this session's
-   own claims.
-3. On RED it appends `session.finish.refused` and returns exit 2. No
-   `session.finish` is written. The session is not closed.
-4. Otherwise it appends `session.finish` carrying `claims_verdict`, plus
-   `verify_bypassed: true` when the gate was deliberately skipped.
+2. Unless `--no-verify` was passed, it verifies this session's own claims.
+3. On `status=ok` and RED it appends `session.finish.refused` and returns
+   exit 2. No `session.finish` is written. The session is not closed.
+4. Otherwise it appends `session.finish` carrying `claims_verdict` (including
+   `--status blocked`). `verify_bypassed: true` is stamped only when an `ok`
+   close skipped the gate with `--no-verify`.
 
 The three legitimate ways past a refusal are: fix the gap, retract the claim
 truthfully, or close as `--status blocked`. The fourth way, `--no-verify`,

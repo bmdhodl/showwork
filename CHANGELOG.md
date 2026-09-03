@@ -23,6 +23,12 @@ All notable changes to showwork are recorded here.
 - **PyPI publish workflow pinning** - pinned checkout, Python setup, and PyPI
   publishing actions to audited commit SHAs; the owner-gated release path keeps
   the same behavior while avoiding floating action refs.
+- **Blocked close stamps `claims_verdict`** - `finish --status blocked` still
+  verifies and records the verdict so FDR does not count a RED blocked close
+  as a clean close.
+- **CI clean-room fixtures** - the tamper case edits the per-session session
+  file; the fork-safe case claims a locked `python scripts/ok.py` instead of
+  `python -c`.
 
 ## 0.3.1 - 2026-08-14
 

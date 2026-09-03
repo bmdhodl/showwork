@@ -5,6 +5,15 @@
 See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →
 compliance evidence packs all closed through the exit gate.
 
+## PR #65 follow-up — CI + review  [status: in tree]
+
+- [x] Restore SPEC Integrity chain heading (`spec-v0.2`) so session
+      `v02-phase-1` still verifies
+- [x] Clean-room tamper path uses `.showwork/sessions/<id>.jsonl`
+- [x] Clean-room fork-safe claim uses locked `python scripts/ok.py`
+- [x] Blocked finish stamps `claims_verdict` (Copilot review)
+- [x] Stop-hook docstring matches `session_unbound` behavior (Copilot review)
+
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 
 - [x] New writes: `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`

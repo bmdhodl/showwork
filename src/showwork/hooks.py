@@ -49,8 +49,9 @@ def resolve_stop_session(payload: dict) -> tuple[str, bool]:
     """Prefer SHOWWORK_SESSION so Stop binds to the agent task slug.
 
     Returns (session_id, bound_from_env). When the env var is unset, the hook
-    falls back to the payload id and stamps ``session_unbound`` when that id
-    looks like a host UUID with no matching showwork start (callers decide).
+    falls back to the payload id. ``observe_stop`` then stamps
+    ``session_unbound`` on that observed finish. The stamp does not depend on
+    UUID shape or a matching ``session.start``.
     """
     env = os.environ.get(SESSION_ENV, "").strip()
     if env:
