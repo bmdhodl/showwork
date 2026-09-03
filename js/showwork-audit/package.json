@@ -1,7 +1,7 @@
 {
   "name": "showwork-audit",
   "version": "0.2.0",
-  "description": "Reader-side auditor for showwork agent-receipt ledgers: verifies the spec-v0.2 integrity chain. Zero dependencies.",
+  "description": "Reader-side auditor for showwork agent-receipt ledgers: verifies the spec-v0.3 integrity chain. Zero dependencies.",
   "type": "module",
   "main": "index.mjs",
   "bin": { "showwork-audit": "index.mjs" },

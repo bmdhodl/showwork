@@ -88,22 +88,14 @@ runs:
           echo "$verify_out" >> "$GITHUB_STEP_SUMMARY"
 
           bypass_out=$("$PY" - "$SW_ROOT" "$SW_SESSION" <<'PY'
-        import json, sys
+        import sys
         from pathlib import Path
+        from showwork.ledger import load_all_events
         root, session = sys.argv[1], sys.argv[2]
-        path = Path(root) / ".showwork" / "sessions.jsonl"
-        finishes = []
-        if path.is_file():
-            for line in path.read_text(encoding="utf-8-sig").splitlines():
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if rec.get("session") == session and rec.get("event") == "session.finish":
-                    finishes.append(rec)
+        finishes = [
+            rec for rec in load_all_events(Path(root))
+            if rec.get("session") == session and rec.get("event") == "session.finish"
+        ]
         if not finishes:
             print(f"no session.finish recorded for {session!r}: the exit gate never ran")
             raise SystemExit(2)

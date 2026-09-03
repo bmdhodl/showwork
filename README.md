@@ -9,7 +9,7 @@ Observability tools log what an agent *did*. showwork verifies what an agent *cl
 
 Zero dependencies. Stdlib only. One append-only ledger.
 
-[Read the portable `spec-v0.2` ledger specification](SPEC.md) or install the
+[Read the portable `spec-v0.3` ledger specification](SPEC.md) or install the
 [Claude Code Stop-hook adapter](docs/claude-code.md).
 
 ## The problem
@@ -108,14 +108,14 @@ commit message, a post) anchors the entire history behind it. Spec:
 ([js/showwork-audit](js/showwork-audit/)) is held to the same frozen
 conformance fixtures as the Python reference.
 
-**Concurrent sessions merge cleanly.** Two agents appending in separate git
-worktrees and merging produce a *fork* — two blocks chaining off the same
-parent. That is legitimate concurrency, not tampering: the audit accepts it as
-GREEN, reports the fork count and every branch head, and still goes RED on any
-real modification, deletion, or reorder. Mark the ledger `merge=union` in
-`.gitattributes` (this repo does) so git concatenates instead of writing
-conflict markers. Repos that forbid concurrency can enforce single history with
-`showwork audit --strict`. Rationale and the incident that motivated it:
+**Concurrent sessions do not share a file.** Two agents with distinct session
+slugs (`cursor-fix-nav`, `codex-fix-nav`) write `.showwork/sessions/<id>.jsonl`
+and `.showwork/claims/<id>.jsonl`. Git then merges two paths, not one hash
+chain. Worktree checkouts keep receipts in that worktree so the branch carries
+them. Reuse of one slug is still one writer; `merge=union` remains only for
+leftover shared files. The audit still accepts a fork inside one file as GREEN
+and goes RED on modification, deletion, or reorder. Repos that forbid
+concurrency can pass `showwork audit --strict`. Rationale:
 [docs/concurrency.md](docs/concurrency.md).
 
 ## Gate your CI on receipts

@@ -4,9 +4,42 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Per-session ledger files (`spec-v0.3`)** - new writes go to
+  `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`. Two agents
+  with distinct slugs no longer share a hash-chained file. Leftover
+  `sessions.jsonl` and `claims-YYYY-MM-DD.jsonl` stay readable. Package 0.4.0.
+- **Worktree-local receipts** - linked worktrees write `.showwork/` in that
+  worktree so the receipt ships with the branch. This reverses the 0.3.1 origin
+  remap (commit 0873ca3).
+- **Claim-time shape validation** - `validate_check_shape` rejects invalid
+  `command` / `glob_count` checks before append; command lock errors point at
+  `scripts/run_tests.py` + `stdout_contains=passed`.
+- **Minimum-proof finish** - `finish --status ok` refuses empty or prose-only
+  sessions; refused events stamp `claims_unverified` and `refuse_reason`.
+- **`showwork status` / `showwork report`** - open-session view and FDR/usage
+  window (`--since`, `--exclude-campaign`); FDR core lives in `showwork.report`.
+- **Stop-hook session binding** - prefers `SHOWWORK_SESSION`; stamps
+  `session_unbound` when falling back to the host payload id.
 - **PyPI publish workflow pinning** - pinned checkout, Python setup, and PyPI
   publishing actions to audited commit SHAs; the owner-gated release path keeps
   the same behavior while avoiding floating action refs.
+- **Blocked close stamps `claims_verdict`** - `finish --status blocked` still
+  verifies and records the verdict so FDR does not count a RED blocked close
+  as a clean close.
+- **CI clean-room fixtures** - the tamper case edits the per-session session
+  file; the fork-safe case claims a locked `python scripts/ok.py` instead of
+  `python -c`.
+- **Injective session stems** - rewritten or truncated session ids keep a
+  short hash of the original id so `foo/bar` and `foo?bar` do not share a
+  file.
+- **Gated `run` matches finish** - `showwork run --gate` refuses a successful
+  command with no check-backed claims, same as `finish --status ok`.
+- **Status reopen** - `showwork status` reports a slug as open after a later
+  `session.start`.
+- **Claim-time shape for every checker** - `file_exists` without `path` (and
+  the same class of missing fields on other types) is rejected before append.
+- **FDR script source bootstrap** - `scripts/false_done_rate.py` adds `src/`
+  to `sys.path` so a clean checkout can run the documented reproduce command.
 
 ## 0.3.1 - 2026-08-14
 

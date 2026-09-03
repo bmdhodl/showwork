@@ -22,20 +22,29 @@ the version of showwork in `src/`** and closes through the exit gate. Receipts
 live in `.showwork/` and ship with the commit. If your change breaks the tool,
 your own exit gate is the first thing that will tell you.
 
-1. Start material work: `python -m showwork.cli start --session <task-slug> --agent <claude-code|codex|gemini>`
+1. Start material work: `python -m showwork.cli start --session <agent>-<task-slug> --agent <claude-code|codex|gemini|cursor>`
+   Set `SHOWWORK_SESSION=<agent>-<task-slug>` in the same shell so the Claude Stop hook
+   binds to the task slug (otherwise it stamps `session_unbound` on the host id).
+   Distinct slugs write distinct files under `.showwork/sessions/` and `.showwork/claims/`.
 2. After each completed change, record a claim with a check that can fail
    (types: `file_exists`, `file_contains`, `path_moved`, `frontmatter`,
-   `glob_count`, `command`):
-   `python -m showwork.cli claim --session <task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"`
-3. Before reporting success: `python -m showwork.cli finish --session <task-slug> --status ok`
-   - REFUSED (exit 2) means a claimed "done" is not backed by reality. Fix the
-     gap or retract the claim truthfully (`retract`), then finish again. NEVER
-     pass `--no-verify` to manufacture a clean close; if genuinely stuck,
-     `finish --status blocked`.
-4. `git add .showwork/` and commit the ledger with your change — the receipt is
+   `glob_count`, `command`, `http_probe`, `git_state`):
+   `python -m showwork.cli claim --session <agent>-<task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"`
+   Prefer `git_state` / `glob_count` when they fit. For tests use
+   `command` with `scripts/run_tests.py`, `expect_exit=0`, and
+   `stdout_contains=passed` — not exact `"N passed"` counts. Invalid check
+   shapes are rejected at claim time.
+3. Before reporting success: `python -m showwork.cli finish --session <agent>-<task-slug> --status ok`
+   - REFUSED (exit 2) means a claimed "done" is not backed by reality, or the
+     session has no check-backed claims. Fix the gap or retract the claim
+     truthfully (`retract`), then finish again. NEVER pass `--no-verify` to
+     manufacture a clean close; if genuinely stuck, `finish --status blocked`.
+4. Operator helpers: `showwork status [--session S]` and
+   `showwork report [--since YYYY-MM-DD] [--exclude-campaign]`.
+5. `git add .showwork/` and commit the ledger with your change — the receipt is
    part of the work. Do not gitignore it. The ledger is append-only; never
    rewrite history in it.
-5. The Stop hook in `.claude/settings.json` records a claims verdict when a
+6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 
 Rolling this pattern out across multiple repos: see `docs/fleet-adoption.md`.

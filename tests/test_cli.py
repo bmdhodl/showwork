@@ -3,11 +3,17 @@
 import json
 
 from showwork.cli import main
-from showwork.ledger import sessions_path
+from showwork.ledger import session_claims_path, sessions_path
 
 
 def run(tmp_path, *argv):
     return main(["--root", str(tmp_path), *argv])
+
+
+def _events(tmp_path, session):
+    path = sessions_path(tmp_path, session)
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()]
 
 
 def test_full_green_lifecycle(tmp_path, capsys):
@@ -30,8 +36,7 @@ def test_exit_gate_refuses_red_close(tmp_path, capsys):
     assert run(tmp_path, "finish", "--session", "s2") == 2
     err = capsys.readouterr().err
     assert "REFUSED" in err
-    events = [json.loads(line) for line in
-              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    events = _events(tmp_path, "s2")
     assert events[-1]["event"] == "session.finish.refused"
 
 
@@ -42,7 +47,91 @@ def test_retraction_unblocks_close(tmp_path):
     assert run(tmp_path, "finish", "--session", "s3") == 2
     assert run(tmp_path, "retract", "--session", "s3", "--claim", "made a file",
                "--reason", "it never happened") == 0
+    # Minimum-proof: retracting alone leaves no check-backed claims; re-claim.
+    (tmp_path / "real.txt").write_text("ok", encoding="utf-8")
+    assert run(tmp_path, "claim", "--session", "s3", "--claim", "wrote real.txt",
+               "--type", "file_exists", "--path", "real.txt") == 0
     assert run(tmp_path, "finish", "--session", "s3") == 0
+
+
+def test_exit_gate_refuses_empty_session(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "empty")
+    assert run(tmp_path, "finish", "--session", "empty") == 2
+    err = capsys.readouterr().err
+    assert "REFUSED" in err
+    assert "no_check_backed_claims" in err
+    events = _events(tmp_path, "empty")
+    assert events[-1]["event"] == "session.finish.refused"
+    assert events[-1]["refuse_reason"] == "no_check_backed_claims"
+    assert events[-1]["claims_unverified"]
+
+
+def test_exit_gate_refuses_prose_only_session(tmp_path):
+    run(tmp_path, "start", "--session", "prose")
+    run(tmp_path, "claim", "--session", "prose", "--claim", "vibes only")
+    assert run(tmp_path, "finish", "--session", "prose") == 2
+    events = _events(tmp_path, "prose")
+    assert events[-1]["refuse_reason"] == "no_check_backed_claims"
+
+
+def test_refused_finish_records_claims_unverified(tmp_path):
+    run(tmp_path, "start", "--session", "s-gap")
+    run(tmp_path, "claim", "--session", "s-gap", "--claim", "made a file",
+        "--type", "file_exists", "--path", "never-created.txt")
+    assert run(tmp_path, "finish", "--session", "s-gap") == 2
+    events = _events(tmp_path, "s-gap")
+    refused = events[-1]
+    assert refused["event"] == "session.finish.refused"
+    assert refused["refuse_reason"] == "claims_red"
+    assert refused["claims_unverified"][0]["claim"] == "made a file"
+    assert refused["claims_unverified"][0]["type"] == "file_exists"
+
+
+def test_claim_rejects_invalid_command_shape(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "bad-cmd")
+    code = run(tmp_path, "claim", "--session", "bad-cmd", "--claim", "ran git",
+               "--check-json",
+               json.dumps({"type": "command", "argv": ["git", "status"]}))
+    assert code == 2
+    assert "claim rejected" in capsys.readouterr().err
+    # Nothing appended for the rejected claim.
+    from showwork.ledger import claims_for_session
+    assert claims_for_session(tmp_path, "bad-cmd") == []
+
+
+def test_claim_rejects_bad_glob_op(tmp_path, capsys):
+    code = run(tmp_path, "claim", "--session", "g", "--claim", "count",
+               "--check-json",
+               json.dumps({"type": "glob_count", "pattern": "*.md", "op": "eq", "n": 1}))
+    assert code == 2
+    assert "eq" in capsys.readouterr().err
+
+
+def test_claim_warns_on_brittle_pass_count(tmp_path, capsys):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "run_tests.py").write_text("print('ok')\n", encoding="utf-8")
+    code = run(tmp_path, "claim", "--session", "w", "--claim", "tests",
+               "--type", "command",
+               "--command-arg", "python", "--command-arg", "scripts/run_tests.py",
+               "--expect-exit", "0", "--stdout-contains", "42 passed")
+    assert code == 0
+    assert "goes stale" in capsys.readouterr().err
+
+
+def test_status_and_report_smoke(tmp_path, capsys):
+    (tmp_path / "f.txt").write_text("x", encoding="utf-8")
+    run(tmp_path, "start", "--session", "s-rep", "--agent", "test")
+    run(tmp_path, "claim", "--session", "s-rep", "--claim", "f",
+        "--type", "file_exists", "--path", "f.txt")
+    run(tmp_path, "finish", "--session", "s-rep")
+    capsys.readouterr()
+    assert run(tmp_path, "status", "--session", "s-rep", "--json") == 0
+    status = json.loads(capsys.readouterr().out)
+    assert status["sessions"][0]["live_verdict"] == "GREEN"
+    assert run(tmp_path, "report", "--json") == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["fdr"]["eligible_sessions"] == 1
+    assert report["agents"]["test"] == 1
 
 
 def test_no_verify_bypass_is_stamped(tmp_path):
@@ -50,17 +139,21 @@ def test_no_verify_bypass_is_stamped(tmp_path):
     run(tmp_path, "claim", "--session", "s4", "--claim", "made a file",
         "--type", "file_exists", "--path", "never-created.txt")
     assert run(tmp_path, "finish", "--session", "s4", "--no-verify") == 0
-    events = [json.loads(line) for line in
-              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    events = _events(tmp_path, "s4")
     assert events[-1]["event"] == "session.finish"
     assert events[-1]["verify_bypassed"] is True
 
 
-def test_blocked_close_does_not_gate(tmp_path):
+def test_blocked_close_stamps_claims_verdict(tmp_path):
     run(tmp_path, "start", "--session", "s5")
     run(tmp_path, "claim", "--session", "s5", "--claim", "made a file",
         "--type", "file_exists", "--path", "never-created.txt")
     assert run(tmp_path, "finish", "--session", "s5", "--status", "blocked") == 0
+    events = _events(tmp_path, "s5")
+    assert events[-1]["event"] == "session.finish"
+    assert events[-1]["status"] == "blocked"
+    assert events[-1]["claims_verdict"] == "RED"
+    assert "verify_bypassed" not in events[-1]
 
 
 def test_finish_status_ok_is_case_insensitive_gate(tmp_path):
@@ -79,8 +172,7 @@ def test_finish_status_ok_is_case_insensitive_gate(tmp_path):
     code, state = finish_session(tmp_path, "s-case", status="OK")
     assert code == 2
     assert state is not None and state["verdict"] == "RED"
-    events = [json.loads(line) for line in
-              sessions_path(tmp_path).read_text(encoding="utf-8").splitlines()]
+    events = _events(tmp_path, "s-case")
     assert events[-1]["event"] == "session.finish.refused"
     assert events[-1]["status"] == "ok"
 
@@ -131,8 +223,8 @@ def test_verify_report_stays_under_ledger_dir(tmp_path):
 
 def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
     run(tmp_path, "claim", "--session", "s8", "--claim", "good",
-        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
-    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+        "--type", "glob_count", "--pattern", ".showwork/claims/*.jsonl", "--op", ">=", "--n", "1")
+    ledger = session_claims_path(tmp_path, "s8")
     with ledger.open("a", encoding="utf-8") as f:
         f.write("{not json\n")
     assert run(tmp_path, "verify", "--no-report") == 3  # YELLOW, never silently GREEN
@@ -142,8 +234,8 @@ def test_unparseable_ledger_line_is_yellow_not_dropped(tmp_path):
 def test_non_object_ledger_line_is_yellow_not_crash(tmp_path):
     """JSONL lines that parse as non-objects must not AttributeError."""
     run(tmp_path, "claim", "--session", "s-nonobj", "--claim", "good",
-        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
-    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+        "--type", "glob_count", "--pattern", ".showwork/claims/*.jsonl", "--op", ">=", "--n", "1")
+    ledger = session_claims_path(tmp_path, "s-nonobj")
     with ledger.open("a", encoding="utf-8") as f:
         f.write('"just a string"\n')
         f.write("[1, 2]\n")
@@ -189,7 +281,7 @@ def test_http_probe_claim_flags_are_recorded(tmp_path):
         "--type", "http_probe", "--url", "https://example.com/health",
         "--expect-status", "200", "--body-contains", "ok",
     ) == 0
-    claims = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    claims = session_claims_path(tmp_path, "s-http")
     record = json.loads(claims.read_text(encoding="utf-8").splitlines()[0])
     assert record["check"] == {
         "type": "http_probe", "url": "https://example.com/health",
@@ -204,7 +296,7 @@ def test_git_state_claim_flags_are_recorded(tmp_path):
         "--type", "git_state", "--clean", "--branch", "main",
         "--commit", "abcdef123456",
     ) == 0
-    claims = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    claims = session_claims_path(tmp_path, "s-git")
     record = json.loads(claims.read_text(encoding="utf-8").splitlines()[0])
     assert record["check"] == {
         "type": "git_state", "clean": True, "branch": "main",
@@ -232,9 +324,9 @@ def test_invalid_check_json_is_clean_error(tmp_path):
 def test_invalid_utf8_ledger_verify_is_yellow_not_crash(tmp_path, capsys):
     """Non-UTF-8 ledger bytes must not raise UnicodeDecodeError from verify."""
     run(tmp_path, "claim", "--session", "s-utf8", "--claim", "good",
-        "--type", "glob_count", "--pattern", ".showwork/*.jsonl", "--op", ">=", "--n", "1")
+        "--type", "glob_count", "--pattern", ".showwork/claims/*.jsonl", "--op", ">=", "--n", "1")
     capsys.readouterr()
-    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    ledger = session_claims_path(tmp_path, "s-utf8")
     with ledger.open("ab") as f:
         f.write(b"\xff\xfe not utf-8\n")
     code = run(tmp_path, "verify", "--no-report", "--json")
@@ -253,7 +345,7 @@ def test_invalid_utf8_blocks_append_with_clear_error(tmp_path):
     from showwork.ledger import record_claim
 
     record_claim(tmp_path, "s", "first")
-    ledger = next((tmp_path / ".showwork").glob("claims-*.jsonl"))
+    ledger = session_claims_path(tmp_path, "s")
     with ledger.open("ab") as f:
         f.write(b"\xff\xfe\n")
     try:

@@ -32,6 +32,7 @@ from pathlib import Path
 
 from .ledger import (
     genesis_hash,
+    iter_ledger_jsonl,
     ledger_dir,
     line_hash,
     read_record_text,
@@ -47,6 +48,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     accepted concurrent branch."""
     out: dict = {
         "file": path.name,
+        "path": str(path),
         "records": 0,
         "chained": 0,
         "pre_chain": 0,
@@ -64,6 +66,14 @@ def audit_file(path: Path, strict: bool = False) -> dict:
         kind = "directory" if path.is_dir() else "missing path"
         out["detail"] = f"not a ledger file ({kind}): nothing to anchor"
         return out
+    resolved = path.resolve()
+    parts = resolved.parts
+    showwork_idxs = [i for i, part in enumerate(parts) if part == ".showwork"]
+    if showwork_idxs:
+        rel = Path(*parts[showwork_idxs[-1] + 1 :])
+        out["file"] = rel.as_posix()
+    else:
+        out["file"] = path.name
     genesis = genesis_hash(path)
     # Every hash an anchor may legitimately point back at: the genesis anchor,
     # plus each record line already seen. A `prev` in this set is either the
@@ -158,10 +168,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
 def audit_root(root: Path, strict: bool = False) -> dict:
     """Audit every ledger file under the project root."""
     directory = ledger_dir(root)
-    files = sorted(directory.glob("claims-*.jsonl")) if directory.is_dir() else []
-    sessions = directory / "sessions.jsonl"
-    if sessions.is_file():
-        files.append(sessions)
+    files = iter_ledger_jsonl(root)
     results = [audit_file(p, strict=strict) for p in files]
     if not results:
         verdict = "YELLOW"

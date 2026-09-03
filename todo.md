@@ -1,92 +1,53 @@
-# showwork v0.2 build plan — five phases, in order
+# showwork build plan
 
-Each phase makes the next one possible: **provable → enforced → ubiquitous →
-famous → paid.** One phase at a time; tests green before every commit; every
-phase closes through showwork's own exit gate (session `v02-phase-N`).
+## v0.2 five phases — DONE (2026-07-16)
 
-## Phase 1 — Tamper-evident receipts (`spec-v0.2`)  [status: DONE 2026-07-16]
+See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →
+compliance evidence packs all closed through the exit gate.
 
-Hash-chain the ledger so "append-only" is provable, not promised.
+## PR #65 follow-up — CI + review  [status: in tree]
 
-- [x] `prev` field on every appended record: sha256 of the previous record's
-      line content (EOL-agnostic; genesis anchor for empty files)
-- [x] `showwork audit [--json]`: walks every ledger file, verifies the chain,
-      names the exact line of any break, prints per-file head hashes
-      (publish a head hash anywhere = external anchor for the whole history)
-- [x] Pre-chain era handled: existing v0.1 records are anchored the moment the
-      first chained record lands after them
-- [x] `.gitattributes` so ledgers never get EOL-rewritten
-- [x] SPEC.md → `spec-v0.2` "Integrity chain" section, test anchors beside
-      every normative requirement (house style)
-- [x] tests/test_audit.py (10 tests) — tamper/delete/unchained detection,
-      EOL survival, pre-chain anchoring, CLI exit codes
-- Session `v02-phase-1` closed GREEN (4/6; 2 honest retractions in history —
-  the gate REFUSED a bash-mangled regex claim mid-development. Dogfood works.)
+- [x] Restore SPEC Integrity chain heading (`spec-v0.2`) so session
+      `v02-phase-1` still verifies
+- [x] Clean-room tamper path uses `.showwork/sessions/<id>.jsonl`
+- [x] Clean-room fork-safe claim uses locked `python scripts/ok.py`
+- [x] Blocked finish stamps `claims_verdict` (Copilot review)
+- [x] Stop-hook docstring matches `session_unbound` behavior (Copilot review)
+- [x] Session stems stay injective after rewrite (Codex P1)
+- [x] `run --gate` refuses empty/prose-only success (Codex P1)
+- [x] `status` reopens after a later `session.start` (Codex P2)
+- [x] Hash stems from the untrimmed session id (Codex P1 round 2)
+- [x] Claim-time shape for every checker type (Codex P1 round 2)
+- [x] FDR script inserts `src/` (Codex P2 round 2)
+- [x] Status uses the latest close attempt (Codex P2 round 2)
 
-## Phase 2 — Receipts as CI gates  [status: DONE 2026-07-16]
+## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 
-- [x] `actions/verify/action.yml`: composite GitHub Action — fails a job when
-      the receipt is missing, RED, chain-broken, or bypass-stamped; renders
-      the receipt into the job step summary; installs from its own ref (no
-      PyPI dependency)
-- [x] Fork-PR safety: `SHOWWORK_NO_COMMANDS` policy env — command checks
-      refuse to execute repo code, verdict degrades honestly to YELLOW
-- [x] Dogfood: `receipts` job in ci.yml gates on the chain audit + the real
-      `v02-phase-1` session (fork-safe mode live-demonstrated)
-- [x] docs/ci.md: inputs, failure modes, fork-safety, session→PR mapping
-- Gate script validated locally by rendering the composite step and running
-  it against this repo's real ledger (exit 0; honest YELLOWs displayed)
+- [x] New writes: `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`
+- [x] Readers still load leftover `sessions.jsonl` and `claims-YYYY-MM-DD.jsonl`
+- [x] Linked worktrees write receipts in that worktree
+- [x] SPEC.md → `spec-v0.3`; package version 0.4.0 (publish is owner-gated)
 
-## Phase 3 — Ubiquity: universal wrapper + second implementation  [status: DONE 2026-07-16]
+## v0.3.x operator cut — ergonomics + continuous metrics
 
-- [x] `showwork run --session S [--gate] -- <any agent command>`: wraps any
-      process in a session; observe mode is exit-transparent, gate mode
-      exits 2 on "command says success, receipts say RED"; child inherits
-      SHOWWORK_SESSION/SHOWWORK_ROOT (5 tests)
-- [x] `js/showwork-audit`: zero-dep Node implementation of the spec-v0.2
-      reading half (chain audit + verdicts; re-executes no checks; scope
-      honestly narrowed from "TS + check re-execution" to reader-only
-      conformance, which the spec explicitly blesses)
-- [x] Cross-implementation conformance: 8 frozen fixture ledgers
-      (tests/fixtures/chain/ + expected.json, regenerable via
-      scripts/make_chain_fixtures.py); Python 8/8, JS 9/9, and both agree
-      with each other on this repo's real ledger byte-for-byte on heads
-- [x] `conformance-js` CI job; docs/adapters.md (Claude Code, Codex, Gemini,
-      wrapper, write-your-own)
+Goal: cut agent claim misuse and make FDR/usage visible in the CLI. Defer new
+check types and external adapters until agents stop failing on shipped checks.
 
-## Phase 4 — The False Done Rate  [status: DONE 2026-07-16]
+- [x] Claim-time shape validation + clearer command-lock remediation
+      (`validate_check_shape`, prefer `stdout_contains=passed`)
+- [x] Finish refuses empty / prose-only sessions; refused events stamp
+      `claims_unverified` + `refuse_reason`
+- [x] `showwork status` / `showwork report` (FDR + usage; `--exclude-campaign`)
+- [x] Stop hook binds `SHOWWORK_SESSION`; stamps `session_unbound` otherwise
+- [x] Docs: AGENTS.md, claude-code.md, agent-prompt, SPEC, ARCHITECTURE 0.3.1
 
-- [x] `scripts/false_done_rate.py`: session- and event-level FDR from any
-      labeled set of ledgers; durable evidence only (REFUSED events,
-      retractions, RED closes, bypass stamps); 5 behavioral tests
-- [x] docs/false-done-rate.md: pre-registered methodology + honesty rules
-      (lower bound stated, low rates published too, no retro-editing)
-- [x] docs/false-done-rate-day0.md + frozen .json: REAL day-0 numbers —
-      **21 eligible sessions across the fleet, 9 false-done (42.9%), every
-      one caught by the gate**, incl. the gate catching its own author
-      during phase 1. One repo excluded (pre-adoption branch), stated.
+### Explicit non-goals (this cut)
 
-## Phase 5 — Compliance evidence packs  [status: DONE 2026-07-16]
+- New checkers, point-in-time verify, detached signing
+- Cursor / OpenAI Agents adapters (trigger: ≥3 external repos)
+- Full claims dashboard UI (report --json is enough for now)
 
-- [x] `scripts/evidence_pack.py`: date-range of receipts → auditor bundle
-      (integrity heads, activity summary, control mapping, receipt
-      inventory, `--redact`); REFUSES to generate from a RED ledger
-      (4 behavioral tests)
-- [x] docs/compliance.md: EU AI Act Art. 12 / Art. 26(6), SOC 2 CC8.1 +
-      CC7.2/7.3, HIPAA 164.312(b) / 164.316(b); point-in-time vs
-      at-export verification explained; not-legal-advice framing throughout
-- [x] docs/evidence-pack-sample.md: real pack from this repo's own ledger
-      (honestly shows 3 refusals + historical claims that no longer verify)
+## Exit criteria
 
-## Exit criteria (all phases)
-
-- [x] Full suite green (75 tests); `showwork audit` on own ledger: today's
-      files GREEN and anchored; pre-2026-07-16 files honestly YELLOW
-      (pre-chain history cannot be retro-proven — that is the point)
-- [x] Every phase's session closed GREEN through the exit gate
-      (v02-phase-1 through v02-phase-5; phase 1 includes 2 genuine REFUSEDs)
-- [x] CHANGELOG + version bump to 0.2.0; README v0.2 sections
-- [x] Marketing video of the new capabilities, real CLI output only
-      (Outbox/Launch/showwork/showwork-v02-launch.mp4, 45s 1080p; every
-      terminal line captured from real runs, incl. the real tamper RED and
-      the real day-0 FDR table)
+- [x] Full suite green (287 tests)
+- [x] Session `improve-ergonomics-metrics-20260828` closed GREEN through the gate

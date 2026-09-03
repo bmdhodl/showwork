@@ -57,6 +57,17 @@ def test_retraction_counts_as_false_done(tmp_path):
     assert r["sessions"]["s"]["retractions"] == 1
 
 
+def test_blocked_red_close_is_false_done(tmp_path):
+    start_session(tmp_path, "stuck")
+    record_claim(tmp_path, "stuck", "made g",
+                 check={"type": "file_exists", "path": "missing.txt"})
+    assert finish_session(tmp_path, "stuck", status="blocked")[0] == 0
+    r = analyze_root(tmp_path)
+    assert r["sessions"]["stuck"]["red_closes"] == 1
+    assert r["sessions"]["stuck"]["clean_closes"] == 0
+    assert r["false_done_sessions"] == 1
+
+
 def test_bypass_counts_as_false_done(tmp_path):
     start_session(tmp_path, "b")
     record_claim(tmp_path, "b", "unverified",
@@ -70,7 +81,14 @@ def test_bypass_counts_as_false_done(tmp_path):
 def test_uncheckable_session_not_eligible(tmp_path):
     start_session(tmp_path, "prose")
     record_claim(tmp_path, "prose", "vibes only")  # no check
-    finish_session(tmp_path, "prose")
+    assert finish_session(tmp_path, "prose")[0] == 2  # refuse: no check-backed
     r = analyze_root(tmp_path)
     assert r["eligible_sessions"] == 0
     assert r["fdr_session"] is None
+
+
+def test_false_done_rate_script_bootstraps_src():
+    text = (Path(__file__).resolve().parents[1] / "scripts" / "false_done_rate.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'parents[1] / "src"' in text

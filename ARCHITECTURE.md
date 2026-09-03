@@ -17,10 +17,10 @@ then falsifies it or does not.
 agent work
    |
    v
-showwork start   ->  session.start event          .showwork/sessions.jsonl
+showwork start   ->  session.start event          .showwork/sessions/<id>.jsonl
    |
    v
-showwork claim   ->  claim record + check spec    .showwork/claims-YYYY-MM-DD.jsonl
+showwork claim   ->  claim record + check spec    .showwork/claims/<id>.jsonl
    |
    v
 showwork verify  ->  run each check against the filesystem
@@ -57,7 +57,7 @@ Three rules drive every design decision below:
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 
 `src/showwork/__init__.py` re-exports the public Python API and pins
-`__version__ = "0.3.0"`, matching `pyproject.toml`.
+`__version__ = "0.4.0"`, matching `pyproject.toml`.
 
 ## Data model
 
@@ -65,19 +65,25 @@ Three rules drive every design decision below:
 
 `ledger_dir(root)` is always `<root>/.showwork/` (`ledger.py`). The root is
 resolved once per invocation by `resolve_root()`, in this order: the `--root`
-flag, then `$SHOWWORK_ROOT`, then the current working directory.
+flag, then `$SHOWWORK_ROOT`, then the current working directory. A linked
+git worktree resolves to that worktree's toplevel, not the origin checkout,
+so two agents in two worktrees write two `.showwork/` trees.
 
 ```text
 .showwork/
-  claims-YYYY-MM-DD.jsonl   one claim or retraction per line
-  sessions.jsonl            session.start / session.finish events
+  sessions/<id>.jsonl       session.start / session.finish for one session
+  claims/<id>.jsonl         claims and retractions for that session
+  claims-YYYY-MM-DD.jsonl   leftover shared day file (read, not written)
+  sessions.jsonl            leftover shared session file (read, not written)
   audit-<label>.md          human-readable report written by `verify`
   guard-state.json          rolling tool-call window for the post-tool guard
 ```
 
-Day files are the only sharding. `claims_path()` rejects any date that is not
-`YYYY-MM-DD` and then re-checks that the resolved path stays inside
-`.showwork/`, because a hostile `--date` was otherwise a path escape.
+New writes use the per-session files. `session_file_stem()` turns the session
+id into one path component. Empty ids, `.`, and `..` are rejected. Unsafe
+characters are rewritten, and a short hash of the original id is appended
+when that rewrite would collide distinct slugs.
+`claims_path()` remains for leftover day files and for `verify --date`.
 
 `_audit_report_path()` in `cli.py` does the same job for report labels: session
 ids reach it as attacker-controlled strings, so separators, colons, nulls and
@@ -157,12 +163,13 @@ immediate predecessor" on purpose:
 | No `prev` at all, after the chain started | RED, append-only is no longer provable |
 | No `prev`, before any chained record | Pre-chain record, counted, file stays YELLOW until a chained append anchors it |
 
-Forks are what a legitimate concurrent merge looks like. Two agents appending
-in separate git worktrees, then merged with `merge=union` (this repo sets that
-in `.gitattributes`), produce two blocks chaining off the same parent. Tamper
-detection survives it: modification, deletion and reorder all still produce a
-`prev` that matches no earlier line. `--strict` turns any fork RED for repos
-that forbid concurrency.
+Forks are what a leftover shared file looks like after a concurrent merge.
+Two agents with distinct slugs write distinct files and do not fork. Two
+agents that reuse one slug, or leftover `sessions.jsonl` / day files, can
+still fork; `merge=union` concatenates those leftover files. Tamper detection
+survives it: modification, deletion and reorder all still produce a `prev`
+that matches no earlier line. `--strict` turns any fork RED for repos that
+forbid concurrency.
 
 `head` is the hash of the last record line. `heads` is every record hash that
 nothing else anchored to, which is one per branch. Publishing a head anywhere
@@ -305,7 +312,7 @@ subcommand.
 
 | Subcommand | What it does | Exit |
 |---|---|---|
-| `start` | Appends `session.start` to `sessions.jsonl` | 0 |
+| `start` | Appends `session.start` to `sessions/<id>.jsonl` | 0 |
 | `claim` | Builds a check spec from the flags (or takes `--check-json`) and appends the claim | 0 |
 | `retract` | Appends a referencing retraction | 0 |
 | `verify` | Verifies a day (`--date`) or a session (`--session`), writes `audit-<label>.md` unless `--no-report` | 0/3/2 |
@@ -331,12 +338,12 @@ same verdict and only some of them are allowed to act on it.
 
 1. Normalizes `status` case-insensitively and rejects anything but `ok` or
    `blocked`. `OK` must not silently skip the gate.
-2. If `status=ok` and `--no-verify` was not passed, it verifies this session's
-   own claims.
-3. On RED it appends `session.finish.refused` and returns exit 2. No
-   `session.finish` is written. The session is not closed.
-4. Otherwise it appends `session.finish` carrying `claims_verdict`, plus
-   `verify_bypassed: true` when the gate was deliberately skipped.
+2. Unless `--no-verify` was passed, it verifies this session's own claims.
+3. On `status=ok` and RED it appends `session.finish.refused` and returns
+   exit 2. No `session.finish` is written. The session is not closed.
+4. Otherwise it appends `session.finish` carrying `claims_verdict` (including
+   `--status blocked`). `verify_bypassed: true` is stamped only when an `ok`
+   close skipped the gate with `--no-verify`.
 
 The three legitimate ways past a refusal are: fix the gap, retract the claim
 truthfully, or close as `--status blocked`. The fourth way, `--no-verify`,
@@ -367,10 +374,10 @@ there for the wrapped process to pick up), then verifies and records
 `session.finish` with `observed_by: "run-wrapper"` and `command_exit`.
 
 Observe mode is exit-transparent: it returns the wrapped command's own code.
-`--gate` returns 2 in exactly one case, when the command exited 0 but the
-session's claims are RED. That is "the agent said done and the receipts
-disagree" turned into a nonzero exit an orchestrator can act on. A command that
-cannot be found records a finish with `status: "error"` and returns 127.
+`--gate` returns 2 when the command exited 0 but the session's claims are RED
+or the session has no check-backed claims. That matches the `finish` gate.
+A command that cannot be found records a finish with `status: "error"` and
+returns 127.
 
 ### The CI action refuses on four conditions
 
@@ -468,7 +475,7 @@ the tool stream alone, before the money is spent rather than after.
 
 ## Two implementations, one conformance suite
 
-`js/showwork-audit/index.mjs` implements the **reading half** of `spec-v0.2`:
+`js/showwork-audit/index.mjs` implements the **reading half** of `spec-v0.3`:
 chain verification and verdicts, `node:crypto` and `node:fs` only. It
 re-executes no checks. Per the spec's reader-only conformance clause it reports
 what it does not verify rather than skipping it silently.
@@ -499,16 +506,16 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 
 ## Public surface
 
-- PyPI package `showwork`, version 0.3.0, `requires-python >= 3.10`, zero
+- PyPI package `showwork`, version 0.4.0, `requires-python >= 3.10`, zero
   runtime dependencies, MIT licensed. The console script `showwork` maps to
   `showwork.cli:main` (`pyproject.toml`).
 - The Python API re-exported from `showwork/__init__.py`. `record_claim`,
   `verify_session`, `verify_date`, `resolve_root`, `finish_session`,
   `audit_root`, plus the control-plane types.
-- `SPEC.md`, the portable `spec-v0.2` ledger format. Every normative
+- `SPEC.md`, the portable `spec-v0.3` ledger format. Every normative
   requirement names a behavioral test beside it, and reader-only conformance
   is defined there for auditors like `js/showwork-audit`.
-- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.0`.
+- `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.3.1`.
   `docs/ci.md` covers pinning.
 - `docs/`: adapters, CI gating, the Claude Code Stop hook, fleet adoption,
   concurrency rationale, compliance mapping, live enforcement, the False Done

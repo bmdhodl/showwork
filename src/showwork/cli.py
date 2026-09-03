@@ -5,6 +5,8 @@
     showwork retract --session S --claim TEXT --reason R
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
+    showwork status [--session S] [--json]
+    showwork report [--since YYYY-MM-DD] [--exclude-campaign] [--json]
 
 Exit codes: 0 GREEN, 3 YELLOW, 2 RED (and `finish --status ok` exits 2 when
 this session's own claims do not verify).
@@ -21,7 +23,13 @@ from pathlib import Path
 
 from .audit import audit_root, render_audit
 from .budgets import RunBudget
-from .checks import EXIT_BY_VERDICT, render_report
+from .checks import (
+    EXIT_BY_VERDICT,
+    command_stdout_warning,
+    gaps_payload,
+    render_report,
+    validate_check_shape,
+)
 from .dashboard import render as render_dashboard
 from .control import (
     RiskPolicy,
@@ -35,15 +43,18 @@ from .hooks import observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
     finish_session,
+    has_minimum_proof,
     ledger_dir,
     record_claim,
     record_event,
     record_retraction,
     resolve_root,
+    session_file_stem,
     start_session,
     verify_date,
     verify_session,
 )
+from .report import render_status, render_usage, session_status, usage_report
 
 SESSION_ENV = "SHOWWORK_SESSION"
 
@@ -207,6 +218,16 @@ def main(argv: list[str] | None = None) -> int:
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
 
+    p = sub.add_parser("status", help="show open/closed sessions and live verdicts")
+    p.add_argument("--session", help="one session id (default: all)")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("report", help="usage + False Done Rate for a date window")
+    p.add_argument("--since", help="include ledger rows on/after YYYY-MM-DD")
+    p.add_argument("--exclude-campaign", action="store_true",
+                   help="omit proof/research/dashboard campaign sessions from FDR")
+    p.add_argument("--json", action="store_true")
+
     p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--json", action="store_true")
     p.add_argument("--strict", action="store_true",
@@ -249,6 +270,12 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     root = resolve_root(args.root)
+    session = getattr(args, "session", None)
+    if session:
+        try:
+            session_file_stem(session)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
 
     if args.cmd == "start":
         start_session(root, args.session, agent=args.agent, note=args.note)
@@ -257,6 +284,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "claim":
         check = _build_check(args)
+        if check is not None:
+            shape_err = validate_check_shape(check, root)
+            if shape_err is not None:
+                print(f"claim rejected: {shape_err}", file=sys.stderr)
+                return 2
+            warn = command_stdout_warning(check) if check.get("type") == "command" else None
+            if warn:
+                print(f"warning: {warn}", file=sys.stderr)
         record_claim(root, args.session, args.claim, check=check,
                      severity=args.severity, artifact=args.artifact)
         print("claim recorded" + ("" if check else " (no check: recorded, not verifiable)"))
@@ -288,12 +323,34 @@ def main(argv: list[str] | None = None) -> int:
         if state is not None:
             print(f"claims: {state['verdict']} ({state['passed']}/{state['total']} verified)")
         if code != 0:
-            print("REFUSED: a clean close requires this session's claims to verify. "
-                  "Fix the gap, retract the claim, or finish --status blocked.",
+            reason = (state or {}).get("refuse_reason")
+            extra = f" ({reason})" if reason else ""
+            print("REFUSED: a clean close requires this session's claims to verify"
+                  f"{extra}. Fix the gap, retract the claim, or finish --status blocked.",
                   file=sys.stderr)
         else:
             print(f"session.finish recorded: {args.session}")
         return code
+
+    if args.cmd == "status":
+        status = session_status(root, session=args.session)
+        if args.json:
+            print(json.dumps(status, indent=2))
+        else:
+            print(render_status(status))
+        return 0
+
+    if args.cmd == "report":
+        try:
+            report = usage_report(root, since=args.since,
+                                  exclude_campaign=args.exclude_campaign)
+        except ValueError as e:
+            raise SystemExit(str(e)) from e
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            print(render_usage(report))
+        return 0
 
     if args.cmd == "audit":
         state = audit_root(root, strict=args.strict)
@@ -347,6 +404,41 @@ def main(argv: list[str] | None = None) -> int:
             return 127
         state = verify_session(root, args.session)
         verdict = budget.check()
+        gate_refuse = (
+            args.gate and proc_code == 0
+            and (state["verdict"] == "RED" or not has_minimum_proof(state))
+        )
+        if gate_refuse:
+            refuse_reason = (
+                "claims_red" if state["verdict"] == "RED" else "no_check_backed_claims"
+            )
+            unverified = gaps_payload(state)
+            if refuse_reason == "no_check_backed_claims":
+                unverified = [{
+                    "claim": "(session has no check-backed claims)",
+                    "severity": "RED",
+                    "status": "fail",
+                    "detail": "clean close needs at least one falsifiable claim that verifies",
+                    "type": None,
+                }]
+            record_event(
+                root, "session.finish.refused", args.session,
+                status="ok",
+                claims_verdict=("RED" if refuse_reason == "no_check_backed_claims"
+                                else state["verdict"]),
+                command_exit=proc_code, observed_by="run-wrapper",
+                refuse_reason=refuse_reason,
+                claims_unverified=unverified,
+                budget_max_seconds=args.max_seconds,
+                budget_elapsed_seconds=round(budget.elapsed, 3),
+                budget_exceeded=verdict.exceeded,
+                budget_reason=verdict.reason,
+            )
+            print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
+                  f"({state['passed']}/{state['total']} verified)")
+            print("GATE: the command reported success but this session's "
+                  "claims do not meet the exit gate.", file=sys.stderr)
+            return 2
         record_event(root, "session.finish", args.session,
                      status=("ok" if proc_code == 0 else "error"),
                      claims_verdict=state["verdict"], command_exit=proc_code,
@@ -357,10 +449,6 @@ def main(argv: list[str] | None = None) -> int:
                      budget_reason=verdict.reason)
         print(f"wrapped command exit {proc_code}; claims: {state['verdict']} "
               f"({state['passed']}/{state['total']} verified)")
-        if args.gate and proc_code == 0 and state["verdict"] == "RED":
-            print("GATE: the command reported success but this session's "
-                  "claims do not verify.", file=sys.stderr)
-            return 2
         return proc_code
 
     if args.cmd == "stop-hook":

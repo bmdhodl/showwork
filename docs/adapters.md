@@ -45,7 +45,7 @@ adapter accepts any JSON payload carrying `session_id`/`sessionId`.
 ## Reading the ledger from JavaScript
 
 [`js/showwork-audit`](../js/showwork-audit/) is a zero-dependency Node
-implementation of the spec-v0.2 **reading half**: it parses ledgers, verifies
+implementation of the spec-v0.3 **reading half**: it parses ledgers, verifies
 the integrity chain, and reports verdicts (`node js/showwork-audit/index.mjs
 <root>`, exit 0/3/2). It re-executes no checks — what it does not verify it
 reports, never skips. Both implementations are held to the same frozen

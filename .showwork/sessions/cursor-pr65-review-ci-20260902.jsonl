@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr65-review-ci-20260902", "ts": "2026-09-02T21:18:01", "agent": "cursor", "note": "Address Copilot review + fix clean-room CI for per-session ledgers", "prev": "a584277d17af420d0b249bd8aedd0a929cd2992c49dc0f57076336e0295abe1c"}
+{"event": "session.finish", "session": "cursor-pr65-review-ci-20260902", "ts": "2026-09-02T21:19:45", "status": "ok", "claims_verdict": "GREEN", "prev": "d59719ac7cf1e56f25f26792ccc5f67a46643a6ac5f5314b10471e29bb7e02ce"}

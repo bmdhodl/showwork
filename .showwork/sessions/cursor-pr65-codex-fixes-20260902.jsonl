@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr65-codex-fixes-20260902", "ts": "2026-09-02T21:25:10", "agent": "cursor", "note": "Codex P1/P2: injective stems, run --gate min-proof, status reopen", "prev": "05b1c20c496513c57d5dc3c392a9cceaf4511cdc32f4022fa00ca3e6a1c7bdaf"}
+{"event": "session.finish", "session": "cursor-pr65-codex-fixes-20260902", "ts": "2026-09-02T21:26:44", "status": "ok", "claims_verdict": "GREEN", "prev": "583d7047256bc27cdfd8ffa004d36a8a063a2d9d84a856279c7e8a6040789bd4"}

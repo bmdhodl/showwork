@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from showwork.audit import audit_root  # noqa: E402
 from showwork.checks import evaluate_records  # noqa: E402
-from showwork.ledger import ledger_dir, resolve_root  # noqa: E402
+from showwork.ledger import ledger_dir, load_all_claims, load_all_events, resolve_root  # noqa: E402
 
 FRAMEWORKS: dict[str, dict] = {
     "eu-ai-act": {
@@ -92,21 +92,6 @@ DISCLAIMER = (
     "determination for your auditor or counsel.")
 
 
-def _read_jsonl(path: Path) -> list[dict]:
-    if not path.is_file():
-        return []
-    out = []
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
-
-
 def _in_range(ts: str, lo: str, hi: str) -> bool:
     day = str(ts)[:10]
     return lo <= day <= hi
@@ -125,10 +110,9 @@ def build_pack(root: Path, date_from: str, date_to: str, frameworks: list[str],
             text = re.sub(pattern, "[redacted]", text)
         return text
 
-    claims: list[dict] = []
-    for p in sorted(ledger_dir(root).glob("claims-*.jsonl")):
-        claims.extend(r for r in _read_jsonl(p) if _in_range(r.get("ts", ""), date_from, date_to))
-    events = [e for e in _read_jsonl(ledger_dir(root) / "sessions.jsonl")
+    claims = [r for r in load_all_claims(root)
+              if _in_range(r.get("ts", ""), date_from, date_to)]
+    events = [e for e in load_all_events(root)
               if _in_range(e.get("ts", ""), date_from, date_to)]
 
     state = evaluate_records(claims, root, label=f"{date_from}..{date_to}")

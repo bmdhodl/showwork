@@ -9,11 +9,11 @@ from pathlib import Path
 import pytest
 
 from showwork.cli import main
-from showwork.ledger import record_claim, resolve_root, start_session
+from showwork.ledger import record_claim, resolve_root, sessions_path, start_session
 
 
-def _sessions(root: Path) -> list[dict]:
-    path = root / ".showwork" / "sessions.jsonl"
+def _sessions(root: Path, session: str = "w") -> list[dict]:
+    path = sessions_path(root, session)
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip()]
 
@@ -44,7 +44,20 @@ def test_run_gate_refuses_success_with_red_claims(tmp_path, capsys):
     code = main(["--root", str(tmp_path), "run", "--session", "w", "--gate",
                  "--", sys.executable, "-c", "print('all good, boss')"])
     assert code == 2
-    assert _sessions(tmp_path)[-1]["claims_verdict"] == "RED"
+    last = _sessions(tmp_path)[-1]
+    assert last["event"] == "session.finish.refused"
+    assert last["claims_verdict"] == "RED"
+    assert last["refuse_reason"] == "claims_red"
+
+
+def test_run_gate_refuses_success_with_no_claims(tmp_path, capsys):
+    code = main(["--root", str(tmp_path), "run", "--session", "empty-gate",
+                 "--gate", "--", sys.executable, "-c", "print('ok')"])
+    assert code == 2
+    last = _sessions(tmp_path, "empty-gate")[-1]
+    assert last["event"] == "session.finish.refused"
+    assert last["refuse_reason"] == "no_check_backed_claims"
+    assert "GATE" in capsys.readouterr().err
 
 
 def test_run_without_gate_reports_but_propagates(tmp_path):
@@ -98,7 +111,7 @@ def test_run_rejects_non_positive_wall_clock_budget(tmp_path):
         raise AssertionError("expected SystemExit")
 
 
-def test_linked_worktree_receipt_is_written_to_origin(tmp_path):
+def test_linked_worktree_receipt_is_written_in_worktree(tmp_path):
     try:
         subprocess.run(["git", "--version"], check=True,
                        capture_output=True, text=True)
@@ -119,10 +132,12 @@ def test_linked_worktree_receipt_is_written_to_origin(tmp_path):
     subprocess.run(["git", "worktree", "add", str(worktree), "HEAD"],
                    cwd=origin, check=True, capture_output=True, text=True)
     try:
-        assert resolve_root(worktree) == origin.resolve()
+        assert resolve_root(worktree) == worktree.resolve()
         start_session(worktree, "linked-worktree-test")
-        assert (origin / ".showwork" / "sessions.jsonl").is_file()
-        assert not (worktree / ".showwork" / "sessions.jsonl").exists()
+        receipt = (worktree / ".showwork" / "sessions" /
+                   "linked-worktree-test.jsonl")
+        assert receipt.is_file()
+        assert not (origin / ".showwork").exists()
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(worktree)],
                        cwd=origin, check=False, capture_output=True, text=True)

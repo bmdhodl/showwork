@@ -26,7 +26,7 @@ fleet; adapt freely.
   claim the hook file exists, claim the docs section landed, close through the
   gate. If `finish` returns GREEN, the wiring works — by construction.
 - **Prove the hook separately:** `printf '{"session_id":"<sid>"}' | python -m
-  showwork.cli stop-hook`, then check `.showwork/sessions.jsonl` for the
+  showwork.cli stop-hook`, then check `.showwork/sessions/<id>.jsonl` for the
   durable verdict.
 
 ## Pitfalls we hit (check these first)
@@ -38,17 +38,16 @@ fleet; adapt freely.
 - **`python` vs `python3`.** Debian/Ubuntu images ship `python3` only; a hook
   command using `python` fails *silently* (hooks never block). Install
   `python-is-python3` or adjust the command. Detection: no
-  `"observed_by": "stop-hook"` events appearing in `.showwork/sessions.jsonl`.
+  `"observed_by": "stop-hook"` events appearing in `.showwork/sessions/<id>.jsonl`.
 - **Working trees you must not disturb** (long-lived feature branches, crash
   recovery, running daemons): wire the repo through `git worktree add` off the
   default branch instead of switching branches in the live checkout.
-- **Concurrent sessions share one ledger.** Two agents running at once in
-  separate worktrees both append to `.showwork/`, and a plain git merge of the
-  JSONL breaks the chain (a fork). Ship a `.gitattributes` with
-  `.showwork/**/*.jsonl merge=union` so concurrent appends concatenate cleanly;
-  the audit is fork-tolerant and reports the branches. Full detail:
-  [concurrency.md](concurrency.md). We hit this in production on 2026-07-16
-  before the audit tolerated forks.
+- **One hash-chained file is one writer.** Two agents must use distinct session
+  slugs so they write `.showwork/sessions/<id>.jsonl` and
+  `.showwork/claims/<id>.jsonl`. Do not treat `merge=union` as the scaler; it
+  only concatenates leftover shared files. Full detail:
+  [concurrency.md](concurrency.md). We hit the shared-file failure in
+  production on 2026-07-16.
 - **Default branches differ** across old repos (`master` vs `main`); pass the
   base explicitly when scripting PR creation.
 

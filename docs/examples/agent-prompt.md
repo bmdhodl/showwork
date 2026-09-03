@@ -8,26 +8,42 @@ or your agent harness config):
 
 Start material work with:
 
-    showwork start --session <task-slug> --agent claude-code
+    showwork start --session <agent>-<task-slug> --agent claude-code
+    export SHOWWORK_SESSION=<agent>-<task-slug>
+
+Use a distinct slug per agent (`cursor-fix-nav`, `codex-fix-nav`). Two agents
+that share a slug share one ledger file.
 
 After each completed change, record a falsifiable claim with a check that can fail:
 
-    showwork claim --session <task-slug> \
+    showwork claim --session <agent>-<task-slug> \
       --claim "bumped the API timeout in config" \
       --type file_contains --path config/api.yaml --pattern "timeout: 30"
 
-Check types: file_exists, file_contains, path_moved, frontmatter, glob_count, command, http_probe, git_state
+Prefer git_state or glob_count when they fit. For test runs:
+
+    showwork claim --session <agent>-<task-slug> \
+      --claim "tests pass" --type command \
+      --command-arg python --command-arg scripts/run_tests.py \
+      --expect-exit 0 --stdout-contains passed
+
+Do not claim exact "N passed" counts (they go stale). Check types:
+file_exists, file_contains, path_moved, frontmatter, glob_count, command,
+http_probe, git_state.
 
 Before reporting success, close through the exit gate:
 
-    showwork finish --session <task-slug> --status ok
+    showwork finish --session <agent>-<task-slug> --status ok
 
-If the finish command refuses (exit 2), fix the failed claim or retract it truthfully:
+A clean close needs at least one check-backed claim. If the finish command
+refuses (exit 2), fix the failed claim or retract it truthfully:
 
-    showwork retract --session <task-slug> --claim "<exact claim text>" --reason "<why>"
+    showwork retract --session <agent>-<task-slug> --claim "<exact claim text>" --reason "<why>"
 
 NEVER use --no-verify to manufacture a clean result. A bypassed gate is stamped on
 the record and CI will reject it.
+
+Operator helpers: `showwork status`, `showwork report [--since YYYY-MM-DD]`.
 
 Commit .showwork/ receipts with your change - the ledger is part of the work.
 ```

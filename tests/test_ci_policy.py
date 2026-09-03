@@ -31,6 +31,18 @@ def test_clean_room_skips_fork_shaped_pull_requests():
     assert guard in workflow
 
 
+def test_clean_room_tamper_uses_per_session_event_file():
+    workflow = read_repo_file(".github", "workflows", "clean-room-action.yml")
+    assert ".showwork/sessions/${SESSION}.jsonl" in workflow
+    assert ".showwork/sessions.jsonl" not in workflow
+
+
+def test_clean_room_fork_safe_uses_locked_python_script():
+    workflow = read_repo_file(".github", "workflows", "clean-room-action.yml")
+    assert "command-arg=-c" not in workflow
+    assert "scripts/ok.py" in workflow
+
+
 def test_receipt_action_sensitive_inputs_default_to_refusal():
     action = read_repo_file("actions", "verify", "action.yml")
     for name in ("allow-commands", "allow-network"):
