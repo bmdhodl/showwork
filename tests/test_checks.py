@@ -898,6 +898,25 @@ def test_claim_rejects_file_exists_without_path(tmp_path):
     assert code == 2
 
 
+def test_record_claim_rejects_file_exists_without_path(tmp_path):
+    from showwork.ledger import record_claim
+    with pytest.raises(ValueError, match="path"):
+        record_claim(tmp_path, "s", "x", check={"type": "file_exists"})
+
+
+def test_record_claim_rejects_empty_check(tmp_path):
+    from showwork.ledger import record_claim
+    with pytest.raises(ValueError, match="unknown check type"):
+        record_claim(tmp_path, "s", "x", check={})
+
+
+def test_validate_check_shape_rejects_git_state_non_bool_clean(tmp_path):
+    from showwork.checks import validate_check_shape
+    err = validate_check_shape({"type": "git_state", "clean": "yes"}, tmp_path)
+    assert err is not None
+    assert "boolean" in err
+
+
 def test_command_lock_rejects_powershell(tmp_path):
     r = verify_claim(claim({"type": "command", "argv": ["python", "x.ps1"]}), tmp_path)
     assert r["status"] == "error"

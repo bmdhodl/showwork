@@ -51,10 +51,23 @@ a single path component matching `[A-Za-z0-9._-]{1,120}` before it is joined;
 empty ids, `.`, `..`, and path separators are rejected or rewritten, never
 used as directory traversal. When rewrite or truncation would map two distinct
 ids onto one stem, the writer MUST [test:
-tests/test_session_files.py::test_session_file_stem_rejects_path_escape] append
-a short hash of the original id so the mapping stays injective. Distinct session files MUST [test:
+tests/test_session_files.py::test_session_file_stem_rejects_path_escape] prefix
+the stem with `h-` and a short hash of the original id so the mapping stays
+injective and hashed stems cannot collide with an exact id on a
+case-insensitive filesystem. Distinct session files MUST [test:
 tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conflict]
-merge in git without a same-path conflict. Linked worktrees MUST [test:
+merge in git without a same-path conflict. When one session spans more than
+one claims file, readers MUST [test:
+tests/test_session_files.py::test_split_session_files_honor_later_retraction]
+keep the current write-path file last and MUST [test:
+tests/test_session_files.py::test_append_order_inside_file_beats_timestamp]
+keep append order inside each file. Writers MUST [test:
+tests/test_session_files.py::test_writer_reuses_existing_session_file]
+append to an existing leftover file for that session when the current stem
+has no file yet. A current stem file that already belongs to a different
+session MUST [test:
+tests/test_session_files.py::test_writer_refuses_current_file_owned_by_another_session]
+be refused. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
 receipts in that worktree's own `.showwork/` so the receipt ships with the
 branch.
@@ -84,7 +97,13 @@ agent a distinct slug (`cursor-fix-nav`, `codex-fix-nav`).
 tests/test_checks.py::test_no_check_is_skipped] remain recorded but cannot count
 as verified proof. A writer MUST [test:
 tests/test_checks.py::test_claim_rejects_file_exists_without_path] reject a
-check at claim time when required fields for that type are missing. Severity is `RED` or `YELLOW`.
+check at claim time when required fields for that type are missing. The Python
+`record_claim` writer MUST [test:
+tests/test_checks.py::test_record_claim_rejects_file_exists_without_path] apply
+the same shape check. An omitted check (`None`) is prose. An explicitly
+supplied check, including `{}`, MUST [test:
+tests/test_checks.py::test_record_claim_rejects_empty_check] go through that
+shape check. Severity is `RED` or `YELLOW`.
 
 ## Check semantics
 

@@ -1,6 +1,14 @@
 """Operator report + status helpers."""
 
-from showwork.ledger import finish_session, record_claim, start_session
+import json
+
+from showwork.ledger import (
+    finish_session,
+    record_claim,
+    record_event,
+    session_events_path,
+    start_session,
+)
 from showwork.report import analyze_fdr, session_status, usage_report
 
 
@@ -58,3 +66,41 @@ def test_session_status_uses_latest_close_attempt(tmp_path):
     assert finish_session(tmp_path, "s")[0] == 2
     status = session_status(tmp_path, session="s")
     assert status["sessions"][0]["last_claims_verdict"] == "RED"
+
+
+def test_split_event_files_keep_later_start_open(tmp_path):
+    events_dir = tmp_path / ".showwork" / "sessions"
+    events_dir.mkdir(parents=True)
+    old = events_dir / "z-legacy.jsonl"
+    old.write_text(
+        json.dumps({"event": "session.start", "session": "split-e",
+                    "ts": "2026-09-02T20:00:00"}) + "\n"
+        + json.dumps({"event": "session.finish", "session": "split-e",
+                      "ts": "2026-09-02T20:01:00", "status": "ok"}) + "\n",
+        encoding="utf-8",
+    )
+    record_event(tmp_path, "session.start", "split-e", agent="cursor")
+    assert session_events_path(tmp_path, "split-e") == old.resolve()
+    assert not (events_dir / "split-e.jsonl").exists()
+    status = session_status(tmp_path, session="split-e")
+    assert status["sessions"][0]["open"] is True
+
+
+def test_legacy_sessions_file_stays_before_per_session_events(tmp_path):
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    (ledger / "sessions.jsonl").write_text(
+        json.dumps({"event": "session.start", "session": "s",
+                    "ts": "2026-09-02T20:00:00"}) + "\n"
+        + json.dumps({"event": "session.finish", "session": "s",
+                      "ts": "2026-09-02T20:01:00", "status": "ok"}) + "\n",
+        encoding="utf-8",
+    )
+    (ledger / "sessions").mkdir()
+    (ledger / "sessions" / "s.jsonl").write_text(
+        json.dumps({"event": "session.start", "session": "s",
+                    "ts": "2026-09-02T19:00:00"}) + "\n",
+        encoding="utf-8",
+    )
+    status = session_status(tmp_path, session="s")
+    assert status["sessions"][0]["open"] is True

@@ -536,11 +536,29 @@ def validate_check_shape(check: dict, root: Path) -> str | None:
             return "http_probe.expect_status must be an integer"
         if not 100 <= expected <= 599:
             return "http_probe.expect_status must be between 100 and 599"
+        if "body_contains" in check:
+            needle = check["body_contains"]
+            if not isinstance(needle, str) or needle == "":
+                return "http_probe.body_contains must be a non-empty string"
         return None
     if ctype == "git_state":
         requested = {key for key in ("clean", "branch", "commit") if key in check}
         if not requested:
             return "git_state requires at least one assertion: clean, branch, or commit"
+        if "clean" in check and not isinstance(check["clean"], bool):
+            return "git_state.clean must be a boolean"
+        if "branch" in check and (
+            not isinstance(check["branch"], str) or check["branch"] == ""
+        ):
+            return "git_state.branch must be a non-empty string"
+        expected_commit = check.get("commit")
+        if "commit" in check and (
+            not isinstance(expected_commit, str)
+            or re.fullmatch(r"[0-9a-fA-F]{7,64}", expected_commit) is None
+        ):
+            return (
+                "git_state.commit must be a hexadecimal prefix of at least 7 characters"
+            )
         return None
     return None
 

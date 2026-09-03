@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr66-empty-check-20260902", "ts": "2026-09-02T21:58:27", "agent": "cursor", "prev": "1d7ea01fc11bf30fbc60a655564f3f9331a1e7bedfc953e429802d3f9f5ed61b"}
+{"event": "session.finish", "session": "cursor-pr66-empty-check-20260902", "ts": "2026-09-02T21:58:57", "status": "ok", "claims_verdict": "GREEN", "prev": "4f9dde55857c634df7a0f01c52aaf4823c16fe305249c09cc8670287627dbd96"}

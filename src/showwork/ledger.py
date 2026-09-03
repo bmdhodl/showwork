@@ -21,7 +21,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from .checks import evaluate_records, gaps_payload
+from .checks import evaluate_records, gaps_payload, validate_check_shape
 
 LEDGER_DIRNAME = ".showwork"
 ROOT_ENV = "SHOWWORK_ROOT"
@@ -96,7 +96,8 @@ def session_file_stem(session: str) -> str:
 
     Two agents that share a slug still collide. Distinct slugs must map to
     distinct files: when sanitization or truncation would collide distinct
-    inputs, append a short hash of the original id so the stem stays injective.
+    inputs, prefix the stem with h- and a short hash of the original id so
+    the stem stays injective.
     Empty ids, path separators, and Windows reserved device names are rejected
     or rewritten, never joined.
     """
@@ -108,17 +109,22 @@ def session_file_stem(session: str) -> str:
         raise ValueError(f"session id is not a safe file stem: {session!r}")
     cleaned = _SESSION_UNSAFE_RE.sub("-", raw).strip(".-")
     cleaned = re.sub(r"-{2,}", "-", cleaned)
-    if cleaned.lower() in _WINDOWS_RESERVED:
+    base = cleaned.split(".")[0].lower()
+    if cleaned.lower() in _WINDOWS_RESERVED or base in _WINDOWS_RESERVED:
         cleaned = f"sess-{cleaned}"
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
     # Lossy when whitespace was stripped, characters were rewritten, reserved
-    # names were prefixed, or the id was truncated. Bind the original bytes.
-    lossy = cleaned != raw or len(raw) > 120 or original != raw
+    # names were prefixed, case differs, or the id was truncated.
+    # Hashed stems live under h- so they cannot collide with an exact id,
+    # including a lowercase id that looks like "{cleaned}-{digest}".
+    lossy = cleaned != raw or len(raw) > 120 or original != raw or cleaned != cleaned.lower() or cleaned.lower().startswith("h-")
     if lossy:
-        max_base = 120 - 1 - len(digest)  # room for "-<digest>"
-        if len(cleaned) > max_base:
-            cleaned = cleaned[:max_base].rstrip(".-")
-        cleaned = f"{cleaned}-{digest}" if cleaned else f"sess-{digest}"
+        base = cleaned.lower()
+        prefix = f"h-{digest}-"
+        max_base = 120 - len(prefix)
+        if len(base) > max_base:
+            base = base[:max_base].rstrip(".-")
+        cleaned = f"{prefix}{base}" if base else f"h-{digest}"
     if not cleaned or cleaned in {".", ".."} or not _SESSION_STEM_RE.fullmatch(cleaned):
         raise ValueError(f"session id is not a safe file stem: {session!r}")
     return cleaned
@@ -129,10 +135,56 @@ def has_minimum_proof(state: dict) -> bool:
     return any(r.get("status") != "skipped" for r in state.get("results", []))
 
 
+def _record_belongs_to_session(rec: dict, session: str) -> bool:
+    if rec.get("session") == session:
+        return True
+    retracts = rec.get("retracts")
+    return isinstance(retracts, dict) and retracts.get("session") == session
+
+
+def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path | None:
+    """Reuse a leftover file for this session instead of splitting the stem.
+
+    If the current stem already has a file, keep writing there. If not, and
+    exactly one other jsonl already holds this session, keep appending there.
+    """
+    if current.is_file():
+        owners: set[str] = set()
+        for rec in _read_jsonl(current):
+            name = rec.get("session")
+            if isinstance(name, str) and name:
+                owners.add(name)
+            retracts = rec.get("retracts")
+            if isinstance(retracts, dict):
+                other = retracts.get("session")
+                if isinstance(other, str) and other:
+                    owners.add(other)
+        if owners and session not in owners:
+            raise ValueError(
+                f"session file stem collides with existing ledger {current.name}"
+            )
+        return current
+    if not folder.is_dir():
+        return None
+    found: list[Path] = []
+    for path in sorted(folder.glob("*.jsonl")):
+        if path.resolve() == current.resolve():
+            continue
+        if any(_record_belongs_to_session(rec, session) for rec in _read_jsonl(path)):
+            found.append(path)
+        if len(found) > 1:
+            return None
+    if len(found) == 1:
+        return found[0]
+    return None
+
+
 def _session_subdir_path(root: Path, subdir: str, session: str) -> Path:
     base = ledger_dir(root).resolve()
     folder = (base / subdir).resolve()
-    path = (folder / f"{session_file_stem(session)}.jsonl").resolve()
+    current = (folder / f"{session_file_stem(session)}.jsonl").resolve()
+    existing = _existing_session_jsonl(folder, session, current)
+    path = (existing or current).resolve()
     try:
         path.relative_to(folder)
         folder.relative_to(base)
@@ -375,9 +427,15 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def record_claim(root: Path, session: str, claim: str, check: dict | None = None,
                  severity: str = "RED", artifact: str | None = None) -> dict:
+    # None is prose (no check). Any explicit value, including {}, is a check
+    # and must pass shape validation. Do not use truthiness: {} is falsy.
+    if check is not None:
+        shape_err = validate_check_shape(check, root)
+        if shape_err is not None:
+            raise ValueError(shape_err)
     rec: dict = {"session": session, "ts": _now(), "claim": claim,
                  "severity": severity.upper()}
-    if check:
+    if check is not None:
         rec["check"] = check
     if artifact:
         rec["artifact"] = artifact
@@ -403,6 +461,83 @@ def record_event(root: Path, event: str, session: str, **fields) -> dict:
 # ---------- reading ----------
 
 
+def _first_record_ts(records: list[dict]) -> str:
+    for rec in records:
+        ts = rec.get("ts")
+        if isinstance(ts, str) and ts:
+            return ts
+    return ""
+
+
+def _merge_record_streams(
+    streams: list[list[dict]],
+    trailing: list[dict] | None = None,
+) -> list[dict]:
+    """Concatenate file streams. Keep append order inside each file.
+
+    A stem remap can split one session across two files. Put the current
+    write-path stream last so a later re-claim is not pulled before an
+    older retraction when the clock rolls back. Other streams are ordered
+    by first-record ``ts``. Do not sort records inside a file.
+    """
+    nonempty = [recs for recs in streams if recs]
+    nonempty.sort(key=_first_record_ts)
+    out: list[dict] = []
+    for recs in nonempty:
+        out.extend(recs)
+    if trailing:
+        out.extend(trailing)
+    return out
+
+
+def _session_ids_in(records: list[dict]) -> set[str]:
+    names: set[str] = set()
+    for rec in records:
+        name = rec.get("session")
+        if isinstance(name, str) and name:
+            names.add(name)
+        retracts = rec.get("retracts")
+        if isinstance(retracts, dict):
+            other = retracts.get("session")
+            if isinstance(other, str) and other:
+                names.add(other)
+    return names
+
+
+def _merge_files_for_sessions(
+    root: Path, file_streams: list[tuple[Path, list[dict]]]
+) -> list[dict]:
+    """Merge file streams per session, with the current write-path last."""
+    by_session: dict[str, list[tuple[Path, list[dict]]]] = {}
+    leftover: list[list[dict]] = []
+    for path, recs in file_streams:
+        names = _session_ids_in(recs)
+        if not names:
+            leftover.append(recs)
+            continue
+        for sess in names:
+            subset = [
+                rec for rec in recs
+                if _record_belongs_to_session(rec, sess) or rec.get("_parse_error")
+            ]
+            by_session.setdefault(sess, []).append((path, subset))
+    out = list(_merge_record_streams(leftover))
+    for sess in sorted(by_session):
+        try:
+            current = session_claims_path(root, sess).resolve()
+        except ValueError:
+            current = None
+        others: list[list[dict]] = []
+        trailing: list[dict] = []
+        for path, recs in by_session[sess]:
+            if current is not None and path.resolve() == current:
+                trailing = recs
+            else:
+                others.append(recs)
+        out.extend(_merge_record_streams(others, trailing=trailing))
+    return out
+
+
 def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     """Claims for one calendar day.
 
@@ -413,11 +548,11 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     label = date_str if date_str is not None else _today()
     if not _CLAIMS_DATE_RE.fullmatch(str(label)):
         raise ValueError(f"claims date must be YYYY-MM-DD, got {date_str!r}")
-    records: list[dict] = []
+    file_streams: list[tuple[Path, list[dict]]] = []
     daily = claims_path(root, label)
     daily_key = daily.resolve() if daily.is_file() else None
     if daily.is_file():
-        records.extend(_read_jsonl(daily))
+        file_streams.append((daily, _read_jsonl(daily)))
     for path in iter_claim_paths(root):
         if daily_key is not None and path.resolve() == daily_key:
             continue
@@ -430,9 +565,8 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
                 dated.append(rec)
             if rec.get("_parse_error"):
                 errors.append(rec)
-        records.extend(dated)
         if dated:
-            records.extend(errors)
+            file_streams.append((path, dated + errors))
             continue
         if not errors:
             continue
@@ -441,15 +575,17 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
         except OSError:
             continue
         if mtime_day == str(label):
-            records.extend(errors)
-    return records
+            file_streams.append((path, errors))
+    return _merge_files_for_sessions(root, file_streams)
 
 
 def load_all_claims(root: Path) -> list[dict]:
-    records: list[dict] = []
+    file_streams: list[tuple[Path, list[dict]]] = []
     for path in iter_claim_paths(root):
-        records.extend(_read_jsonl(path))
-    return records
+        recs = _read_jsonl(path)
+        if recs:
+            file_streams.append((path, recs))
+    return _merge_files_for_sessions(root, file_streams)
 
 
 def load_all_events(root: Path) -> list[dict]:
@@ -460,18 +596,32 @@ def load_all_events(root: Path) -> list[dict]:
 
 
 def claims_for_session(root: Path, session: str) -> list[dict]:
-    out = []
-    for r in load_all_claims(root):
-        if r.get("session") == session:
-            out.append(r)
-        elif isinstance(r.get("retracts"), dict) and r["retracts"].get("session") == session:
-            out.append(r)
-    path = session_claims_path(root, session)
-    if path.is_file():
-        for r in _read_jsonl(path):
-            if r.get("_parse_error"):
-                out.append(r)
-    return out
+    try:
+        current: Path | None = session_claims_path(root, session).resolve()
+    except ValueError:
+        current = None
+    others: list[list[dict]] = []
+    trailing: list[dict] = []
+    for path in iter_claim_paths(root):
+        recs: list[dict] = []
+        errors: list[dict] = []
+        belongs = False
+        is_current = current is not None and path.resolve() == current
+        for rec in _read_jsonl(path):
+            if rec.get("_parse_error"):
+                errors.append(rec)
+            elif _record_belongs_to_session(rec, session):
+                recs.append(rec)
+                belongs = True
+        if belongs or is_current:
+            recs.extend(errors)
+        if not recs:
+            continue
+        if is_current:
+            trailing = recs
+        else:
+            others.append(recs)
+    return _merge_record_streams(others, trailing=trailing)
 
 
 # ---------- verification entry points ----------

@@ -1,5 +1,6 @@
 """Per-session ledger files: one writer per path, legacy files still readable."""
 
+import hashlib
 import json
 import subprocess
 
@@ -12,10 +13,12 @@ from showwork.ledger import (
     load_all_claims,
     load_all_events,
     record_claim,
+    record_retraction,
     session_claims_path,
     session_events_path,
     session_file_stem,
     start_session,
+    verify_date,
     verify_session,
 )
 
@@ -57,9 +60,13 @@ def test_session_file_stem_rejects_path_escape():
     slash = session_file_stem("foo/bar")
     qmark = session_file_stem("foo?bar")
     assert slash != qmark
-    assert slash.startswith("foo-bar-")
-    assert qmark.startswith("foo-bar-")
-    assert session_file_stem("con").startswith("sess-con-")
+    assert slash.startswith("h-")
+    assert qmark.startswith("h-")
+    assert "foo-bar" in slash
+    assert "foo-bar" in qmark
+    con_stem = session_file_stem("con")
+    assert con_stem.startswith("h-")
+    assert "sess-con" in con_stem
     assert ".." not in session_file_stem("..\\..\\escaped")
     path = session_file_stem("a" * 200)
     assert len(path) <= 120
@@ -69,7 +76,16 @@ def test_session_file_stem_rejects_path_escape():
     assert session_file_stem("claude-fix") == "claude-fix"
     padded = session_file_stem(" foo ")
     assert padded != session_file_stem("foo")
-    assert padded.startswith("foo-")
+    assert padded.startswith("h-")
+    assert session_file_stem("FOO") != session_file_stem("foo")
+    foo_hashed = session_file_stem("FOO")
+    assert foo_hashed.startswith("h-")
+    assert foo_hashed.lower() != session_file_stem(foo_hashed).lower()
+    lookalike = "foo-" + hashlib.sha256(b"FOO").hexdigest()[:10]
+    assert foo_hashed.lower() != session_file_stem(lookalike).lower()
+    con_txt = session_file_stem("con.txt")
+    assert con_txt.startswith("h-")
+    assert "sess-con" in con_txt
 
 
 def test_legacy_shared_files_remain_readable(tmp_path):
@@ -158,3 +174,180 @@ def test_two_agent_session_files_git_merge_without_conflict(tmp_path):
     assert (repo / ".showwork" / "claims" / "codex-api.jsonl").is_file()
     assert (repo / ".showwork" / "sessions" / "cursor-nav.jsonl").is_file()
     assert (repo / ".showwork" / "sessions" / "codex-api.jsonl").is_file()
+
+
+def test_writer_reuses_existing_session_file(tmp_path):
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    old = ledger / "z-legacy.jsonl"
+    rec = {
+        "session": "split-s",
+        "ts": "2026-09-02T20:00:00",
+        "claim": "old proof",
+        "severity": "RED",
+        "check": {"type": "file_exists", "path": "missing.txt"},
+    }
+    old.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    record_retraction(tmp_path, "split-s", "old proof", "stem remap")
+    assert session_claims_path(tmp_path, "split-s") == old.resolve()
+    assert not (ledger / "split-s.jsonl").exists()
+    state = verify_session(tmp_path, "split-s")
+    assert state["verdict"] == "GREEN"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert live == []
+
+
+def test_split_session_files_honor_later_retraction(tmp_path):
+    """A later retraction in the current stem file still suppresses the claim."""
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    old = ledger / "z-legacy.jsonl"
+    rec = {
+        "session": "split-s",
+        "ts": "2026-09-02T20:00:00",
+        "claim": "old proof",
+        "severity": "RED",
+        "check": {"type": "file_exists", "path": "missing.txt"},
+    }
+    old.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    new = ledger / "split-s.jsonl"
+    retraction = {
+        "session": "split-s",
+        "ts": "2026-09-02T21:00:00",
+        "retracted": True,
+        "retracts": {"session": "split-s", "claim": "old proof"},
+        "retraction_reason": "stem remap",
+    }
+    new.write_text(json.dumps(retraction) + "\n", encoding="utf-8")
+    state = verify_session(tmp_path, "split-s")
+    assert state["verdict"] == "GREEN"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert live == []
+
+
+def test_cross_file_clock_rollback_keeps_reclaim_live(tmp_path):
+    (tmp_path / "ok.txt").write_text("x", encoding="utf-8")
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    old = ledger / "z-legacy.jsonl"
+    old_recs = [
+        {
+            "session": "split-s",
+            "ts": "2026-09-02T10:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "missing.txt"},
+        },
+        {
+            "session": "split-s",
+            "ts": "2026-09-02T11:00:00",
+            "retracted": True,
+            "retracts": {"session": "split-s", "claim": "x"},
+            "retraction_reason": "wrong",
+        },
+    ]
+    old.write_text("".join(json.dumps(r) + "\n" for r in old_recs), encoding="utf-8")
+    new = ledger / "split-s.jsonl"
+    new_recs = [
+        {
+            "session": "split-s",
+            "ts": "2026-09-02T09:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "missing.txt"},
+        },
+        {
+            "session": "split-s",
+            "ts": "2026-09-02T09:01:00",
+            "claim": "ok",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "ok.txt"},
+        },
+    ]
+    new.write_text("".join(json.dumps(r) + "\n" for r in new_recs), encoding="utf-8")
+    state = verify_session(tmp_path, "split-s")
+    assert state["verdict"] == "RED"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert any(r["claim"] == "x" and r["status"] == "fail" for r in live)
+    dated = verify_date(tmp_path, "2026-09-02")
+    assert dated["verdict"] == "RED"
+
+
+def test_legacy_parse_error_is_visible(tmp_path):
+    (tmp_path / "ok.txt").write_text("x", encoding="utf-8")
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    old = ledger / "z-legacy.jsonl"
+    old.write_text(
+        json.dumps({
+            "session": "parse-s",
+            "ts": "2026-09-02T20:00:00",
+            "claim": "old",
+            "severity": "YELLOW",
+            "check": {"type": "file_exists", "path": "ok.txt"},
+        }) + "\nnot-json\n",
+        encoding="utf-8",
+    )
+    new = ledger / "parse-s.jsonl"
+    new.write_text(
+        json.dumps({
+            "session": "parse-s",
+            "ts": "2026-09-02T21:00:00",
+            "claim": "new",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "ok.txt"},
+        }) + "\n",
+        encoding="utf-8",
+    )
+    state = verify_session(tmp_path, "parse-s")
+    assert state["verdict"] != "GREEN"
+
+
+def test_append_order_inside_file_beats_timestamp(tmp_path):
+    """A later re-claim with an earlier ts stays live inside one file."""
+    (tmp_path / "ok.txt").write_text("x", encoding="utf-8")
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    path = ledger / "clock.jsonl"
+    recs = [
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T10:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "missing.txt"},
+        },
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T11:00:00",
+            "retracted": True,
+            "retracts": {"session": "clock-s", "claim": "x"},
+            "retraction_reason": "wrong",
+        },
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T09:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "ok.txt"},
+        },
+    ]
+    path.write_text("".join(json.dumps(r) + "\n" for r in recs), encoding="utf-8")
+    state = verify_session(tmp_path, "clock-s")
+    assert state["verdict"] == "GREEN"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert len(live) == 1
+    assert live[0]["status"] == "pass"
+
+
+def test_writer_refuses_current_file_owned_by_another_session(tmp_path):
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    path = ledger / "foo-9520437ce8.jsonl"
+    path.write_text(
+        json.dumps({"session": "FOO", "ts": "2026-09-02T20:00:00", "claim": "x"})
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="collides"):
+        session_claims_path(tmp_path, "foo-9520437ce8")
