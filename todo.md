@@ -13,6 +13,9 @@ compliance evidence packs all closed through the exit gate.
 - [x] Clean-room fork-safe claim uses locked `python scripts/ok.py`
 - [x] Blocked finish stamps `claims_verdict` (Copilot review)
 - [x] Stop-hook docstring matches `session_unbound` behavior (Copilot review)
+- [x] Session stems stay injective after rewrite (Codex P1)
+- [x] `run --gate` refuses empty/prose-only success (Codex P1)
+- [x] `status` reopens after a later `session.start` (Codex P2)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

@@ -49,7 +49,10 @@ load those leftover files. A session id MUST [test:
 tests/test_session_files.py::test_session_file_stem_rejects_path_escape] become
 a single path component matching `[A-Za-z0-9._-]{1,120}` before it is joined;
 empty ids, `.`, `..`, and path separators are rejected or rewritten, never
-used as directory traversal. Distinct session files MUST [test:
+used as directory traversal. When rewrite or truncation would map two distinct
+ids onto one stem, the writer MUST [test:
+tests/test_session_files.py::test_session_file_stem_rejects_path_escape] append
+a short hash of the original id so the mapping stays injective. Distinct session files MUST [test:
 tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conflict]
 merge in git without a same-path conflict. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
@@ -348,7 +351,10 @@ gate. When `SHOWWORK_SESSION` is set, the Stop hook MUST [test:
 tests/test_hooks.py::test_stop_hook_prefers_showwork_session_env] bind to that
 id and stamp `session_bound_from`; otherwise it MUST [test:
 tests/test_hooks.py::test_stop_hook_marks_unbound_payload_session] stamp
-`session_unbound` on the observed finish.
+`session_unbound` on the observed finish. A gated `run` MUST [test:
+tests/test_run.py::test_run_gate_refuses_success_with_no_claims] refuse with
+exit 2 when the wrapped command exits 0 without check-backed claims, matching
+the finish gate.
 
 ## Verdict algebra
 

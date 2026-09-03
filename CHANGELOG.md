@@ -29,6 +29,13 @@ All notable changes to showwork are recorded here.
 - **CI clean-room fixtures** - the tamper case edits the per-session session
   file; the fork-safe case claims a locked `python scripts/ok.py` instead of
   `python -c`.
+- **Injective session stems** - rewritten or truncated session ids keep a
+  short hash of the original id so `foo/bar` and `foo?bar` do not share a
+  file.
+- **Gated `run` matches finish** - `showwork run --gate` refuses a successful
+  command with no check-backed claims, same as `finish --status ok`.
+- **Status reopen** - `showwork status` reports a slug as open after a later
+  `session.start`.
 
 ## 0.3.1 - 2026-08-14
 

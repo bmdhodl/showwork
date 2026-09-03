@@ -80,7 +80,9 @@ so two agents in two worktrees write two `.showwork/` trees.
 ```
 
 New writes use the per-session files. `session_file_stem()` turns the session
-id into one path component and rejects empty ids, `.`, `..`, and separators.
+id into one path component. Empty ids, `.`, and `..` are rejected. Unsafe
+characters are rewritten, and a short hash of the original id is appended
+when that rewrite would collide distinct slugs.
 `claims_path()` remains for leftover day files and for `verify --date`.
 
 `_audit_report_path()` in `cli.py` does the same job for report labels: session
@@ -372,10 +374,10 @@ there for the wrapped process to pick up), then verifies and records
 `session.finish` with `observed_by: "run-wrapper"` and `command_exit`.
 
 Observe mode is exit-transparent: it returns the wrapped command's own code.
-`--gate` returns 2 in exactly one case, when the command exited 0 but the
-session's claims are RED. That is "the agent said done and the receipts
-disagree" turned into a nonzero exit an orchestrator can act on. A command that
-cannot be found records a finish with `status: "error"` and returns 127.
+`--gate` returns 2 when the command exited 0 but the session's claims are RED
+or the session has no check-backed claims. That matches the `finish` gate.
+A command that cannot be found records a finish with `status: "error"` and
+returns 127.
 
 ### The CI action refuses on four conditions
 

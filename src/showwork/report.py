@@ -157,6 +157,7 @@ def usage_report(root: Path, *, since: str | None = None,
     check_types: dict[str, int] = {}
     campaign_starts = 0
 
+    start_notes: dict[str, str | None] = {}
     for e in load_all_events(root):
         if not _ts_ok(e.get("ts"), since_dt):
             continue
@@ -164,6 +165,7 @@ def usage_report(root: Path, *, since: str | None = None,
         session = str(e.get("session", "?"))
         if ev == "session.start":
             starts += 1
+            start_notes[session] = e.get("note")
             if _is_campaign_session(session, e.get("note")):
                 campaign_starts += 1
             agent = e.get("agent") or "(none)"
@@ -179,7 +181,8 @@ def usage_report(root: Path, *, since: str | None = None,
         check = c.get("check")
         if not isinstance(check, dict):
             continue
-        if exclude_campaign and _is_campaign_session(str(c.get("session", ""))):
+        session = str(c.get("session", ""))
+        if exclude_campaign and _is_campaign_session(session, start_notes.get(session)):
             continue
         ctype = str(check.get("type") or "?")
         check_types[ctype] = check_types.get(ctype, 0) + 1
