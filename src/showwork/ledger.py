@@ -135,10 +135,42 @@ def has_minimum_proof(state: dict) -> bool:
     return any(r.get("status") != "skipped" for r in state.get("results", []))
 
 
+def _record_belongs_to_session(rec: dict, session: str) -> bool:
+    if rec.get("session") == session:
+        return True
+    retracts = rec.get("retracts")
+    return isinstance(retracts, dict) and retracts.get("session") == session
+
+
+def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path | None:
+    """Reuse a leftover file for this session instead of splitting the stem.
+
+    If the current stem already has a file, keep writing there. If not, and
+    exactly one other jsonl already holds this session, keep appending there.
+    """
+    if current.is_file():
+        return current
+    if not folder.is_dir():
+        return None
+    found: list[Path] = []
+    for path in sorted(folder.glob("*.jsonl")):
+        if path.resolve() == current.resolve():
+            continue
+        if any(_record_belongs_to_session(rec, session) for rec in _read_jsonl(path)):
+            found.append(path)
+        if len(found) > 1:
+            return None
+    if len(found) == 1:
+        return found[0]
+    return None
+
+
 def _session_subdir_path(root: Path, subdir: str, session: str) -> Path:
     base = ledger_dir(root).resolve()
     folder = (base / subdir).resolve()
-    path = (folder / f"{session_file_stem(session)}.jsonl").resolve()
+    current = (folder / f"{session_file_stem(session)}.jsonl").resolve()
+    existing = _existing_session_jsonl(folder, session, current)
+    path = (existing or current).resolve()
     try:
         path.relative_to(folder)
         folder.relative_to(base)
@@ -423,20 +455,24 @@ def _first_record_ts(records: list[dict]) -> str:
     return ""
 
 
-def _merge_record_streams(streams: list[list[dict]]) -> list[dict]:
+def _merge_record_streams(
+    streams: list[list[dict]],
+    trailing: list[dict] | None = None,
+) -> list[dict]:
     """Concatenate file streams. Keep append order inside each file.
 
-    A stem remap can split one session across two files. Glob order then
-    puts a later file first. Order the streams by the first record's ``ts``
-    so a later retraction still follows its claim. Do not sort records
-    inside a file: a clock rollback must not move a re-claim before a
-    physically earlier retraction.
+    A stem remap can split one session across two files. Put the current
+    write-path stream last so a later re-claim is not pulled before an
+    older retraction when the clock rolls back. Other streams are ordered
+    by first-record ``ts``. Do not sort records inside a file.
     """
     nonempty = [recs for recs in streams if recs]
     nonempty.sort(key=_first_record_ts)
     out: list[dict] = []
     for recs in nonempty:
         out.extend(recs)
+    if trailing:
+        out.extend(trailing)
     return out
 
 
@@ -501,20 +537,28 @@ def load_all_events(root: Path) -> list[dict]:
 
 def claims_for_session(root: Path, session: str) -> list[dict]:
     current = session_claims_path(root, session).resolve()
-    streams: list[list[dict]] = []
+    others: list[list[dict]] = []
+    trailing: list[dict] = []
     for path in iter_claim_paths(root):
         recs: list[dict] = []
+        errors: list[dict] = []
+        belongs = False
         is_current = path.resolve() == current
         for rec in _read_jsonl(path):
-            if rec.get("session") == session:
+            if rec.get("_parse_error"):
+                errors.append(rec)
+            elif _record_belongs_to_session(rec, session):
                 recs.append(rec)
-            elif isinstance(rec.get("retracts"), dict) and rec["retracts"].get("session") == session:
-                recs.append(rec)
-            elif is_current and rec.get("_parse_error"):
-                recs.append(rec)
-        if recs:
-            streams.append(recs)
-    return _merge_record_streams(streams)
+                belongs = True
+        if belongs or is_current:
+            recs.extend(errors)
+        if not recs:
+            continue
+        if is_current:
+            trailing = recs
+        else:
+            others.append(recs)
+    return _merge_record_streams(others, trailing=trailing)
 
 
 # ---------- verification entry points ----------

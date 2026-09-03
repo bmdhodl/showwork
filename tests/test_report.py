@@ -80,7 +80,7 @@ def test_split_event_files_keep_later_start_open(tmp_path):
         encoding="utf-8",
     )
     record_event(tmp_path, "session.start", "split-e", agent="cursor")
-    new_path = session_events_path(tmp_path, "split-e")
-    assert new_path.name < old.name
+    assert session_events_path(tmp_path, "split-e") == old.resolve()
+    assert not (events_dir / "split-e.jsonl").exists()
     status = session_status(tmp_path, session="split-e")
     assert status["sessions"][0]["open"] is True

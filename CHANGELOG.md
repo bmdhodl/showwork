@@ -10,6 +10,8 @@ All notable changes to showwork are recorded here.
   lowercase id that looks like `{cleaned}-{digest}` on Windows.
 - **Split session files merge by first-record timestamp** - keep append
   order inside each file so a clock rollback cannot hide a later re-claim.
+  The current write-path stream is last. Writers reuse a leftover file
+  for that session when the current stem has no file yet.
 - **Per-session ledger files (`spec-v0.3`)** - new writes go to
   `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`. Two agents
   with distinct slugs no longer share a hash-chained file. Leftover
