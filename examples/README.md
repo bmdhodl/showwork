@@ -12,3 +12,6 @@ That writes:
 - `docs/ci/showwork-verify.yml` (copy into `.github/workflows/` yourself)
 
 The empty-directory refusal walk is the README Quickstart. The Cursor walk is docs/walks/cursor.md. The older prompt contract is docs/examples/agent-prompt.md.
+
+BMD desktop (read-only supervisor) is examples/bmd/. The sidecar reads
+`.showwork/` in the user workspace and never appends.

@@ -32,6 +32,13 @@ from .ledger import (
     verify_date,
     verify_session,
 )
+from .receipts import (
+    agent_environ,
+    agent_prompt_block,
+    evidence_for_session,
+    overlay_record,
+    session_for_task,
+)
 
 __version__ = "0.4.0"
 
@@ -50,15 +57,19 @@ __all__ = [
     "evaluate_pre_tool_use",
     "render_post_tool_use",
     "render_pre_tool_use",
+    "agent_environ",
+    "agent_prompt_block",
     "audit_file",
     "audit_root",
     "claims_for_session",
     "fingerprint",
     "scan",
     "evaluate_records",
+    "evidence_for_session",
     "finish_session",
     "load_claims",
     "observe_stop",
+    "overlay_record",
     "payload_session_id",
     "record_claim",
     "record_event",
@@ -67,6 +78,7 @@ __all__ = [
     "render_audit",
     "render_report",
     "resolve_root",
+    "session_for_task",
     "start_session",
     "verify_claim",
     "verify_date",

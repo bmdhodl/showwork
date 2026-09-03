@@ -157,6 +157,16 @@ showwork run --session fix-123 --gate -- codex exec "fix the failing test"
 Observe mode is exit-transparent; `--gate` exits 2 when the command reports
 success but the receipts are RED ([docs/adapters.md](docs/adapters.md)).
 
+A supervisor UI (BMD desktop) reads the same ledger and never appends:
+
+```bash
+showwork receipts --task-id first --json
+showwork receipts --task-id first --html badges.html
+```
+
+Empty workspace → `unknown`. Prose-only close → `claimed`. Check-backed
+GREEN → `verified`. Copy-paste for the sidecar: [examples/bmd/](examples/bmd/).
+
 Bound an unattended command by wall clock:
 
 ```bash

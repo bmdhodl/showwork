@@ -6,6 +6,7 @@
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
     showwork status [--session S] [--json]
+    showwork receipts [--session S | --task-id ID] [--json] [--html FILE]
     showwork report [--since YYYY-MM-DD] [--exclude-campaign] [--json]
     showwork init [--cursor] [--claude] [--ci] [--force]
 
@@ -55,6 +56,7 @@ from .ledger import (
     verify_date,
     verify_session,
 )
+from .receipts import receipts_payload, render_badges_html
 from .scaffold import init_project
 from .report import render_status, render_usage, session_status, usage_report
 
@@ -225,6 +227,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--session", help="one session id (default: all)")
     p.add_argument("--json", action="store_true")
 
+    p = sub.add_parser(
+        "receipts",
+        help="read-only evidence badges for a supervisor UI (never writes)",
+    )
+    p.add_argument("--session", help="one session id")
+    p.add_argument("--task-id", dest="task_id", help="BMD task id (session bmd-<id>)")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--html", type=Path, help="write a self-contained badge HTML file")
+
     p = sub.add_parser("report", help="usage + False Done Rate for a date window")
     p.add_argument("--since", help="include ledger rows on/after YYYY-MM-DD")
     p.add_argument("--exclude-campaign", action="store_true",
@@ -358,6 +369,21 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(status, indent=2))
         else:
             print(render_status(status))
+        return 0
+
+    if args.cmd == "receipts":
+        payload = receipts_payload(
+            root, session=args.session, task_id=args.task_id,
+        )
+        if args.html:
+            args.html.parent.mkdir(parents=True, exist_ok=True)
+            args.html.write_text(
+                render_badges_html(payload["records"], title="Receipts"),
+                encoding="utf-8",
+            )
+            print(f"wrote {args.html}")
+        if args.json or not args.html:
+            print(json.dumps(payload, indent=2))
         return 0
 
     if args.cmd == "report":

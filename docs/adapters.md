@@ -58,6 +58,23 @@ Same shape: `showwork run --session <task> --agent gemini -- gemini ...`, or
 the prompt contract if the harness executes shell commands. The stop-hook
 adapter accepts any JSON payload carrying `session_id`/`sessionId`.
 
+## BMD desktop (read-only supervisor)
+
+BMD is a cockpit. It must not write the bmd-desktop git ledger. Receipts live
+in the **user workspace**. The sidecar imports `showwork.receipts`:
+
+- `overlay_record(run, workspace)` joins `task_id` to `bmd-<task_id>`.
+- Missing `.showwork/` is `unknown` ("No receipts yet."), never green.
+- Prose-only close is `claimed`. Failed checks are `failed`. Check-backed
+  GREEN is `verified`.
+- `agent_environ` / `agent_prompt_block` set `SHOWWORK_SESSION` and
+  `SHOWWORK_ROOT` for a dispatched Claude/Codex child. Observe mode. No
+  `--gate` on the first slice.
+- `showwork receipts --json|--html` is the same overlay from the CLI.
+
+Copy-paste for the private BMD repo: [examples/bmd/README.md](../examples/bmd/README.md).
+Do not add `.showwork/` to `bmdhodl/bmd-desktop`.
+
 ## Reading the ledger from JavaScript
 
 [`js/showwork-audit`](../js/showwork-audit/) is a zero-dependency Node

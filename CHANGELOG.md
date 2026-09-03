@@ -4,6 +4,11 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Supervisor receipts API** - `showwork.receipts` maps a workspace session
+  to verified / claimed / failed / unknown. The UI process never appends.
+  `showwork receipts --json|--html` is the CLI. BMD copies
+  `examples/bmd/`. Empty workspace is unknown, never green.
+
 ## 0.4.0 - 2026-09-03
 
 - **Empty-dir quickstart** - the README paste now claims a missing file
