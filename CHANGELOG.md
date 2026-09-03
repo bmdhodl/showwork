@@ -4,9 +4,8 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
-- **PyPI still serves 0.3.0.** This tree is 0.4.0 / spec-v0.4. Publish,
-  tag, and GitHub release steps are owner-gated. See
-  docs/requests/publish-0.4.0.md.
+## 0.4.0 - 2026-09-03
+
 - **Empty-dir quickstart** - the README paste now claims a missing file
   first. `finish --status ok` exits 2. Recovery is a retract plus a real
   file. `python -m showwork` works. `tests/test_quickstart.py` runs that

@@ -17,7 +17,6 @@ Surveyed 2026-09-03: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads.
 Day-0 False Done Rate on the author's fleet: 21 sessions, 42.9% contained a
 false done. Every one was caught by the gate. Source:
 [docs/false-done-rate-day0.md](docs/false-done-rate-day0.md).
-The published PyPI package is still 0.3.0. This tree is 0.4.0.
 
 ## The problem
 
