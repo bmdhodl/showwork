@@ -7,6 +7,12 @@ BMD sidecar only reads.
 This environment cannot write `bmdhodl/bmd-desktop` (private). Copy the
 snippets below into that repo. Do not add `.showwork/` to the BMD git tree.
 
+Track the remaining work in the **vault**, not GitHub Projects. The card is
+[`docs/requests/bmd-overlay-receipts.md`](../../docs/requests/bmd-overlay-receipts.md).
+Copy it to `Requests/bmd-overlay-receipts.md` in the vault. BMD already
+reads vault/frontmatter for badges. A user-owned GitHub board is not the
+tracker.
+
 ## Pin (from-scratch install)
 
 `requirements.txt`:

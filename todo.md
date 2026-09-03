@@ -18,7 +18,8 @@
 - [x] `showwork receipts --json|--html`
 - [x] Dispatch env + prompt helpers; no `--gate`
 - [x] `examples/bmd/` pin, hiddenimports, copy-paste for the private BMD repo
-- [ ] BMD repo: import overlay in `lab/verification_badges.py` (private)
+- [x] Track remaining BMD work as a vault request (`docs/requests/bmd-overlay-receipts.md`), not GitHub Projects
+- [ ] BMD repo: import overlay in `lab/verification_badges.py` (private; vault card is the tracker)
 
 ## v0.2 five phases — DONE (2026-07-16)
 

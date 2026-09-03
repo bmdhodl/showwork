@@ -73,7 +73,10 @@ in the **user workspace**. The sidecar imports `showwork.receipts`:
 - `showwork receipts --json|--html` is the same overlay from the CLI.
 
 Copy-paste for the private BMD repo: [examples/bmd/README.md](../examples/bmd/README.md).
-Do not add `.showwork/` to `bmdhodl/bmd-desktop`.
+Do not add `.showwork/` to `bmdhodl/bmd-desktop`. Remaining BMD work is
+tracked as a local vault request
+([docs/requests/bmd-overlay-receipts.md](requests/bmd-overlay-receipts.md)),
+not a GitHub Project.
 
 ## Reading the ledger from JavaScript
 
