@@ -8,9 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from evidence_pack import build_pack  # noqa: E402
 
 from showwork.ledger import (  # noqa: E402
-    claims_path,
     finish_session,
     record_claim,
+    session_claims_path,
     start_session,
 )
 
@@ -51,7 +51,7 @@ def test_pack_refuses_tampered_ledger(tmp_path):
     _seed(tmp_path)
     record_claim(tmp_path, "sess-a", "second claim",
                  check={"type": "file_exists", "path": "artifact.txt"})
-    path = claims_path(tmp_path)
+    path = session_claims_path(tmp_path, "sess-a")
     lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     lines[0] = lines[0].replace("artifact", "artefact")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

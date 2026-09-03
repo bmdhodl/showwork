@@ -64,4 +64,4 @@ printf '{"session_id":"host-uuid-ignored-when-env-set"}' | python -m showwork.cl
 ```
 
 The command returns zero even if the verdict is RED. Inspect
-`.showwork/sessions.jsonl` for the durable observed verdict.
+`.showwork/sessions/<id>.jsonl` for the durable observed verdict.

@@ -6,16 +6,17 @@ from pathlib import Path
 from showwork.audit import audit_file, audit_root
 from showwork.cli import main
 from showwork.ledger import (
-    claims_path,
     genesis_hash,
     line_hash,
     record_claim,
     record_event,
+    session_claims_path,
+    session_events_path,
 )
 
 
 def _claims_file(root: Path) -> Path:
-    return next((root / ".showwork").glob("claims-*.jsonl"))
+    return session_claims_path(root, "s")
 
 
 def _lines(path: Path) -> list[str]:
@@ -115,10 +116,9 @@ def test_pre_chain_records_are_anchored(tmp_path):
         json.dumps({"session": "old", "ts": "t", "claim": "legacy", "severity": "RED"}) + "\n",
         encoding="utf-8")
     record_claim(tmp_path, "s", "new")
-    daily = claims_path(tmp_path)
     legacy = audit_file(path)
     assert legacy["verdict"] == "YELLOW"  # no chain in the legacy-only file
-    fresh = audit_file(daily)
+    fresh = audit_file(session_claims_path(tmp_path, "s"))
     assert fresh["verdict"] == "GREEN"
     # a chained append into the legacy file anchors the pre-chain record
     with path.open("a", encoding="utf-8") as f:
@@ -181,8 +181,8 @@ def test_cli_audit_json(tmp_path, capsys):
 # ---------- concurrent-append forks (the 2026-07-16 bmdpat incident) ----------
 
 
-def _sessions_file(root: Path) -> Path:
-    return root / ".showwork" / "sessions.jsonl"
+def _sessions_file(root: Path, session: str = "shared") -> Path:
+    return session_events_path(root, session)
 
 
 def _union_merge_fork(root: Path) -> Path:
@@ -236,7 +236,7 @@ def test_strict_forbids_forks(tmp_path):
 
 def test_two_genesis_roots_is_a_fork_not_a_break(tmp_path):
     record_event(tmp_path, "session.start", "A")  # anchored to genesis
-    path = _sessions_file(tmp_path)
+    path = _sessions_file(tmp_path, "A")
     second = {"event": "session.start", "session": "B", "ts": "t",
               "prev": genesis_hash(path)}  # a second independent root
     with path.open("a", encoding="utf-8") as f:

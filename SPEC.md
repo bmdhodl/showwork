@@ -1,6 +1,6 @@
 # showwork Claims Ledger Specification
 
-**Specification version:** `spec-v0.2`
+**Specification version:** `spec-v0.3`
 
 This document defines a portable, append-only format for falsifiable agent
 claims, deterministic verification, retractions, session lifecycle events, and
@@ -31,10 +31,33 @@ The reference layout is:
 
 ```text
 .showwork/
-  claims-YYYY-MM-DD.jsonl
-  sessions.jsonl
+  sessions/<session-stem>.jsonl   one session's start / finish events
+  claims/<session-stem>.jsonl     that session's claims and retractions
+  claims-YYYY-MM-DD.jsonl         legacy shared day file (read, not written)
+  sessions.jsonl                  legacy shared session file (read, not written)
   audit-<label>.md
 ```
+
+New writes MUST [test:
+tests/test_session_files.py::test_two_sessions_write_two_files] go to the
+per-session files so two agents with distinct session ids never share a path.
+Writers MUST [test:
+tests/test_session_files.py::test_new_writes_do_not_touch_legacy_shared_files]
+not append new records to the legacy shared files. Readers MUST [test:
+tests/test_session_files.py::test_legacy_shared_files_remain_readable] still
+load those leftover files. A session id MUST [test:
+tests/test_session_files.py::test_session_file_stem_rejects_path_escape] become
+a single path component matching `[A-Za-z0-9._-]{1,120}` before it is joined;
+empty ids, `.`, `..`, and path separators are rejected or rewritten, never
+used as directory traversal. Distinct session files MUST [test:
+tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conflict]
+merge in git without a same-path conflict. Linked worktrees MUST [test:
+tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
+receipts in that worktree's own `.showwork/` so the receipt ships with the
+branch.
+
+Two agents that reuse the same session slug still share one file. Give each
+agent a distinct slug (`cursor-fix-nav`, `codex-fix-nav`).
 
 ## Claim record
 
@@ -199,9 +222,10 @@ declared hexadecimal prefix. A non-repository root or failed Git query MUST
 [test: tests/test_checks.py::test_git_state_errors_outside_repository] return
 an error.
 
-## Integrity chain (`spec-v0.2`)
+## Integrity chain
 
-Append-only stops being a promise and becomes provable. Every record a
+Append-only stops being a promise and becomes provable. Chain hashing is
+unchanged from `spec-v0.2`. Every record a
 writer appends MUST [test: tests/test_audit.py::test_append_adds_prev_hash]
 carry a `prev` field: the SHA-256 hex digest of the previous record line in
 the same file, or of the genesis anchor `showwork:genesis:<filename>` when
@@ -246,10 +270,12 @@ independent chains sharing a file — each first record anchored to genesis — 
 a fork of two roots, handled the same way [test:
 tests/test_audit.py::test_two_genesis_roots_is_a_fork_not_a_break].
 
-A conforming writer SHOULD mark ledger files `merge=union` in `.gitattributes`
-so concurrent appends concatenate instead of producing conflict markers; union
-merge preserves each side's line order, so every block's internal chain stays
-intact.
+A conforming writer SHOULD give each agent a distinct session slug so each
+writer has its own file. Leftover shared files MAY be marked `merge=union` in
+`.gitattributes` so concurrent appends concatenate instead of producing
+conflict markers; union merge preserves each side's line order, so every
+block's internal chain stays intact. `merge=union` is not a substitute for
+per-session files.
 
 Fork tolerance preserves tamper-evidence and gives up only linearity: a forked
 file has more than one head, so deleting a whole branch tip is undetectable from
@@ -336,9 +362,10 @@ tests/test_checks.py::test_checker_error_is_yellow] prevent a GREEN verdict.
 
 ## Conformance
 
-An implementation conforms to `spec-v0.2` when:
+An implementation conforms to `spec-v0.3` when:
 
 - every normative requirement has a behavioral test named beside it;
+- new writes use per-session files and leftover shared files remain readable;
 - claims and retractions remain append-only;
 - every appended record extends the integrity chain, and audits detect
   tampering, deletion, and unchained appends while accepting concurrent forks

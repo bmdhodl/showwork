@@ -85,23 +85,22 @@ runs concurrent sessions and wants strict single-history enforcement can pass
 
 ## Why not the alternatives
 
-- **Per-session ledger files** (`sessions/<id>.jsonl`) prevent *future* forks but
-  change the on-disk layout, every reader, the spec, the JS auditor, and the
-  evidence-pack/false-done tooling — and can't un-RED a ledger that already
-  merged a fork (bmdpat). Fork tolerance both cures the existing damage and
-  prevents recurrence, with a change confined to the auditor plus one
-  `.gitattributes` line.
+- **Per-session ledger files** (`sessions/<id>.jsonl` and `claims/<id>.jsonl`)
+  are the layout that scales with many agents. spec-v0.3 writes those files.
+  Two agents with distinct slugs never share a path. Fork-tolerant audit
+  remains for leftover shared files and for two writers that reuse one slug.
+  It cannot un-RED a ledger that already merged a fork (bmdpat).
+- **Silent `merge=union` as the scaler** concatenates concurrent appends into
+  one file. That is a stopgap for leftover shared files, not the layout for
+  many AIs. Two agents that share a slug still collide.
 - **A re-anchoring merge driver** would rewrite `prev` on existing records,
-  which the append-only contract prohibits. Union merge + fork tolerance reaches
-  the same mergeable end state without editing a single existing record.
+  which the append-only contract prohibits.
 
 ## Operational guidance
 
-- Commit `.showwork/` with your work as before; the `merge=union` attribute makes
-  concurrent branches merge cleanly.
-- After a concurrent merge, `showwork audit` shows GREEN with a fork count and
-  the branch heads. That is expected. If you want the strong single-history
-  guarantee for a repo, run `showwork audit --strict` in CI.
-- Publish branch heads (they are in `showwork audit --json` under each file's
-  `heads`) the same way you would publish a single head, to close the
-  tip-deletion gap per branch.
+- Give each agent a distinct session slug (`cursor-fix-nav`, `codex-fix-nav`).
+- Commit `.showwork/` with the branch. Linked worktrees keep receipts in that
+  worktree.
+- After a leftover shared-file merge, `showwork audit` may show GREEN with a
+  fork count. That is expected. `showwork audit --strict` forbids forks.
+- Publish branch heads the same way you would publish a single head.

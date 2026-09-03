@@ -1,6 +1,6 @@
 /**
  * showwork-audit: reader-side implementation of the showwork ledger's
- * integrity chain (SPEC.md, spec-v0.2 "Integrity chain").
+ * integrity chain (SPEC.md, spec-v0.3 "Integrity chain").
  *
  * Zero dependencies; node:crypto + node:fs only. This package audits chains
  * and reports verdicts. It re-executes NO checks - per the specification's
@@ -17,6 +17,37 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
 
 const GENESIS_PREFIX = "showwork:genesis:";
+
+function displayLedgerFile(filePath) {
+  const norm = String(filePath).replaceAll("\\", "/");
+  const marker = "/.showwork/";
+  const idx = norm.lastIndexOf(marker);
+  if (idx >= 0) return norm.slice(idx + marker.length);
+  return basename(filePath);
+}
+
+function collectLedgerFiles(dir) {
+  const files = [];
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) return files;
+  for (const name of readdirSync(dir).sort()) {
+    if (/^claims-.*\.jsonl$/.test(name)) files.push(join(dir, name));
+  }
+  const claimsDir = join(dir, "claims");
+  if (existsSync(claimsDir) && statSync(claimsDir).isDirectory()) {
+    for (const name of readdirSync(claimsDir).sort()) {
+      if (name.endsWith(".jsonl")) files.push(join(claimsDir, name));
+    }
+  }
+  const sessions = join(dir, "sessions.jsonl");
+  if (existsSync(sessions)) files.push(sessions);
+  const sessionsDir = join(dir, "sessions");
+  if (existsSync(sessionsDir) && statSync(sessionsDir).isDirectory()) {
+    for (const name of readdirSync(sessionsDir).sort()) {
+      if (name.endsWith(".jsonl")) files.push(join(sessionsDir, name));
+    }
+  }
+  return files;
+}
 
 /** SHA-256 hex of one record line's stripped content (EOL-agnostic). */
 export function lineHash(line) {
@@ -42,7 +73,7 @@ export function genesisHash(fileName) {
 export function auditFile(filePath, strict = false) {
   const fileName = basename(filePath);
   const out = {
-    file: fileName,
+    file: displayLedgerFile(filePath),
     records: 0,
     chained: 0,
     pre_chain: 0,
@@ -137,14 +168,7 @@ export function auditFile(filePath, strict = false) {
 /** Audit every ledger file under a project root's .showwork/ directory. */
 export function auditRoot(root, strict = false) {
   const dir = join(root, ".showwork");
-  const files = [];
-  if (existsSync(dir) && statSync(dir).isDirectory()) {
-    for (const name of readdirSync(dir).sort()) {
-      if (/^claims-.*\.jsonl$/.test(name)) files.push(join(dir, name));
-    }
-    const sessions = join(dir, "sessions.jsonl");
-    if (existsSync(sessions)) files.push(sessions);
-  }
+  const files = collectLedgerFiles(dir);
   const results = files.map((f) => auditFile(f, strict));
   let verdict = "GREEN";
   if (!results.length) verdict = "YELLOW";

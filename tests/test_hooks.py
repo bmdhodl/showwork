@@ -8,9 +8,10 @@ from showwork.cli import main
 from showwork.ledger import record_claim, sessions_path
 
 
-def _events(root):
+def _events(root, session):
     return [json.loads(line) for line in
-            sessions_path(root).read_text(encoding="utf-8").splitlines()]
+            sessions_path(root, session).read_text(encoding="utf-8").splitlines()
+            if line.strip()]
 
 
 def test_stop_hook_records_green_verdict(tmp_path, monkeypatch, capsys):
@@ -23,7 +24,7 @@ def test_stop_hook_records_green_verdict(tmp_path, monkeypatch, capsys):
     })))
 
     assert main(["--root", str(tmp_path), "stop-hook"]) == 0
-    event = _events(tmp_path)[-1]
+    event = _events(tmp_path, "hook-green")[-1]
     assert event["event"] == "session.finish"
     assert event["session"] == "hook-green"
     assert event["observed_by"] == "stop-hook"
@@ -38,7 +39,7 @@ def test_stop_hook_records_red_but_exits_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stdin", io.StringIO('{"sessionId":"hook-red"}'))
 
     assert main(["--root", str(tmp_path), "stop-hook"]) == 0
-    event = _events(tmp_path)[-1]
+    event = _events(tmp_path, "hook-red")[-1]
     assert event["claims_verdict"] == "RED"
     assert event["claims_unverified"][0]["claim"] == "missing proof exists"
 
@@ -70,7 +71,7 @@ def test_stop_hook_prefers_showwork_session_env(tmp_path, monkeypatch):
         "session_id": "claude-host-uuid-ignored",
     })))
     assert main(["--root", str(tmp_path), "stop-hook"]) == 0
-    event = _events(tmp_path)[-1]
+    event = _events(tmp_path, "task-slug")[-1]
     assert event["session"] == "task-slug"
     assert event["session_bound_from"] == "SHOWWORK_SESSION"
     assert event["hook_payload_session"] == "claude-host-uuid-ignored"
@@ -82,7 +83,7 @@ def test_stop_hook_marks_unbound_payload_session(tmp_path, monkeypatch):
     monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
     monkeypatch.setattr(sys, "stdin", io.StringIO('{"session_id":"host-uuid-only"}'))
     assert main(["--root", str(tmp_path), "stop-hook"]) == 0
-    event = _events(tmp_path)[-1]
+    event = _events(tmp_path, "host-uuid-only")[-1]
     assert event["session"] == "host-uuid-only"
     assert event["session_unbound"] is True
     assert event.get("session_bound_from") is None

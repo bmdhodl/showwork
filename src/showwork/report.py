@@ -7,27 +7,11 @@ the package.
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime
 from pathlib import Path
 
 from .checks import evaluate_records
-from .ledger import claims_for_session, ledger_dir, load_all_claims, sessions_path
-
-
-def _read_jsonl(path: Path) -> list[dict]:
-    if not path.is_file():
-        return []
-    out = []
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
-        line = line.strip()
-        if line == "" or line.startswith("#"):
-            continue
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
+from .ledger import claims_for_session, load_all_claims, load_all_events
 
 
 def _parse_since(since: str | None) -> datetime | None:
@@ -78,16 +62,14 @@ def analyze_fdr(root: Path, *, since: str | None = None,
                 exclude_campaign: bool = False) -> dict:
     """False Done Rate for one project root (same definitions as the script)."""
     since_dt = _parse_since(since)
-    ledger = ledger_dir(root)
     sessions_events = [
-        e for e in _read_jsonl(sessions_path(root))
+        e for e in load_all_events(root)
         if _ts_ok(e.get("ts"), since_dt)
     ]
-    claims: list[dict] = []
-    for path in sorted(ledger.glob("claims-*.jsonl")):
-        for rec in _read_jsonl(path):
-            if _ts_ok(rec.get("ts"), since_dt):
-                claims.append(rec)
+    claims = [
+        rec for rec in load_all_claims(root)
+        if _ts_ok(rec.get("ts"), since_dt)
+    ]
 
     checked_claims = [c for c in claims if isinstance(c.get("check"), dict)]
     retractions = [c for c in claims
@@ -175,7 +157,7 @@ def usage_report(root: Path, *, since: str | None = None,
     check_types: dict[str, int] = {}
     campaign_starts = 0
 
-    for e in _read_jsonl(sessions_path(root)):
+    for e in load_all_events(root):
         if not _ts_ok(e.get("ts"), since_dt):
             continue
         ev = e.get("event")
@@ -226,7 +208,7 @@ def usage_report(root: Path, *, since: str | None = None,
 
 def session_status(root: Path, session: str | None = None) -> dict:
     """Open vs closed, last verdict, and unverified gaps."""
-    events = _read_jsonl(sessions_path(root))
+    events = load_all_events(root)
     by_session: dict[str, list[dict]] = {}
     for e in events:
         name = str(e.get("session", "?"))

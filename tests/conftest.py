@@ -19,3 +19,5 @@ def _clear_verifying_env(monkeypatch):
     # under a showwork `command` claim (dogfooding runs it exactly that way).
     # Recursion stays bounded: these tests spawn only tiny leaf scripts.
     monkeypatch.delenv("SHOWWORK_VERIFYING", raising=False)
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    monkeypatch.delenv("SHOWWORK_ROOT", raising=False)

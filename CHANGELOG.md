@@ -4,6 +4,13 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Per-session ledger files (`spec-v0.3`)** - new writes go to
+  `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`. Two agents
+  with distinct slugs no longer share a hash-chained file. Leftover
+  `sessions.jsonl` and `claims-YYYY-MM-DD.jsonl` stay readable. Package 0.4.0.
+- **Worktree-local receipts** - linked worktrees write `.showwork/` in that
+  worktree so the receipt ships with the branch. This reverses the 0.3.1 origin
+  remap (commit 0873ca3).
 - **Claim-time shape validation** - `validate_check_shape` rejects invalid
   `command` / `glob_count` checks before append; command lock errors point at
   `scripts/run_tests.py` + `stdout_contains=passed`.

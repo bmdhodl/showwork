@@ -22,18 +22,19 @@ the version of showwork in `src/`** and closes through the exit gate. Receipts
 live in `.showwork/` and ship with the commit. If your change breaks the tool,
 your own exit gate is the first thing that will tell you.
 
-1. Start material work: `python -m showwork.cli start --session <task-slug> --agent <claude-code|codex|gemini>`
-   Set `SHOWWORK_SESSION=<task-slug>` in the same shell so the Claude Stop hook
+1. Start material work: `python -m showwork.cli start --session <agent>-<task-slug> --agent <claude-code|codex|gemini|cursor>`
+   Set `SHOWWORK_SESSION=<agent>-<task-slug>` in the same shell so the Claude Stop hook
    binds to the task slug (otherwise it stamps `session_unbound` on the host id).
+   Distinct slugs write distinct files under `.showwork/sessions/` and `.showwork/claims/`.
 2. After each completed change, record a claim with a check that can fail
    (types: `file_exists`, `file_contains`, `path_moved`, `frontmatter`,
    `glob_count`, `command`, `http_probe`, `git_state`):
-   `python -m showwork.cli claim --session <task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"`
+   `python -m showwork.cli claim --session <agent>-<task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"`
    Prefer `git_state` / `glob_count` when they fit. For tests use
    `command` with `scripts/run_tests.py`, `expect_exit=0`, and
    `stdout_contains=passed` — not exact `"N passed"` counts. Invalid check
    shapes are rejected at claim time.
-3. Before reporting success: `python -m showwork.cli finish --session <task-slug> --status ok`
+3. Before reporting success: `python -m showwork.cli finish --session <agent>-<task-slug> --status ok`
    - REFUSED (exit 2) means a claimed "done" is not backed by reality, or the
      session has no check-backed claims. Fix the gap or retract the claim
      truthfully (`retract`), then finish again. NEVER pass `--no-verify` to

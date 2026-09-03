@@ -5,6 +5,13 @@
 See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →
 compliance evidence packs all closed through the exit gate.
 
+## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
+
+- [x] New writes: `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`
+- [x] Readers still load leftover `sessions.jsonl` and `claims-YYYY-MM-DD.jsonl`
+- [x] Linked worktrees write receipts in that worktree
+- [x] SPEC.md → `spec-v0.3`; package version 0.4.0 (publish is owner-gated)
+
 ## v0.3.x operator cut — ergonomics + continuous metrics
 
 Goal: cut agent claim misuse and make FDR/usage visible in the CLI. Defer new

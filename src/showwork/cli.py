@@ -47,6 +47,7 @@ from .ledger import (
     record_event,
     record_retraction,
     resolve_root,
+    session_file_stem,
     start_session,
     verify_date,
     verify_session,
@@ -267,6 +268,12 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     root = resolve_root(args.root)
+    session = getattr(args, "session", None)
+    if session:
+        try:
+            session_file_stem(session)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
 
     if args.cmd == "start":
         start_session(root, args.session, agent=args.agent, note=args.note)
