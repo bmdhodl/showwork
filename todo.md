@@ -20,6 +20,8 @@ compliance evidence packs all closed through the exit gate.
 - [x] Claim-time shape for every checker type (Codex P1 round 2)
 - [x] FDR script inserts `src/` (Codex P2 round 2)
 - [x] Status uses the latest close attempt (Codex P2 round 2)
+- [x] Keep `lossy = cleaned != raw` as a one-line assignment (CI verify)
+- [x] `record_claim` treats `check={}` as invalid, not prose (Codex P2 PR 66)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

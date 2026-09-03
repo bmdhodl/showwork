@@ -87,7 +87,10 @@ tests/test_checks.py::test_claim_rejects_file_exists_without_path] reject a
 check at claim time when required fields for that type are missing. The Python
 `record_claim` writer MUST [test:
 tests/test_checks.py::test_record_claim_rejects_file_exists_without_path] apply
-the same shape check. Severity is `RED` or `YELLOW`.
+the same shape check. An omitted check (`None`) is prose. An explicitly
+supplied check, including `{}`, MUST [test:
+tests/test_checks.py::test_record_claim_rejects_empty_check] go through that
+shape check. Severity is `RED` or `YELLOW`.
 
 ## Check semantics
 

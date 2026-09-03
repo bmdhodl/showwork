@@ -376,13 +376,15 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def record_claim(root: Path, session: str, claim: str, check: dict | None = None,
                  severity: str = "RED", artifact: str | None = None) -> dict:
-    if check:
+    # None is prose (no check). Any explicit value, including {}, is a check
+    # and must pass shape validation. Do not use truthiness: {} is falsy.
+    if check is not None:
         shape_err = validate_check_shape(check, root)
         if shape_err is not None:
             raise ValueError(shape_err)
     rec: dict = {"session": session, "ts": _now(), "claim": claim,
                  "severity": severity.upper()}
-    if check:
+    if check is not None:
         rec["check"] = check
     if artifact:
         rec["artifact"] = artifact
