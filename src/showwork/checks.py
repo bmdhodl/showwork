@@ -501,6 +501,55 @@ def validate_check_shape(check: dict, root: Path) -> str | None:
         if _has_recursive_glob(pattern_parts):
             return "glob pattern must be non-recursive in verifier context"
         return None
+    if ctype == "file_exists":
+        return _required_path_field(check, "path")
+    if ctype == "file_contains":
+        err = _required_path_field(check, "path")
+        if err:
+            return err
+        pattern = check.get("pattern")
+        if not isinstance(pattern, str) or pattern == "":
+            return "file_contains.pattern must be a non-empty string"
+        return None
+    if ctype == "path_moved":
+        for key in ("from", "to"):
+            err = _required_path_field(check, key)
+            if err:
+                return err
+        return None
+    if ctype == "frontmatter":
+        err = _required_path_field(check, "path")
+        if err:
+            return err
+        field = check.get("field")
+        if not isinstance(field, str) or field == "":
+            return "frontmatter.field must be a non-empty string"
+        if "equals" not in check:
+            return "frontmatter.equals is required"
+        return None
+    if ctype == "http_probe":
+        url = check.get("url")
+        if not isinstance(url, str) or url.strip() == "":
+            return "http_probe.url must be a non-empty string"
+        expected = check.get("expect_status")
+        if isinstance(expected, bool) or not isinstance(expected, int):
+            return "http_probe.expect_status must be an integer"
+        if not 100 <= expected <= 599:
+            return "http_probe.expect_status must be between 100 and 599"
+        return None
+    if ctype == "git_state":
+        requested = {key for key in ("clean", "branch", "commit") if key in check}
+        if not requested:
+            return "git_state requires at least one assertion: clean, branch, or commit"
+        return None
+    return None
+
+
+def _required_path_field(check: dict, key: str) -> str | None:
+    val = check.get(key)
+    if not isinstance(val, str) or val.strip() == "":
+        ctype = check.get("type") or "check"
+        return f"{ctype}.{key} must be a non-empty string"
     return None
 
 

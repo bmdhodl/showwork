@@ -85,3 +85,10 @@ def test_uncheckable_session_not_eligible(tmp_path):
     r = analyze_root(tmp_path)
     assert r["eligible_sessions"] == 0
     assert r["fdr_session"] is None
+
+
+def test_false_done_rate_script_bootstraps_src():
+    text = (Path(__file__).resolve().parents[1] / "scripts" / "false_done_rate.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'parents[1] / "src"' in text

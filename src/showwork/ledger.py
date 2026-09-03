@@ -100,7 +100,8 @@ def session_file_stem(session: str) -> str:
     Empty ids, path separators, and Windows reserved device names are rejected
     or rewritten, never joined.
     """
-    raw = (session or "").strip()
+    original = session if session is not None else ""
+    raw = original.strip()
     if not raw:
         raise ValueError("session id is empty")
     if raw in {".", ".."}:
@@ -109,10 +110,10 @@ def session_file_stem(session: str) -> str:
     cleaned = re.sub(r"-{2,}", "-", cleaned)
     if cleaned.lower() in _WINDOWS_RESERVED:
         cleaned = f"sess-{cleaned}"
-    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
-    # Lossy when characters were rewritten, reserved names were prefixed, or
-    # the id was truncated. Bind the original bytes with a hash suffix.
-    lossy = cleaned != raw or len(raw) > 120
+    digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:10]
+    # Lossy when whitespace was stripped, characters were rewritten, reserved
+    # names were prefixed, or the id was truncated. Bind the original bytes.
+    lossy = cleaned != raw or len(raw) > 120 or original != raw
     if lossy:
         max_base = 120 - 1 - len(digest)  # room for "-<digest>"
         if len(cleaned) > max_base:

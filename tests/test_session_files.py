@@ -67,6 +67,9 @@ def test_session_file_stem_rejects_path_escape():
     assert "\\" not in path
     # Safe ids stay exact so existing receipts keep their paths.
     assert session_file_stem("claude-fix") == "claude-fix"
+    padded = session_file_stem(" foo ")
+    assert padded != session_file_stem("foo")
+    assert padded.startswith("foo-")
 
 
 def test_legacy_shared_files_remain_readable(tmp_path):

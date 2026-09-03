@@ -44,3 +44,17 @@ def test_session_status_open_vs_closed(tmp_path):
     start_session(tmp_path, "open-s")
     status = session_status(tmp_path, session="open-s")
     assert status["sessions"][0]["open"] is True
+
+
+def test_session_status_uses_latest_close_attempt(tmp_path):
+    (tmp_path / "b.txt").write_text("x", encoding="utf-8")
+    start_session(tmp_path, "s")
+    record_claim(tmp_path, "s", "b",
+                 check={"type": "file_exists", "path": "b.txt"})
+    assert finish_session(tmp_path, "s")[0] == 0
+    start_session(tmp_path, "s")
+    record_claim(tmp_path, "s", "missing",
+                 check={"type": "file_exists", "path": "missing.txt"})
+    assert finish_session(tmp_path, "s")[0] == 2
+    status = session_status(tmp_path, session="s")
+    assert status["sessions"][0]["last_claims_verdict"] == "RED"

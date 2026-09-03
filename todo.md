@@ -16,6 +16,10 @@ compliance evidence packs all closed through the exit gate.
 - [x] Session stems stay injective after rewrite (Codex P1)
 - [x] `run --gate` refuses empty/prose-only success (Codex P1)
 - [x] `status` reopens after a later `session.start` (Codex P2)
+- [x] Hash stems from the untrimmed session id (Codex P1 round 2)
+- [x] Claim-time shape for every checker type (Codex P1 round 2)
+- [x] FDR script inserts `src/` (Codex P2 round 2)
+- [x] Status uses the latest close attempt (Codex P2 round 2)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

@@ -882,6 +882,22 @@ def test_validate_check_shape_rejects_eq_op(tmp_path):
     assert "eq" in err
 
 
+def test_validate_check_shape_rejects_file_exists_without_path(tmp_path):
+    from showwork.checks import validate_check_shape
+    err = validate_check_shape({"type": "file_exists"}, tmp_path)
+    assert err is not None
+    assert "path" in err
+
+
+def test_claim_rejects_file_exists_without_path(tmp_path):
+    from showwork.cli import main
+    code = main([
+        "--root", str(tmp_path), "claim", "--session", "s",
+        "--claim", "file exists", "--check-json", '{"type":"file_exists"}',
+    ])
+    assert code == 2
+
+
 def test_command_lock_rejects_powershell(tmp_path):
     r = verify_claim(claim({"type": "command", "argv": ["python", "x.ps1"]}), tmp_path)
     assert r["status"] == "error"

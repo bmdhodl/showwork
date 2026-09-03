@@ -224,8 +224,10 @@ def session_status(root: Path, session: str | None = None) -> dict:
         started = any(e.get("event") == "session.start" for e in evs)
         finishes = [e for e in evs if e.get("event") == "session.finish"]
         refused = [e for e in evs if e.get("event") == "session.finish.refused"]
-        last_finish = finishes[-1] if finishes else None
-        last_refuse = refused[-1] if refused else None
+        last_close = None
+        for e in evs:
+            if e.get("event") in ("session.finish", "session.finish.refused"):
+                last_close = e
         open_ = False
         for e in evs:
             if e.get("event") == "session.start":
@@ -241,8 +243,8 @@ def session_status(root: Path, session: str | None = None) -> dict:
             "open": open_,
             "finish_count": len(finishes),
             "refuse_count": len(refused),
-            "last_status": (last_finish or {}).get("status"),
-            "last_claims_verdict": (last_finish or last_refuse or {}).get("claims_verdict"),
+            "last_status": (last_close or {}).get("status"),
+            "last_claims_verdict": (last_close or {}).get("claims_verdict"),
             "live_verdict": state["verdict"],
             "live_passed": state["passed"],
             "live_total": state["total"],

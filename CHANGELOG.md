@@ -36,6 +36,10 @@ All notable changes to showwork are recorded here.
   command with no check-backed claims, same as `finish --status ok`.
 - **Status reopen** - `showwork status` reports a slug as open after a later
   `session.start`.
+- **Claim-time shape for every checker** - `file_exists` without `path` (and
+  the same class of missing fields on other types) is rejected before append.
+- **FDR script source bootstrap** - `scripts/false_done_rate.py` adds `src/`
+  to `sys.path` so a clean checkout can run the documented reproduce command.
 
 ## 0.3.1 - 2026-08-14
 
