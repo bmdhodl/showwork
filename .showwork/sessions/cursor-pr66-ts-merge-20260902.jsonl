@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-pr66-ts-merge-20260902", "ts": "2026-09-02T22:25:00", "agent": "cursor", "prev": "14c83811bc6527334fb8e6f62f0c53b1cdb82bdbb5f87676cde2b4666f69cef9"}
+{"event": "session.finish", "session": "cursor-pr66-ts-merge-20260902", "ts": "2026-09-02T22:25:29", "status": "ok", "claims_verdict": "GREEN", "prev": "265e26d2c8b977c329985fc748ab76e58b71d3d6c14d51d82ba59b04049ba6ab"}

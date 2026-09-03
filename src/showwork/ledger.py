@@ -415,6 +415,19 @@ def record_event(root: Path, event: str, session: str, **fields) -> dict:
 # ---------- reading ----------
 
 
+def _sort_records_by_ts(records: list[dict]) -> list[dict]:
+    """Stable chronological order. Filename order is not ledger order.
+
+    A stem remap can split one session across two files. Glob order then
+    puts a later retraction before the claim it retracts. Sort by ``ts``
+    so append retractions still see prior targets.
+    """
+    return sorted(
+        records,
+        key=lambda rec: rec["ts"] if isinstance(rec.get("ts"), str) else "",
+    )
+
+
 def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     """Claims for one calendar day.
 
@@ -454,7 +467,7 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
             continue
         if mtime_day == str(label):
             records.extend(errors)
-    return records
+    return _sort_records_by_ts(records)
 
 
 def load_all_claims(root: Path) -> list[dict]:
@@ -483,7 +496,7 @@ def claims_for_session(root: Path, session: str) -> list[dict]:
         for r in _read_jsonl(path):
             if r.get("_parse_error"):
                 out.append(r)
-    return out
+    return _sort_records_by_ts(out)
 
 
 # ---------- verification entry points ----------

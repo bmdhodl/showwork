@@ -13,6 +13,7 @@ from showwork.ledger import (
     load_all_claims,
     load_all_events,
     record_claim,
+    record_retraction,
     session_claims_path,
     session_events_path,
     session_file_stem,
@@ -172,3 +173,25 @@ def test_two_agent_session_files_git_merge_without_conflict(tmp_path):
     assert (repo / ".showwork" / "claims" / "codex-api.jsonl").is_file()
     assert (repo / ".showwork" / "sessions" / "cursor-nav.jsonl").is_file()
     assert (repo / ".showwork" / "sessions" / "codex-api.jsonl").is_file()
+
+
+def test_split_session_files_honor_later_retraction(tmp_path):
+    """A later retraction in a filename-first file still suppresses the claim."""
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    old = ledger / "z-legacy.jsonl"
+    rec = {
+        "session": "split-s",
+        "ts": "2026-09-02T20:00:00",
+        "claim": "old proof",
+        "severity": "RED",
+        "check": {"type": "file_exists", "path": "missing.txt"},
+    }
+    old.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    record_retraction(tmp_path, "split-s", "old proof", "stem remap")
+    new_path = session_claims_path(tmp_path, "split-s")
+    assert new_path.name < old.name
+    state = verify_session(tmp_path, "split-s")
+    assert state["verdict"] == "GREEN"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert live == []

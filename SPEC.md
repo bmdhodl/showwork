@@ -56,7 +56,11 @@ the stem with `h-` and a short hash of the original id so the mapping stays
 injective and hashed stems cannot collide with an exact id on a
 case-insensitive filesystem. Distinct session files MUST [test:
 tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conflict]
-merge in git without a same-path conflict. Linked worktrees MUST [test:
+merge in git without a same-path conflict. When one session spans more than
+one claims file, readers MUST [test:
+tests/test_session_files.py::test_split_session_files_honor_later_retraction]
+merge those records in timestamp order so a later retraction still
+suppresses the earlier claim. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
 receipts in that worktree's own `.showwork/` so the receipt ships with the
 branch.

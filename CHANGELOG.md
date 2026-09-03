@@ -8,6 +8,8 @@ All notable changes to showwork are recorded here.
   claim time. Only `check=None` is prose.
 - **Hashed stems use an `h-` prefix** - a mixed-case id cannot collide with a
   lowercase id that looks like `{cleaned}-{digest}` on Windows.
+- **Split session files merge by timestamp** - a later retraction still
+  suppresses a claim when a stem remap writes a second file.
 - **Per-session ledger files (`spec-v0.3`)** - new writes go to
   `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`. Two agents
   with distinct slugs no longer share a hash-chained file. Leftover
