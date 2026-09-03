@@ -59,8 +59,9 @@ tests/test_session_files.py::test_two_agent_session_files_git_merge_without_conf
 merge in git without a same-path conflict. When one session spans more than
 one claims file, readers MUST [test:
 tests/test_session_files.py::test_split_session_files_honor_later_retraction]
-merge those records in timestamp order so a later retraction still
-suppresses the earlier claim. Linked worktrees MUST [test:
+concatenate those files in first-record timestamp order and MUST [test:
+tests/test_session_files.py::test_append_order_inside_file_beats_timestamp]
+keep append order inside each file. Linked worktrees MUST [test:
 tests/test_run.py::test_linked_worktree_receipt_is_written_in_worktree] write
 receipts in that worktree's own `.showwork/` so the receipt ships with the
 branch.

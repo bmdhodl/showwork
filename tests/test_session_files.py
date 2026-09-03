@@ -195,3 +195,40 @@ def test_split_session_files_honor_later_retraction(tmp_path):
     assert state["verdict"] == "GREEN"
     live = [r for r in state["results"] if not r.get("retracted")]
     assert live == []
+
+
+def test_append_order_inside_file_beats_timestamp(tmp_path):
+    """A later re-claim with an earlier ts stays live inside one file."""
+    (tmp_path / "ok.txt").write_text("x", encoding="utf-8")
+    ledger = tmp_path / ".showwork" / "claims"
+    ledger.mkdir(parents=True)
+    path = ledger / "clock.jsonl"
+    recs = [
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T10:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "missing.txt"},
+        },
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T11:00:00",
+            "retracted": True,
+            "retracts": {"session": "clock-s", "claim": "x"},
+            "retraction_reason": "wrong",
+        },
+        {
+            "session": "clock-s",
+            "ts": "2026-09-02T09:00:00",
+            "claim": "x",
+            "severity": "RED",
+            "check": {"type": "file_exists", "path": "ok.txt"},
+        },
+    ]
+    path.write_text("".join(json.dumps(r) + "\n" for r in recs), encoding="utf-8")
+    state = verify_session(tmp_path, "clock-s")
+    assert state["verdict"] == "GREEN"
+    live = [r for r in state["results"] if not r.get("retracted")]
+    assert len(live) == 1
+    assert live[0]["status"] == "pass"

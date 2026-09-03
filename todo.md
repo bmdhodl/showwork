@@ -23,7 +23,7 @@ compliance evidence packs all closed through the exit gate.
 - [x] Keep `lossy = cleaned != raw` as a one-line assignment (CI verify)
 - [x] `record_claim` treats `check={}` as invalid, not prose (Codex P2 PR 66)
 - [x] Hashed session stems use `h-` so they stay outside the exact namespace (Codex P2 PR 66)
-- [x] Split session files merge by timestamp so retractions still apply (Codex P2 PR 66)
+- [x] Split session files merge by first-record timestamp; keep append order in each file (Codex P1 PR 66)
 
 ## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
 

@@ -415,17 +415,29 @@ def record_event(root: Path, event: str, session: str, **fields) -> dict:
 # ---------- reading ----------
 
 
-def _sort_records_by_ts(records: list[dict]) -> list[dict]:
-    """Stable chronological order. Filename order is not ledger order.
+def _first_record_ts(records: list[dict]) -> str:
+    for rec in records:
+        ts = rec.get("ts")
+        if isinstance(ts, str) and ts:
+            return ts
+    return ""
+
+
+def _merge_record_streams(streams: list[list[dict]]) -> list[dict]:
+    """Concatenate file streams. Keep append order inside each file.
 
     A stem remap can split one session across two files. Glob order then
-    puts a later retraction before the claim it retracts. Sort by ``ts``
-    so append retractions still see prior targets.
+    puts a later file first. Order the streams by the first record's ``ts``
+    so a later retraction still follows its claim. Do not sort records
+    inside a file: a clock rollback must not move a re-claim before a
+    physically earlier retraction.
     """
-    return sorted(
-        records,
-        key=lambda rec: rec["ts"] if isinstance(rec.get("ts"), str) else "",
-    )
+    nonempty = [recs for recs in streams if recs]
+    nonempty.sort(key=_first_record_ts)
+    out: list[dict] = []
+    for recs in nonempty:
+        out.extend(recs)
+    return out
 
 
 def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
@@ -438,11 +450,11 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
     label = date_str if date_str is not None else _today()
     if not _CLAIMS_DATE_RE.fullmatch(str(label)):
         raise ValueError(f"claims date must be YYYY-MM-DD, got {date_str!r}")
-    records: list[dict] = []
+    streams: list[list[dict]] = []
     daily = claims_path(root, label)
     daily_key = daily.resolve() if daily.is_file() else None
     if daily.is_file():
-        records.extend(_read_jsonl(daily))
+        streams.append(_read_jsonl(daily))
     for path in iter_claim_paths(root):
         if daily_key is not None and path.resolve() == daily_key:
             continue
@@ -455,9 +467,8 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
                 dated.append(rec)
             if rec.get("_parse_error"):
                 errors.append(rec)
-        records.extend(dated)
         if dated:
-            records.extend(errors)
+            streams.append(dated + errors)
             continue
         if not errors:
             continue
@@ -466,37 +477,44 @@ def load_claims(root: Path, date_str: str | None = None) -> list[dict]:
         except OSError:
             continue
         if mtime_day == str(label):
-            records.extend(errors)
-    return _sort_records_by_ts(records)
+            streams.append(errors)
+    return _merge_record_streams(streams)
 
 
 def load_all_claims(root: Path) -> list[dict]:
-    records: list[dict] = []
+    streams: list[list[dict]] = []
     for path in iter_claim_paths(root):
-        records.extend(_read_jsonl(path))
-    return records
+        recs = _read_jsonl(path)
+        if recs:
+            streams.append(recs)
+    return _merge_record_streams(streams)
 
 
 def load_all_events(root: Path) -> list[dict]:
-    records: list[dict] = []
+    streams: list[list[dict]] = []
     for path in iter_session_event_paths(root):
-        records.extend(_read_jsonl(path))
-    return records
+        recs = _read_jsonl(path)
+        if recs:
+            streams.append(recs)
+    return _merge_record_streams(streams)
 
 
 def claims_for_session(root: Path, session: str) -> list[dict]:
-    out = []
-    for r in load_all_claims(root):
-        if r.get("session") == session:
-            out.append(r)
-        elif isinstance(r.get("retracts"), dict) and r["retracts"].get("session") == session:
-            out.append(r)
-    path = session_claims_path(root, session)
-    if path.is_file():
-        for r in _read_jsonl(path):
-            if r.get("_parse_error"):
-                out.append(r)
-    return _sort_records_by_ts(out)
+    current = session_claims_path(root, session).resolve()
+    streams: list[list[dict]] = []
+    for path in iter_claim_paths(root):
+        recs: list[dict] = []
+        is_current = path.resolve() == current
+        for rec in _read_jsonl(path):
+            if rec.get("session") == session:
+                recs.append(rec)
+            elif isinstance(rec.get("retracts"), dict) and rec["retracts"].get("session") == session:
+                recs.append(rec)
+            elif is_current and rec.get("_parse_error"):
+                recs.append(rec)
+        if recs:
+            streams.append(recs)
+    return _merge_record_streams(streams)
 
 
 # ---------- verification entry points ----------
