@@ -10,7 +10,13 @@ from pathlib import Path
 import pytest
 
 from showwork.cli import main
-from showwork.ledger import record_claim, resolve_root, sessions_path, start_session
+from showwork.ledger import (
+    record_claim,
+    resolve_root,
+    session_artifacts_dir,
+    sessions_path,
+    start_session,
+)
 
 
 def _sessions(root: Path, session: str = "w") -> list[dict]:
@@ -237,3 +243,14 @@ def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
     assert "Tests 3 passed" in out
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
     assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+
+
+def test_gate_refuses_a_session_whose_only_row_is_an_artifact(tmp_path):
+    """run --gate shares has_minimum_proof; a stray receipt is not a claim."""
+    arts = session_artifacts_dir(tmp_path, "w")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "stray.txt").write_text("noise", encoding="utf-8")
+    code = main(["--root", str(tmp_path), "run", "--session", "w", "--gate",
+                 "--", sys.executable, "-c", "print('all good, boss')"])
+    assert code == 2
+    assert _sessions(tmp_path)[-1]["refuse_reason"] == "no_check_backed_claims"
