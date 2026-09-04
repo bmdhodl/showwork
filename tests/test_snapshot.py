@@ -7,6 +7,7 @@ import json
 from showwork.cli import main
 from showwork.ledger import (
     record_claim,
+    session_artifacts_dir,
     start_session,
     verify_session,
 )
@@ -158,3 +159,43 @@ def test_declared_paths_include_path_moved_from(tmp_path):
     named = declared_paths(claims, tmp_path)
     assert "a.txt" in named
     assert "b.txt" in named
+
+
+def test_unreferenced_artifact_warns_but_does_not_refuse(tmp_path):
+    """A log no claim cites still ships in the PR. Verify names it."""
+    (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+    start_session(tmp_path, "art")
+    arts = session_artifacts_dir(tmp_path, "art")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "full-build.txt").write_text("800 lines of noise", encoding="utf-8")
+    record_claim(
+        tmp_path, "art", "keep exists",
+        check={"type": "file_exists", "path": "keep.txt"},
+    )
+    state = verify_session(tmp_path, "art")
+    assert state["verdict"] == "YELLOW"
+    rows = [r for r in state["results"] if r["type"] == "unreferenced_artifact"]
+    assert len(rows) == 1
+    assert "full-build.txt" in rows[0]["claim"]
+    # YELLOW warns. Only RED refuses a clean close.
+    assert main(["--root", str(tmp_path), "finish", "--session", "art"]) == 0
+
+
+def test_cited_artifact_does_not_warn(tmp_path):
+    """The summary-line receipt a claim points at is proof, not clutter."""
+    start_session(tmp_path, "cited")
+    arts = session_artifacts_dir(tmp_path, "cited")
+    arts.mkdir(parents=True, exist_ok=True)
+    receipt = arts / "check-summary.txt"
+    receipt.write_text("Tests 2117 passed", encoding="utf-8")
+    record_claim(
+        tmp_path, "cited", "the suite passed 2117 tests",
+        check={
+            "type": "file_contains",
+            "path": receipt.relative_to(tmp_path).as_posix(),
+            "pattern": "2117 passed",
+        },
+    )
+    state = verify_session(tmp_path, "cited")
+    assert state["verdict"] == "GREEN"
+    assert not any(r["type"] == "unreferenced_artifact" for r in state["results"])

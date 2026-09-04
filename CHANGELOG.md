@@ -4,6 +4,17 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Artifact hygiene** - `verify` and `finish` warn YELLOW for every file under
+  `.showwork/artifacts/<session>/` that no active claim names. A receipt
+  nothing cites still ships in the PR and still proves nothing. It warns and
+  never refuses, so existing sessions keep closing.
+- **`showwork run --keep REGEX`** - keeps only the output lines matching REGEX
+  in `.showwork/artifacts/<session>/<--keep-as>.txt`. A `file_contains` claim
+  then cites one line instead of a whole test log. `--keep-as` is validated as
+  a single safe file name so it cannot escape the ledger.
+- **`session_artifacts_dir(root, session)`** - the artifact directory is now a
+  showwork concept with a path helper, not a convention with no code behind it.
+
 ## 0.4.0 - 2026-09-03
 
 - **Empty-dir quickstart** - the README paste now claims a missing file

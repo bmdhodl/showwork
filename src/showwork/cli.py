@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -50,6 +51,7 @@ from .ledger import (
     record_event,
     record_retraction,
     resolve_root,
+    session_artifacts_dir,
     session_file_stem,
     start_session,
     verify_date,
@@ -243,6 +245,13 @@ def main(argv: list[str] | None = None) -> int:
                    help="exit 2 when the command succeeds but this session's claims are RED")
     p.add_argument("--max-seconds", type=float,
                    help="halt the wrapped command after this wall-clock budget")
+    p.add_argument("--keep", metavar="REGEX",
+                   help="write only the output lines matching REGEX to a session "
+                        "artifact, so a claim cites one line instead of a whole log "
+                        "(buffers output until the command exits)")
+    p.add_argument("--keep-as", default="run", metavar="NAME",
+                   help="artifact file stem under .showwork/artifacts/<session>/ "
+                        "(default: run)")
     p.add_argument("command", nargs=argparse.REMAINDER,
                    help="the command to wrap, after --")
 
@@ -388,6 +397,19 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("run requires a command after --")
         if args.max_seconds is not None and args.max_seconds <= 0:
             raise SystemExit("--max-seconds must be > 0")
+        keep_re = None
+        keep_path = None
+        if args.keep is not None:
+            try:
+                keep_re = re.compile(args.keep)
+            except re.error as exc:
+                raise SystemExit(f"--keep is not a valid regex: {exc}")
+            # --keep-as becomes a path component, so it must not escape.
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", args.keep_as):
+                raise SystemExit("--keep-as must be a simple file name")
+            keep_path = session_artifacts_dir(root, args.session) / f"{args.keep_as}.txt"
+        elif args.keep_as != "run":
+            raise SystemExit("--keep-as needs --keep")
         budget = RunBudget(max_seconds=args.max_seconds)
         budget.start()
         start_session(root, args.session, agent=args.agent,
@@ -397,9 +419,24 @@ def main(argv: list[str] | None = None) -> int:
         # runs can record claims without extra plumbing.
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
         try:
-            proc_code = subprocess.run(
-                cmd, cwd=str(root), env=env, timeout=args.max_seconds
-            ).returncode
+            if keep_re is None:
+                proc_code = subprocess.run(
+                    cmd, cwd=str(root), env=env, timeout=args.max_seconds
+                ).returncode
+            else:
+                proc = subprocess.run(
+                    cmd, cwd=str(root), env=env, timeout=args.max_seconds,
+                    capture_output=True, text=True, errors="replace",
+                )
+                proc_code = proc.returncode
+                output = (proc.stdout or "") + (proc.stderr or "")
+                sys.stdout.write(output)
+                kept = [ln for ln in output.splitlines() if keep_re.search(ln)]
+                keep_path.parent.mkdir(parents=True, exist_ok=True)
+                keep_path.write_text(
+                    "".join(line + "\n" for line in kept), encoding="utf-8")
+                print(f"kept {len(kept)} line(s) -> "
+                      f"{keep_path.relative_to(root).as_posix()}")
         except subprocess.TimeoutExpired:
             verdict = budget.check()
             state = verify_session(root, args.session)

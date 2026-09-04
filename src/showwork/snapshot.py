@@ -43,6 +43,8 @@ SKIP_FILES = frozenset({
 SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo")
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_FILES = 50_000
+# One row per dead artifact is a nudge; a thousand is a wall of noise.
+MAX_UNREFERENCED_ARTIFACTS = 100
 
 
 def snapshot_file(ledger: Path, stem: str) -> Path:
@@ -188,6 +190,43 @@ def undeclared_results(
     return results
 
 
+def unreferenced_artifacts(
+    root: Path,
+    claims: list[dict],
+    artifacts_dir: Path,
+) -> list[dict]:
+    """Synthetic YELLOW results for artifact files no active claim names.
+
+    Issue: a session can commit a 812-line test log and prove nothing with it.
+    `undeclared_results` cannot see these files. It compares the session-start
+    snapshot, so a file created during the session never appears, and
+    `.showwork` is in SKIP_DIRS anyway. This walks the artifact directory
+    directly and names every file no claim points at.
+    """
+    if not artifacts_dir.is_dir():
+        return []
+    root = root.resolve()
+    declared = declared_paths(claims, root)
+    results: list[dict] = []
+    for path in sorted(artifacts_dir.rglob("*")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            rel = path.resolve().relative_to(root).as_posix()
+        except (ValueError, OSError):
+            continue
+        if rel in declared:
+            continue
+        results.append(_warn(
+            f"unreferenced artifact: {rel}",
+            f"{rel} sits in the session artifact directory but no active "
+            "claim names it; it ships in the PR and proves nothing",
+        ))
+        if len(results) >= MAX_UNREFERENCED_ARTIFACTS:
+            break
+    return results
+
+
 def merge_undeclared(state: dict, extra: list[dict]) -> dict:
     if not extra:
         return state
@@ -218,6 +257,18 @@ def _fail(claim: str, detail: str) -> dict:
         "session": "",
         "severity": "RED",
         "type": "undeclared_change",
+        "status": "fail",
+        "detail": detail,
+    }
+
+
+def _warn(claim: str, detail: str) -> dict:
+    """A YELLOW row: merge_undeclared downgrades the verdict but never refuses."""
+    return {
+        "claim": claim,
+        "session": "",
+        "severity": "YELLOW",
+        "type": "unreferenced_artifact",
         "status": "fail",
         "detail": detail,
     }

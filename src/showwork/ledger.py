@@ -27,6 +27,7 @@ from .snapshot import (
     merge_undeclared,
     snapshot_file,
     undeclared_results,
+    unreferenced_artifacts,
     write_tree_snapshot,
 )
 
@@ -206,6 +207,25 @@ def session_claims_path(root: Path, session: str) -> Path:
 
 def session_events_path(root: Path, session: str) -> Path:
     return _session_subdir_path(root, "sessions", session)
+
+
+def session_artifacts_dir(root: Path, session: str) -> Path:
+    """Directory this session writes proof artifacts into.
+
+    An artifact is an evidence file a claim points at. One directory per
+    session lets `verify` tell proof from clutter: anything in here that no
+    active claim names is dead weight that still ships in the PR.
+    """
+    base = ledger_dir(root).resolve()
+    folder = (base / "artifacts").resolve()
+    path = (folder / session_file_stem(session)).resolve()
+    try:
+        path.relative_to(folder)
+        folder.relative_to(base)
+    except ValueError as exc:
+        raise ValueError(
+            f"session artifacts path escapes ledger dir: {session!r}") from exc
+    return path
 
 
 def ledger_dir(root: Path) -> Path:
@@ -646,10 +666,12 @@ def verify_session(root: str | Path | None = None, session: str = "") -> dict:
     state = evaluate_records(claims, rt, label=f"session {session}")
     start = _latest_session_start(rt, session)
     try:
-        snap = snapshot_file(ledger_dir(rt), session_file_stem(session))
+        stem = session_file_stem(session)
+        artifacts = session_artifacts_dir(rt, session)
     except ValueError:
         return state
-    extra = undeclared_results(rt, claims, start, snap)
+    extra = unreferenced_artifacts(rt, claims, artifacts)
+    extra += undeclared_results(rt, claims, start, snapshot_file(ledger_dir(rt), stem))
     return merge_undeclared(state, extra)
 
 

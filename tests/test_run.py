@@ -153,3 +153,42 @@ def test_nested_non_git_root_stays_isolated(tmp_path):
 
     assert not (isolated / ".git").exists()
     assert resolve_root(isolated) == isolated.resolve()
+
+
+def test_run_keep_writes_only_matching_lines(tmp_path):
+    """--keep turns a whole log into the one line a claim needs."""
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--keep", "Tests .* passed", "--keep-as", "check",
+                 "--", sys.executable, "-c",
+                 "print('noise one'); print('Tests 2117 passed'); print('noise two')"])
+    assert code == 0
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "check.txt"
+    assert kept.read_text(encoding="utf-8").splitlines() == ["Tests 2117 passed"]
+
+
+def test_run_without_keep_writes_no_artifact(tmp_path):
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--", sys.executable, "-c", "print('hi')"])
+    assert code == 0
+    assert not (tmp_path / ".showwork" / "artifacts").exists()
+
+
+def test_run_keep_rejects_a_bad_regex(tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w", "--keep", "([",
+              "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_keep_as_cannot_escape_the_artifact_dir(tmp_path):
+    """--keep-as becomes a path component; traversal must not reach the ledger."""
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w",
+              "--keep", "hi", "--keep-as", "../../evil",
+              "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_keep_as_needs_keep(tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w",
+              "--keep-as", "check",
+              "--", sys.executable, "-c", "print('hi')"])
