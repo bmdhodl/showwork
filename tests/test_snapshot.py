@@ -233,3 +233,54 @@ def test_escaping_artifacts_path_does_not_skip_the_undeclared_gate(tmp_path, mon
     assert any(r["type"] == "undeclared_change"
                and "other.txt" in r["claim"] for r in state["results"])
     assert any("escapes the ledger" in r["claim"] for r in state["results"])
+
+
+def test_generated_output_is_never_an_undeclared_change(tmp_path):
+    """A build or a browser run after session.start must not turn the
+    session RED: nothing under .next/ or test-results/ is something a
+    person wrote, so nothing there needs a claim."""
+    (tmp_path / "src.txt").write_text("real work", encoding="utf-8")
+    start_session(tmp_path, "build-after-start")
+    for rel in (".next/static/chunks/app.js", ".next/trace",
+                "test-results/run-1/video.webm", "playwright-report/index.html",
+                "coverage/lcov.info"):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("generated", encoding="utf-8")
+    record_claim(
+        tmp_path, "build-after-start", "src.txt still says real work",
+        check={"type": "file_contains", "path": "src.txt", "pattern": "real work"},
+    )
+    state = verify_session(tmp_path, "build-after-start")
+    assert state["verdict"] == "GREEN"
+    assert all(r["type"] != "undeclared_change" for r in state["results"])
+    assert not any(k.startswith((".next/", "test-results/", "playwright-report/", "coverage/"))
+                   for k in capture_tree(tmp_path))
+
+
+def test_baseline_from_an_older_tool_is_judged_by_todays_skip_list(tmp_path, monkeypatch):
+    """A snapshot written before .next joined SKIP_DIRS lists its files. When
+    the build later rewrites or removes them, that is not an undeclared
+    deletion: the baseline is filtered by the same rule as the current tree."""
+    from showwork import snapshot as snap
+
+    (tmp_path / "src.txt").write_text("real work", encoding="utf-8")
+    stale = tmp_path / ".next" / "trace"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("old build", encoding="utf-8")
+
+    older_rule = frozenset(snap.SKIP_DIRS - {".next"})
+    monkeypatch.setattr(snap, "SKIP_DIRS", older_rule)
+    start_session(tmp_path, "older-baseline")
+    monkeypatch.undo()
+    events = _events(tmp_path, "older-baseline")
+    assert events[0]["tree_snapshot"]["count"] == 2  # the old tool saw .next/trace
+
+    stale.unlink()  # the next build sweeps it away
+    record_claim(
+        tmp_path, "older-baseline", "src.txt still says real work",
+        check={"type": "file_contains", "path": "src.txt", "pattern": "real work"},
+    )
+    state = verify_session(tmp_path, "older-baseline")
+    assert state["verdict"] == "GREEN", [r["claim"] for r in state["results"]]
+    assert all(r["type"] != "undeclared_change" for r in state["results"])

@@ -16,6 +16,9 @@ from pathlib import Path
 
 from .checks import apply_append_retractions, gaps_payload
 
+# Generated output is never evidence. A build or a browser run rewrites
+# thousands of files under these directories, and a session that ran one
+# would drown in "undeclared change" gaps that name nothing a person wrote.
 SKIP_DIRS = frozenset({
     ".showwork",
     ".git",
@@ -30,9 +33,22 @@ SKIP_DIRS = frozenset({
     "build",
     ".tox",
     "htmlcov",
+    "coverage",
     ".eggs",
     ".idea",
     ".vs",
+    # web framework build output
+    ".next",
+    ".nuxt",
+    ".svelte-kit",
+    ".turbo",
+    ".cache",
+    ".parcel-cache",
+    ".vercel",
+    # browser test output
+    "test-results",
+    "playwright-report",
+    ".playwright",
 })
 SKIP_FILES = frozenset({
     ".coverage",
@@ -175,6 +191,11 @@ def undeclared_results(
     for rel, old_hash in files.items():
         if not isinstance(rel, str) or rel in declared:
             continue
+        # A snapshot written before a directory joined SKIP_DIRS still lists
+        # its files. Judge the baseline by today's rule, or every such file
+        # reads as an undeclared deletion the moment the tool improves.
+        if _in_skipped_dir(rel):
+            continue
         if rel not in current:
             results.append(_fail(
                 f"undeclared deletion: {rel}",
@@ -301,6 +322,12 @@ def _hash_file(path: Path) -> str | None:
     except OSError:
         return None
     return digest.hexdigest()
+
+
+def _in_skipped_dir(rel: str) -> bool:
+    """True when any directory segment of a posix-relative path is skipped."""
+    parts = rel.split("/")[:-1]
+    return any(part in SKIP_DIRS or part.endswith(".egg-info") for part in parts)
 
 
 def _rel_under_root(root: Path, value: object) -> str | None:
