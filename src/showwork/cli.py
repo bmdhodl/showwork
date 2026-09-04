@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -395,6 +396,13 @@ def main(argv: list[str] | None = None) -> int:
             cmd = cmd[1:]
         if not cmd:
             raise SystemExit("run requires a command after --")
+        # subprocess without a shell does not apply PATHEXT, so a bare `pnpm`
+        # raises WinError 2 on Windows where the file on PATH is `pnpm.cmd`.
+        # Resolve a bare name here; leave an explicit path alone.
+        if not any(sep in cmd[0] for sep in ("/", chr(92))):
+            resolved = shutil.which(cmd[0])
+            if resolved:
+                cmd = [resolved, *cmd[1:]]
         if args.max_seconds is not None and args.max_seconds <= 0:
             raise SystemExit("--max-seconds must be > 0")
         keep_re = None

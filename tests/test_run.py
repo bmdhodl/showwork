@@ -1,6 +1,7 @@
 """The universal wrapper: showwork run --session S -- <command>."""
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -192,3 +193,22 @@ def test_run_keep_as_needs_keep(tmp_path):
         main(["--root", str(tmp_path), "run", "--session", "w",
               "--keep-as", "check",
               "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
+    """A shell applies PATHEXT; subprocess does not. A bare `pnpm` must work."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    if os.name == "nt":
+        shim = bindir / "swdemo.cmd"
+        shim.write_text("@echo Tests 3 passed\r\n", encoding="utf-8")
+    else:
+        shim = bindir / "swdemo"
+        shim.write_text("#!/bin/sh\necho 'Tests 3 passed'\n", encoding="utf-8")
+        shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--keep", "Tests .* passed", "--", "swdemo"])
+    assert code == 0
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")

@@ -14,6 +14,10 @@ All notable changes to showwork are recorded here.
   a single safe file name so it cannot escape the ledger.
 - **`session_artifacts_dir(root, session)`** - the artifact directory is now a
   showwork concept with a path helper, not a convention with no code behind it.
+- **`run` resolves a bare command name** - `subprocess` does not apply PATHEXT,
+  so `showwork run -- pnpm test` died with WinError 2 on Windows where the file
+  on PATH is `pnpm.cmd`. `run` now resolves a bare name through `shutil.which`
+  and leaves an explicit path alone.
 
 ## 0.4.0 - 2026-09-03
 
