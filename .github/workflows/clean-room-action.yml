@@ -4,11 +4,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Five matrix jobs per PR. Without this, a repush leaves ten in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fixture:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: ${{ matrix.name }}
-    runs-on: [self-hosted, linux, x64, pc]
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
