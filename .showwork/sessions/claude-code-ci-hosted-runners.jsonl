@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "claude-code-ci-hosted-runners", "ts": "2026-09-04T12:29:44", "agent": "claude-code", "tree_snapshot": {"count": 237, "sha256": "c6aee43406c16fe9b77ee77f8618a3aa5e1f1d7cff061fd474aace5d4d4532f5"}, "prev": "0c8d40b1fbd99e78519961ef2bd0dd2e162a51c75d57e703c7e6244f7d928332"}
+{"event": "session.finish", "session": "claude-code-ci-hosted-runners", "ts": "2026-09-04T12:31:18", "status": "ok", "claims_verdict": "GREEN", "prev": "19ef3db003859a3886314266e290a55e6b0842f7709cc998a73f9860a868e85e"}

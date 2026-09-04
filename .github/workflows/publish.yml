@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
 
+# Stays on the self-hosted runner: this job calls ci-heavy-slot, which only
+# exists on that box, and publishing is owner-gated. Never cancel in
+# progress - interrupting a PyPI upload is worse than queueing behind one.
+concurrency:
+  group: publish-to-pypi
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: [self-hosted, linux, x64, pc]
