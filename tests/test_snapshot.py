@@ -6,7 +6,9 @@ import json
 
 from showwork.cli import main
 from showwork.ledger import (
+    has_minimum_proof,
     record_claim,
+    session_artifacts_dir,
     start_session,
     verify_session,
 )
@@ -158,3 +160,76 @@ def test_declared_paths_include_path_moved_from(tmp_path):
     named = declared_paths(claims, tmp_path)
     assert "a.txt" in named
     assert "b.txt" in named
+
+
+def test_unreferenced_artifact_warns_but_does_not_refuse(tmp_path):
+    """A log no claim cites still ships in the PR. Verify names it."""
+    (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+    start_session(tmp_path, "art")
+    arts = session_artifacts_dir(tmp_path, "art")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "full-build.txt").write_text("800 lines of noise", encoding="utf-8")
+    record_claim(
+        tmp_path, "art", "keep exists",
+        check={"type": "file_exists", "path": "keep.txt"},
+    )
+    state = verify_session(tmp_path, "art")
+    assert state["verdict"] == "YELLOW"
+    rows = [r for r in state["results"] if r["type"] == "unreferenced_artifact"]
+    assert len(rows) == 1
+    assert "full-build.txt" in rows[0]["claim"]
+    # YELLOW warns. Only RED refuses a clean close.
+    assert main(["--root", str(tmp_path), "finish", "--session", "art"]) == 0
+
+
+def test_cited_artifact_does_not_warn(tmp_path):
+    """The summary-line receipt a claim points at is proof, not clutter."""
+    start_session(tmp_path, "cited")
+    arts = session_artifacts_dir(tmp_path, "cited")
+    arts.mkdir(parents=True, exist_ok=True)
+    receipt = arts / "check-summary.txt"
+    receipt.write_text("Tests 2117 passed", encoding="utf-8")
+    record_claim(
+        tmp_path, "cited", "the suite passed 2117 tests",
+        check={
+            "type": "file_contains",
+            "path": receipt.relative_to(tmp_path).as_posix(),
+            "pattern": "2117 passed",
+        },
+    )
+    state = verify_session(tmp_path, "cited")
+    assert state["verdict"] == "GREEN"
+    assert not any(r["type"] == "unreferenced_artifact" for r in state["results"])
+def test_unreferenced_artifact_alone_is_not_minimum_proof(tmp_path):
+    """A synthetic row must never let a claimless session close clean."""
+    assert main(["--root", str(tmp_path), "start", "--session", "bare"]) == 0
+    arts = session_artifacts_dir(tmp_path, "bare")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "stray.txt").write_text("noise", encoding="utf-8")
+    state = verify_session(tmp_path, "bare")
+    assert any(r["type"] == "unreferenced_artifact" for r in state["results"])
+    assert has_minimum_proof(state) is False
+    assert main(["--root", str(tmp_path), "finish", "--session", "bare"]) == 2
+    assert _events(tmp_path, "bare")[-1]["refuse_reason"] == "no_check_backed_claims"
+
+
+def test_escaping_artifacts_path_does_not_skip_the_undeclared_gate(tmp_path, monkeypatch):
+    """An artifacts path outside the ledger must not buy a GREEN on a damaged tree."""
+    (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "other.txt").write_text("y", encoding="utf-8")
+    start_session(tmp_path, "escape")
+    record_claim(
+        tmp_path, "escape", "keep exists",
+        check={"type": "file_exists", "path": "keep.txt"},
+    )
+    (tmp_path / "other.txt").unlink()
+
+    def boom(root, session):
+        raise ValueError("session artifacts path escapes ledger dir: 'escape'")
+
+    monkeypatch.setattr("showwork.ledger.session_artifacts_dir", boom)
+    state = verify_session(tmp_path, "escape")
+    assert state["verdict"] == "RED"
+    assert any(r["type"] == "undeclared_change"
+               and "other.txt" in r["claim"] for r in state["results"])
+    assert any("escapes the ledger" in r["claim"] for r in state["results"])

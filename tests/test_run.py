@@ -1,6 +1,7 @@
 """The universal wrapper: showwork run --session S -- <command>."""
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -9,7 +10,13 @@ from pathlib import Path
 import pytest
 
 from showwork.cli import main
-from showwork.ledger import record_claim, resolve_root, sessions_path, start_session
+from showwork.ledger import (
+    record_claim,
+    resolve_root,
+    session_artifacts_dir,
+    sessions_path,
+    start_session,
+)
 
 
 def _sessions(root: Path, session: str = "w") -> list[dict]:
@@ -153,3 +160,97 @@ def test_nested_non_git_root_stays_isolated(tmp_path):
 
     assert not (isolated / ".git").exists()
     assert resolve_root(isolated) == isolated.resolve()
+
+
+def test_run_keep_writes_only_matching_lines(tmp_path):
+    """--keep turns a whole log into the one line a claim needs."""
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--keep", "Tests .* passed", "--keep-as", "check",
+                 "--", sys.executable, "-c",
+                 "print('noise one'); print('Tests 2117 passed'); print('noise two')"])
+    assert code == 0
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "check.txt"
+    assert kept.read_text(encoding="utf-8").splitlines() == ["Tests 2117 passed"]
+
+
+def test_run_without_keep_writes_no_artifact(tmp_path):
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--", sys.executable, "-c", "print('hi')"])
+    assert code == 0
+    assert not (tmp_path / ".showwork" / "artifacts").exists()
+
+
+def test_run_keep_rejects_a_bad_regex(tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w", "--keep", "([",
+              "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_keep_as_cannot_escape_the_artifact_dir(tmp_path):
+    """--keep-as becomes a path component; traversal must not reach the ledger."""
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w",
+              "--keep", "hi", "--keep-as", "../../evil",
+              "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_keep_as_needs_keep(tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--root", str(tmp_path), "run", "--session", "w",
+              "--keep-as", "check",
+              "--", sys.executable, "-c", "print('hi')"])
+
+
+def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
+    """A shell applies PATHEXT; subprocess does not. A bare `pnpm` must work."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    if os.name == "nt":
+        shim = bindir / "swdemo.cmd"
+        shim.write_text("@echo Tests 3 passed\r\n", encoding="utf-8")
+    else:
+        shim = bindir / "swdemo"
+        shim.write_text("#!/bin/sh\necho 'Tests 3 passed'\n", encoding="utf-8")
+        shim.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--keep", "Tests .* passed", "--", "swdemo"])
+    assert code == 0
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys):
+    """--max-seconds bounded only the child; a catastrophic regex ran unbounded."""
+    # (a+)+$ against a's followed by a non-a backtracks exponentially: ~3.5s
+    # here, well past the 1s budget. The daemon thread unwinds on its own.
+    payload = ("a" * 26) + "!"
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "1", "--keep", "(a+)+$",
+                 "--", sys.executable, "-c", f"print({payload!r})"])
+    assert code == 2
+    assert "BUDGET" in capsys.readouterr().err
+    # It said no receipt was written, so none may exist.
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+
+
+def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
+    """capture_output hides the child until it returns; a timeout must not eat it."""
+    script = ("import time; print('Tests 3 passed', flush=True); time.sleep(30)")
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "3", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", script])
+    assert code == 2
+    out = capsys.readouterr().out
+    assert "Tests 3 passed" in out
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+
+
+def test_gate_refuses_a_session_whose_only_row_is_an_artifact(tmp_path):
+    """run --gate shares has_minimum_proof; a stray receipt is not a claim."""
+    arts = session_artifacts_dir(tmp_path, "w")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "stray.txt").write_text("noise", encoding="utf-8")
+    code = main(["--root", str(tmp_path), "run", "--session", "w", "--gate",
+                 "--", sys.executable, "-c", "print('all good, boss')"])
+    assert code == 2
+    assert _sessions(tmp_path)[-1]["refuse_reason"] == "no_check_backed_claims"

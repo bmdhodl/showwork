@@ -1,0 +1,16 @@
+# Claims audit - session claude-code-artifact-hygiene-20260904
+
+**Verdict: GREEN**  (6/6 verified)
+
+- OK **The full suite passes 345 tests after the review fixes** (`file_contains`)
+    - /345 passed/ found in .showwork/artifacts/claude-code-artifact-hygiene-20260904/suite.txt
+- OK **A synthetic checker row can no longer satisfy the minimum-proof gate** (`file_contains`)
+    - /not r.get..synthetic../ found in src/showwork/ledger.py
+- OK **An escaping artifacts path records a RED row instead of returning early** (`file_contains`)
+    - /escape_result/ found in src/showwork/ledger.py
+- OK **The keep filter runs in a killable child, so a catastrophic pattern cannot outlive the budget** (`file_contains`)
+    - /_FILTER_SRC/ found in src/showwork/cli.py
+- OK **A timeout replays partial output and keeps any line it already matched** (`file_contains`)
+    - /timeout_exc/ found in src/showwork/cli.py
+- OK **run resolves a bare command name so Windows PATHEXT shims work** (`file_contains`)
+    - /shutil.which/ found in src/showwork/cli.py

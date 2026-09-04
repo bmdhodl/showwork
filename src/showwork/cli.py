@@ -18,6 +18,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -50,6 +52,7 @@ from .ledger import (
     record_event,
     record_retraction,
     resolve_root,
+    session_artifacts_dir,
     session_file_stem,
     start_session,
     verify_date,
@@ -162,6 +165,57 @@ def _print_state(state: dict, as_json: bool) -> None:
         print(f"\n{len(state['gaps'])} gap(s): a claimed 'done' is not backed by reality.")
 
 
+def _decode(raw: object) -> str:
+    """TimeoutExpired carries bytes or str depending on how run was called."""
+    if raw is None:
+        return ""
+    if isinstance(raw, bytes):
+        return raw.decode("utf-8", "replace")
+    return str(raw)
+
+
+# Filtering runs in a child so a deadline can actually kill it. A daemon
+# thread cannot: CPython holds the GIL through a single re.search, so join()
+# with a timeout still blocks until the match finishes.
+_FILTER_SRC = (
+    "import re, sys\n"
+    "pattern = re.compile(sys.argv[1])\n"
+    "lines = sys.stdin.read().splitlines()\n"
+    "sys.stdout.write(''.join(l + '\\n' for l in lines if pattern.search(l)))\n"
+)
+
+
+def _keep_lines(pattern_text: str, compiled, text: str,
+                deadline: float | None) -> list[str] | None:
+    """Filter `text` by the pattern without outliving the run budget.
+
+    A caller-supplied pattern can backtrack catastrophically, and
+    `--max-seconds` otherwise bounds only the wrapped command. With a deadline
+    the match runs in a killable child. None means the deadline passed first.
+    """
+    if deadline is None:
+        return [ln for ln in text.splitlines() if compiled.search(ln)]
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", _FILTER_SRC, pattern_text],
+            input=text, capture_output=True, text=True,
+            errors="replace", timeout=deadline,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.splitlines()
+
+
+def _write_kept(keep_path: Path, kept: list[str], root: Path) -> None:
+    keep_path.parent.mkdir(parents=True, exist_ok=True)
+    keep_path.write_text(
+        "".join(line + "\n" for line in kept), encoding="utf-8")
+    print(f"kept {len(kept)} line(s) -> "
+          f"{keep_path.relative_to(root).as_posix()}")
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog="showwork",
@@ -243,6 +297,13 @@ def main(argv: list[str] | None = None) -> int:
                    help="exit 2 when the command succeeds but this session's claims are RED")
     p.add_argument("--max-seconds", type=float,
                    help="halt the wrapped command after this wall-clock budget")
+    p.add_argument("--keep", metavar="REGEX",
+                   help="write only the output lines matching REGEX to a session "
+                        "artifact, so a claim cites one line instead of a whole log "
+                        "(buffers output until the command exits)")
+    p.add_argument("--keep-as", default="run", metavar="NAME",
+                   help="artifact file stem under .showwork/artifacts/<session>/ "
+                        "(default: run)")
     p.add_argument("command", nargs=argparse.REMAINDER,
                    help="the command to wrap, after --")
 
@@ -386,8 +447,28 @@ def main(argv: list[str] | None = None) -> int:
             cmd = cmd[1:]
         if not cmd:
             raise SystemExit("run requires a command after --")
+        # subprocess without a shell does not apply PATHEXT, so a bare `pnpm`
+        # raises WinError 2 on Windows where the file on PATH is `pnpm.cmd`.
+        # Resolve a bare name here; leave an explicit path alone.
+        if not any(sep in cmd[0] for sep in ("/", chr(92))):
+            resolved = shutil.which(cmd[0])
+            if resolved:
+                cmd = [resolved, *cmd[1:]]
         if args.max_seconds is not None and args.max_seconds <= 0:
             raise SystemExit("--max-seconds must be > 0")
+        keep_re = None
+        keep_path = None
+        if args.keep is not None:
+            try:
+                keep_re = re.compile(args.keep)
+            except re.error as exc:
+                raise SystemExit(f"--keep is not a valid regex: {exc}")
+            # --keep-as becomes a path component, so it must not escape.
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", args.keep_as):
+                raise SystemExit("--keep-as must be a simple file name")
+            keep_path = session_artifacts_dir(root, args.session) / f"{args.keep_as}.txt"
+        elif args.keep_as != "run":
+            raise SystemExit("--keep-as needs --keep")
         budget = RunBudget(max_seconds=args.max_seconds)
         budget.start()
         start_session(root, args.session, agent=args.agent,
@@ -397,10 +478,42 @@ def main(argv: list[str] | None = None) -> int:
         # runs can record claims without extra plumbing.
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
         try:
-            proc_code = subprocess.run(
-                cmd, cwd=str(root), env=env, timeout=args.max_seconds
-            ).returncode
-        except subprocess.TimeoutExpired:
+            if keep_re is None:
+                proc_code = subprocess.run(
+                    cmd, cwd=str(root), env=env, timeout=args.max_seconds
+                ).returncode
+            else:
+                proc = subprocess.run(
+                    cmd, cwd=str(root), env=env, timeout=args.max_seconds,
+                    capture_output=True, text=True, errors="replace",
+                )
+                proc_code = proc.returncode
+                output = (proc.stdout or "") + (proc.stderr or "")
+                sys.stdout.write(output)
+                remaining = (None if args.max_seconds is None
+                             else max(0.0, args.max_seconds - budget.elapsed))
+                kept = _keep_lines(args.keep, keep_re, output, remaining)
+                if kept is None:
+                    print("BUDGET: the --keep pattern did not finish inside "
+                          f"{args.max_seconds:g}s; no receipt was written.",
+                          file=sys.stderr)
+                    # Say what happened and mean it: clear the pattern so the
+                    # handler below does not then write an empty receipt.
+                    keep_re = None
+                    raise subprocess.TimeoutExpired(cmd, args.max_seconds)
+                _write_kept(keep_path, kept, root)
+        except subprocess.TimeoutExpired as timeout_exc:
+            # capture_output holds the child's output until it returns, so a
+            # timeout would otherwise lose both the diagnostics the user used
+            # to see streamed and any receipt line already printed.
+            partial = _decode(timeout_exc.stdout) + _decode(timeout_exc.stderr)
+            if partial:
+                sys.stdout.write(partial)
+            if keep_re is not None and keep_path is not None:
+                _write_kept(
+                    keep_path,
+                    _keep_lines(args.keep, keep_re, partial, 10.0) or [],
+                    root)
             verdict = budget.check()
             state = verify_session(root, args.session)
             record_event(

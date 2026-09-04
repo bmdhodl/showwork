@@ -4,6 +4,34 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- **Artifact hygiene** - `verify` and `finish` warn YELLOW for every file under
+  `.showwork/artifacts/<session>/` that no active claim names. A receipt
+  nothing cites still ships in the PR and still proves nothing. It warns and
+  never refuses, so existing sessions keep closing.
+- **`showwork run --keep REGEX`** - keeps only the output lines matching REGEX
+  in `.showwork/artifacts/<session>/<--keep-as>.txt`. A `file_contains` claim
+  then cites one line instead of a whole test log. `--keep-as` is validated as
+  a single safe file name so it cannot escape the ledger.
+- **`session_artifacts_dir(root, session)`** - the artifact directory is now a
+  showwork concept with a path helper, not a convention with no code behind it.
+- **Synthetic rows are not proof** - `has_minimum_proof` now ignores rows the
+  checker wrote itself. Without this a session with no claims and one stray
+  artifact would satisfy the minimum-proof gate and close clean.
+- **The artifacts helper cannot fail open** - an artifacts path that escapes the
+  ledger is now its own RED row, and `verify` still runs the undeclared-change
+  gate. Previously it returned early, so a planted escaping symlink bought a
+  GREEN close on a damaged tree.
+- **`--keep` is bounded by `--max-seconds`** - the match runs in a killable
+  child, so a catastrophic pattern cannot hang an unattended wrapper. A daemon
+  thread does not work here: CPython holds the GIL through a single
+  `re.search`, so `join(timeout=...)` blocks until the match finishes.
+- **`--keep` survives a timeout** - the wrapper replays the child's partial
+  output and writes any matching line it already produced.
+- **`run` resolves a bare command name** - `subprocess` does not apply PATHEXT,
+  so `showwork run -- pnpm test` died with WinError 2 on Windows where the file
+  on PATH is `pnpm.cmd`. `run` now resolves a bare name through `shutil.which`
+  and leaves an explicit path alone.
+
 ## 0.4.0 - 2026-09-03
 
 - **Empty-dir quickstart** - the README paste now claims a missing file

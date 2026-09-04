@@ -163,6 +163,18 @@ Bound an unattended command by wall clock:
 showwork run --session fix-123 --gate --max-seconds 1800 -- codex exec "fix the failing test"
 ```
 
+Keep the one line a claim needs instead of a whole log:
+
+```bash
+showwork run --session fix-123 --keep "Tests .* passed" --keep-as check -- pnpm check
+```
+
+`--keep` writes only the matching lines to
+`.showwork/artifacts/<session>/check.txt`, so the receipt a `file_contains`
+claim cites is one line and not eight hundred. It buffers the command's
+output until the command exits. Anything left in that directory that no
+active claim names warns YELLOW at `verify` and `finish`.
+
 The wrapper terminates the child and records `budget_exceeded` when the time
 envelope trips. Tool-call ceilings remain an integration concern because a
 generic subprocess wrapper cannot see an agent's internal tool stream; use the

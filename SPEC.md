@@ -372,6 +372,21 @@ tests/test_snapshot.py::test_missing_snapshot_is_red] fail RED. A named
 path MAY [test: tests/test_snapshot.py::test_declared_path_may_change]
 change. `.showwork/` is excluded from the snapshot.
 
+A file under `.showwork/artifacts/<stem>/` that no active claim names MUST
+[test: tests/test_snapshot.py::test_unreferenced_artifact_warns_but_does_not_refuse]
+produce a YELLOW result. Such a file ships with the change and proves
+nothing, but it damages nothing either, so it warns and never refuses a
+clean close. A file in that directory that an active claim does name MUST
+[test: tests/test_snapshot.py::test_cited_artifact_does_not_warn] produce no
+such result. The directory is walked directly, because files created after
+start are out of the snapshot check and `.showwork/` is excluded from it.
+Such a result is synthetic and MUST [test:
+tests/test_snapshot.py::test_unreferenced_artifact_alone_is_not_minimum_proof]
+NOT satisfy the minimum-proof requirement of a clean close. An artifacts path
+that resolves outside the ledger MUST [test:
+tests/test_snapshot.py::test_escaping_artifacts_path_does_not_skip_the_undeclared_gate]
+fail RED without skipping the undeclared-change check.
+
 An explicit clean finish MUST [test:
 tests/test_cli.py::test_exit_gate_refuses_red_close] verify that session's own
 claims and refuse with exit code `2` when any active RED claim fails. A clean
@@ -420,6 +435,7 @@ An implementation conforms to `spec-v0.4` when:
 - all eight checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - sessions with `tree_snapshot` fail RED on undeclared deletes and edits;
+- artifact files no active claim names warn YELLOW without refusing a close;
 - parse and checker errors stay visible.
 
 A reader-only implementation (an auditor that verifies chains and computes
