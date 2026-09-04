@@ -259,7 +259,16 @@ def _fail(claim: str, detail: str) -> dict:
         "type": "undeclared_change",
         "status": "fail",
         "detail": detail,
+        # Synthetic: the checker made this row, no agent claimed it. It must
+        # never satisfy has_minimum_proof, or a session with no claims and one
+        # stray file would close clean.
+        "synthetic": True,
     }
+
+
+def escape_result(claim: str, detail: str) -> dict:
+    """A RED row for a ledger path that resolves outside the ledger."""
+    return _fail(claim, detail)
 
 
 def _warn(claim: str, detail: str) -> dict:
@@ -271,6 +280,7 @@ def _warn(claim: str, detail: str) -> dict:
         "type": "unreferenced_artifact",
         "status": "fail",
         "detail": detail,
+        "synthetic": True,
     }
 
 

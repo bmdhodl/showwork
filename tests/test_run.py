@@ -212,3 +212,28 @@ def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
     assert code == 0
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
     assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys):
+    """--max-seconds bounded only the child; a catastrophic regex ran unbounded."""
+    # (a+)+$ against a's followed by a non-a backtracks exponentially: ~3.5s
+    # here, well past the 1s budget. The daemon thread unwinds on its own.
+    payload = ("a" * 26) + "!"
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "1", "--keep", "(a+)+$",
+                 "--", sys.executable, "-c", f"print({payload!r})"])
+    assert code == 2
+    assert "BUDGET" in capsys.readouterr().err
+    # It said no receipt was written, so none may exist.
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+
+
+def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
+    """capture_output hides the child until it returns; a timeout must not eat it."""
+    script = ("import time; print('Tests 3 passed', flush=True); time.sleep(30)")
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "3", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", script])
+    assert code == 2
+    out = capsys.readouterr().out
+    assert "Tests 3 passed" in out
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")

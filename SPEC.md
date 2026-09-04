@@ -380,6 +380,12 @@ clean close. A file in that directory that an active claim does name MUST
 [test: tests/test_snapshot.py::test_cited_artifact_does_not_warn] produce no
 such result. The directory is walked directly, because files created after
 start are out of the snapshot check and `.showwork/` is excluded from it.
+Such a result is synthetic and MUST [test:
+tests/test_snapshot.py::test_unreferenced_artifact_alone_is_not_minimum_proof]
+NOT satisfy the minimum-proof requirement of a clean close. An artifacts path
+that resolves outside the ledger MUST [test:
+tests/test_snapshot.py::test_escaping_artifacts_path_does_not_skip_the_undeclared_gate]
+fail RED without skipping the undeclared-change check.
 
 An explicit clean finish MUST [test:
 tests/test_cli.py::test_exit_gate_refuses_red_close] verify that session's own

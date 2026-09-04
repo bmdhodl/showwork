@@ -6,6 +6,7 @@ import json
 
 from showwork.cli import main
 from showwork.ledger import (
+    has_minimum_proof,
     record_claim,
     session_artifacts_dir,
     start_session,
@@ -199,3 +200,36 @@ def test_cited_artifact_does_not_warn(tmp_path):
     state = verify_session(tmp_path, "cited")
     assert state["verdict"] == "GREEN"
     assert not any(r["type"] == "unreferenced_artifact" for r in state["results"])
+def test_unreferenced_artifact_alone_is_not_minimum_proof(tmp_path):
+    """A synthetic row must never let a claimless session close clean."""
+    assert main(["--root", str(tmp_path), "start", "--session", "bare"]) == 0
+    arts = session_artifacts_dir(tmp_path, "bare")
+    arts.mkdir(parents=True, exist_ok=True)
+    (arts / "stray.txt").write_text("noise", encoding="utf-8")
+    state = verify_session(tmp_path, "bare")
+    assert any(r["type"] == "unreferenced_artifact" for r in state["results"])
+    assert has_minimum_proof(state) is False
+    assert main(["--root", str(tmp_path), "finish", "--session", "bare"]) == 2
+    assert _events(tmp_path, "bare")[-1]["refuse_reason"] == "no_check_backed_claims"
+
+
+def test_escaping_artifacts_path_does_not_skip_the_undeclared_gate(tmp_path, monkeypatch):
+    """An artifacts path outside the ledger must not buy a GREEN on a damaged tree."""
+    (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "other.txt").write_text("y", encoding="utf-8")
+    start_session(tmp_path, "escape")
+    record_claim(
+        tmp_path, "escape", "keep exists",
+        check={"type": "file_exists", "path": "keep.txt"},
+    )
+    (tmp_path / "other.txt").unlink()
+
+    def boom(root, session):
+        raise ValueError("session artifacts path escapes ledger dir: 'escape'")
+
+    monkeypatch.setattr("showwork.ledger.session_artifacts_dir", boom)
+    state = verify_session(tmp_path, "escape")
+    assert state["verdict"] == "RED"
+    assert any(r["type"] == "undeclared_change"
+               and "other.txt" in r["claim"] for r in state["results"])
+    assert any("escapes the ledger" in r["claim"] for r in state["results"])

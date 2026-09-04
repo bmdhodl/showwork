@@ -24,6 +24,7 @@ from pathlib import Path
 
 from .checks import evaluate_records, gaps_payload, validate_check_shape
 from .snapshot import (
+    escape_result,
     merge_undeclared,
     snapshot_file,
     undeclared_results,
@@ -139,8 +140,16 @@ def session_file_stem(session: str) -> str:
 
 
 def has_minimum_proof(state: dict) -> bool:
-    """True when the verify state has at least one non-skipped check result."""
-    return any(r.get("status") != "skipped" for r in state.get("results", []))
+    """True when the verify state has at least one non-skipped check result.
+
+    Synthetic rows do not count. The checker writes those itself, so counting
+    them would let a session with no claims at all and one unreferenced file
+    close clean.
+    """
+    return any(
+        r.get("status") != "skipped" and not r.get("synthetic")
+        for r in state.get("results", [])
+    )
 
 
 def _record_belongs_to_session(rec: dict, session: str) -> bool:
@@ -667,10 +676,21 @@ def verify_session(root: str | Path | None = None, session: str = "") -> dict:
     start = _latest_session_start(rt, session)
     try:
         stem = session_file_stem(session)
-        artifacts = session_artifacts_dir(rt, session)
     except ValueError:
         return state
-    extra = unreferenced_artifacts(rt, claims, artifacts)
+    extra: list[dict] = []
+    try:
+        artifacts = session_artifacts_dir(rt, session)
+    except ValueError as exc:
+        # An artifacts path that escapes the ledger is itself a finding. Never
+        # return here: that would skip the undeclared-change gate below, so a
+        # planted symlink would buy a GREEN close on a damaged tree.
+        extra.append(escape_result(
+            "artifacts path escapes the ledger",
+            f"{exc}; the undeclared-change gate still ran",
+        ))
+    else:
+        extra += unreferenced_artifacts(rt, claims, artifacts)
     extra += undeclared_results(rt, claims, start, snapshot_file(ledger_dir(rt), stem))
     return merge_undeclared(state, extra)
 
