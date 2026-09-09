@@ -14,8 +14,9 @@ Zero dependencies. Stdlib only. One append-only ledger.
 `showwork init` for Cursor, Claude, and a CI draft.
 
 Surveyed 2026-09-03: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads.
-Day-0 False Done Rate on the author's fleet: 21 sessions, 42.9% contained a
-false done. Every one was caught by the gate. Source:
+Day-0 False Done Rate, measured by showwork on the author's own fleet,
+21 sessions, 2026-07, not independently measured: 42.9% contained a false
+done. Every one was caught by the gate. Source:
 [docs/false-done-rate-day0.md](docs/false-done-rate-day0.md).
 
 ## The problem
@@ -183,9 +184,11 @@ generic subprocess wrapper cannot see an agent's internal tool stream; use the
 ## The False Done Rate
 
 Receipts make a new number measurable: **how often agents claim work that is
-not backed by reality.** Day-0 on our own production fleet: **21 sessions,
-42.9% contained a false done, every one caught by the gate.** Methodology
-pre-registered, corpus honesty rules included:
+not backed by reality.** Day-0, measured by showwork on the author's own
+production fleet, 2026-07: **21 sessions, 42.9% contained a false done, every
+one caught by the gate.** That is a self-measurement on a self-selected
+sample, not an independent audit. Methodology pre-registered, corpus honesty
+rules included:
 [docs/false-done-rate.md](docs/false-done-rate.md).
 
 ## Evidence packs for auditors
