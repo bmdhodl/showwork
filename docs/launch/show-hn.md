@@ -16,7 +16,7 @@ Stdlib Python. pip install showwork. Then:
 
 That close is supposed to fail. The file does not exist. The refusal is the product.
 
-Day-0 on the author's own agent fleet: 21 sessions, 42.9% contained a false done. Every one was caught by the gate. Method: docs/false-done-rate-day0.md in the repo.
+Day-0, measured by showwork on the author's own agent fleet, 2026-07: 21 sessions, 42.9% contained a false done. Every one was caught by the gate. Self-measured on a self-selected sample, not independently measured. Method: docs/false-done-rate-day0.md in the repo.
 
 Surveyed 2026-09-03, before this work: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads, one stranger issue. The package has existed on PyPI since July. I am the only user I can prove.
 
