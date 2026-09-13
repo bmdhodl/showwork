@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "codex-pytest-isolation-20260913", "ts": "2026-09-13T04:32:16", "agent": "codex", "tree_snapshot": {"count": 249, "sha256": "6824922ce5a1c05fba72df3928112309e2d1ac8a82e97274c564a37609a8434e"}, "prev": "8956fd6734d3c484fc5260c2a830506e4544bd59b39c7e27a437336165a0c209"}
+{"event": "session.finish", "session": "codex-pytest-isolation-20260913", "ts": "2026-09-13T04:33:10", "status": "ok", "claims_verdict": "GREEN", "prev": "8cc35b1766086b5597c589c32d09ec90848095aba1f740fc48c89f3254683b6f"}

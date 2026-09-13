@@ -33,10 +33,28 @@ def test_plugin_records_passing_session(tmp_path):
         timeout=30,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    report = json.loads((tmp_path / ".showwork" / "pytest-last.json").read_text(encoding="utf-8"))
+    report = json.loads((tmp_path / ".showwork/artifacts/plug/pytest-last.json").read_text(encoding="utf-8"))
     assert report["passed"] is True
     claims = (tmp_path / ".showwork" / "claims" / "plug.jsonl").read_text(encoding="utf-8")
     assert "pytest session passed" in claims
+
+
+def test_pytest_receipts_are_isolated_between_sessions(tmp_path):
+    """REGRESSION: one shared pytest-last.json changed another session's proof."""
+    from types import SimpleNamespace
+    from showwork.pytest_plugin import pytest_sessionfinish
+    from showwork.ledger import verify_session
+    def finish(slug, code):
+        options = {"--showwork-session": slug, "--showwork-root": str(tmp_path)}
+        session = SimpleNamespace(config=SimpleNamespace(getoption=options.get, rootpath=tmp_path))
+        pytest_sessionfinish(session, code)
+    finish("passing", 0)
+    finish("failing", 1)
+    assert verify_session(tmp_path, "passing")["verdict"] == "GREEN"
+    assert not (tmp_path / ".showwork/pytest-last.json").exists()
+    finish("passing", 1)
+    finish("other", 0)
+    assert verify_session(tmp_path, "passing")["verdict"] == "RED"
 
 
 def test_plugin_silent_without_flag(tmp_path):
