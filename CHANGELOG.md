@@ -31,6 +31,10 @@ All notable changes to showwork are recorded here.
   so `showwork run -- pnpm test` died with WinError 2 on Windows where the file
   on PATH is `pnpm.cmd`. `run` now resolves a bare name through `shutil.which`
   and leaves an explicit path alone.
+- **Supervisor receipts API** - `showwork.receipts` maps a workspace session
+  to verified / claimed / failed / unknown. The UI process never appends.
+  `showwork receipts --json|--html` is the CLI. BMD copies
+  `examples/bmd/`. Empty workspace is unknown, never green.
 
 ## 0.4.0 - 2026-09-03
 

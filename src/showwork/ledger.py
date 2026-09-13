@@ -669,10 +669,12 @@ def verify_date(root: str | Path | None = None, date_str: str | None = None) -> 
     return evaluate_records(load_claims(rt, label), rt, label=label)
 
 
-def verify_session(root: str | Path | None = None, session: str = "") -> dict:
+def verify_session(root: str | Path | None = None, session: str = "", *,
+                   allowed_check_types: frozenset[str] | None = None) -> dict:
     rt = resolve_root(root)
     claims = claims_for_session(rt, session)
-    state = evaluate_records(claims, rt, label=f"session {session}")
+    state = evaluate_records(claims, rt, label=f"session {session}",
+                             allowed_check_types=allowed_check_types)
     start = _latest_session_start(rt, session)
     try:
         stem = session_file_stem(session)
