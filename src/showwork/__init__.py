@@ -40,7 +40,7 @@ from .receipts import (
     session_for_task,
 )
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "CHECKERS",

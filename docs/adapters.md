@@ -13,7 +13,7 @@ Walk: [walks/cursor.md](walks/cursor.md).
 
 If pytest is installed, `pip install showwork` registers a plugin. It is
 silent unless you pass `--showwork-session`. Then a passing run records a
-`file_contains` claim on `.showwork/pytest-last.json`.
+`file_contains` claim on `.showwork/artifacts/<session>/pytest-last.json`.
 
 ```bash
 pytest -q --showwork-session cursor-fix-nav

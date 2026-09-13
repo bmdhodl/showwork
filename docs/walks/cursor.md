@@ -54,5 +54,5 @@ verify goes RED. That is issue #64.
 
 CI: copy `docs/ci/showwork-verify.yml` (written by `showwork init --ci`) into
 `.github/workflows/`. Pin `bmdhodl/showwork/actions/verify` to a release tag.
-Until 0.4.0 is on PyPI, the action still installs from the action ref, so a
+The action installs from its pinned action ref, so a
 tag or SHA is enough.

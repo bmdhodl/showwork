@@ -49,6 +49,7 @@ SKIP_DIRS = frozenset({
     "test-results",
     "playwright-report",
     ".playwright",
+    ".playwright-cli",
 })
 SKIP_FILES = frozenset({
     ".coverage",
