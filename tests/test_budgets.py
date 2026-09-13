@@ -140,6 +140,14 @@ def test_counters_are_observable():
         {"max_seconds": -1},
         {"max_tool_calls": 0},
         {"max_calls_per_tool": {"Bash": 0}},
+        {"max_seconds": float("nan")},
+        {"max_seconds": float("inf")},
+        {"max_seconds": True},
+        {"max_tool_calls": float("nan")},
+        {"max_tool_calls": 1.5},
+        {"max_tool_calls": True},
+        {"max_calls_per_tool": {"Bash": float("inf")}},
+        {"max_calls_per_tool": {"Bash": True}},
     ],
 )
 def test_unusable_limits_are_rejected_loudly(kwargs):
