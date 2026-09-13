@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+from .process import run_process
 import sys
 from pathlib import Path
 
@@ -505,13 +506,13 @@ def main(argv: list[str] | None = None) -> int:
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
         try:
             if keep_re is None:
-                proc_code = subprocess.run(
+                proc_code = run_process(
                     cmd, cwd=str(root), env=env, timeout=args.max_seconds
                 ).returncode
             else:
-                proc = subprocess.run(
+                proc = run_process(
                     cmd, cwd=str(root), env=env, timeout=args.max_seconds,
-                    capture_output=True, text=True, errors="replace",
+                    capture_output=True,
                 )
                 proc_code = proc.returncode
                 output = (proc.stdout or "") + (proc.stderr or "")

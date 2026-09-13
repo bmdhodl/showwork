@@ -38,6 +38,18 @@ def test_run_wraps_and_records(tmp_path, capsys):
     assert finish["claims_verdict"] == "GREEN"
 
 
+def test_timeout_terminates_descendants(tmp_path):
+    """REGRESSION: a timed-out wrapper left a grandchild writing afterwards."""
+    child = "import time; from pathlib import Path; time.sleep(2); Path('escaped.txt').touch()"
+    parent = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); time.sleep(20)"
+    code = main(["--root", str(tmp_path), "run", "--session", "tree",
+                 "--max-seconds", "1", "--keep", "result",
+                 "--", sys.executable, "-c", parent])
+    assert code == 2
+    time.sleep(2.2)
+    assert not (tmp_path / "escaped.txt").exists()
+
+
 def test_run_propagates_exit_code(tmp_path):
     code = main(["--root", str(tmp_path), "run", "--session", "w",
                  "--", sys.executable, "-c", "raise SystemExit(7)"])

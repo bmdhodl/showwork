@@ -36,6 +36,7 @@ import os
 import fnmatch
 import re
 import subprocess
+from .process import run_process
 import sys
 import urllib.error
 import urllib.parse
@@ -589,7 +590,7 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
     try:
-        proc = subprocess.run(run_argv, capture_output=True, text=True,
+        proc = run_process(run_argv, capture_output=True,
                               timeout=120, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")

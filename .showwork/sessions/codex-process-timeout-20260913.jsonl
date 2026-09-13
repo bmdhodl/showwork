@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "codex-process-timeout-20260913", "ts": "2026-09-13T04:33:24", "agent": "codex", "tree_snapshot": {"count": 249, "sha256": "7fb0d65179c8200b71be59a6f9b3d4edab8519d59b68f3c67a58c52c2f1c376d"}, "prev": "51009091fd55d58073d3a6ea3cd1dfc8afff4ea7ab7db73dd0a393ca6cdf15fa"}
+{"event": "session.finish", "session": "codex-process-timeout-20260913", "ts": "2026-09-13T04:35:23", "status": "ok", "claims_verdict": "GREEN", "prev": "c1500f67218880bb02df45d23330cda460c776f9b07961d0ae1407a870ccaaa8"}
