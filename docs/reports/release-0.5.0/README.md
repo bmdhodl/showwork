@@ -25,7 +25,10 @@ JavaScript conformance, packaging, release workflow, and open issues/PRs.
 
 ## Verification
 
-- Full Python suite: 387 passed before final release documentation preparation.
+- Final Python suite: 388 passed (pytest-final.txt). Earlier 387-pass receipt is retained.
+- Codex review findings fixed: policy-disabled checks now render UNKNOWN,
+  and Home/Activity cards render only on their designated surface. Browser
+  expansion and separation were rechecked after the fixes.
 - JavaScript auditor: 16 checks passed, including tampering and frozen fixtures.
 - Installed wheel smoke on Python 3.10.11 and 3.13.2: 13 CLI paths, including false-done refusal, recovery,
   integrity, receipts, wrapper gate, and timeout. See candidate-smoke.json.

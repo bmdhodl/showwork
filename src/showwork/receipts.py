@@ -252,13 +252,16 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
         )
         results = [r for r in state.get("results") or [] if isinstance(r, dict)]
         checked = [r for r in results if r.get("status") != "skipped"]
-        failed = [r for r in checked if r.get("status") in {"fail", "error"}]
+        failed = [r for r in checked if r.get("status") in {"fail", "error"}
+                  and not r.get("policy_disabled")]
         if failed:
             first = failed[0]
             details["claim"] = first.get("claim")
             details["check"] = first.get("type")
             details["detail"] = first.get("detail")
             return _payload("failed", details)
+        if any(r.get("policy_disabled") for r in checked):
+            return _payload("unknown", {**details, "reason": "checks require active verification"})
         if has_minimum_proof(state) and state.get("verdict") == "GREEN":
             first = next((r for r in checked if r.get("status") == "pass"), {})
             details["claim"] = first.get("claim")
@@ -320,7 +323,7 @@ def render_badges_html(
 ) -> str:
     """Self-contained Home/Activity badge surface. Click opens the claim."""
 
-    cards = []
+    cards = {"home": [], "activity": []}
     if not records:
         records = [{
             "verification": _payload(
@@ -335,12 +338,12 @@ def render_badges_html(
         state = verification.get("state") if verification.get("state") in EVIDENCE_STATES else "unknown"
         label = LABELS[state]
         heading = _esc(row.get("title") or verification.get("session") or "session")
-        surface = _esc(row.get("surface") or "home")
+        surface = row.get("surface") if row.get("surface") in cards else "home"
         claim = _esc(verification.get("claim") or verification.get("reason") or "No receipts yet.")
         check = _esc(verification.get("check") or "")
         detail = _esc(verification.get("detail") or verification.get("verdict") or "")
         session = _esc(verification.get("session") or "")
-        cards.append(
+        cards[surface].append(
             "<article class=\"card\" data-surface=\""
             f"{surface}\" data-state=\"{state}\">"
             f"<h3>{heading}</h3>"
@@ -352,7 +355,8 @@ def render_badges_html(
             f"<p class=\"detail\">{detail}</p>"
             "</div></details></article>"
         )
-    body = "".join(cards)
+    home = "".join(cards["home"])
+    activity = "".join(cards["activity"])
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -382,8 +386,8 @@ h2 {{ font-size:1rem; color:var(--dim); margin:1.5rem 0 .75rem; }}
 <body>
 <main class="wrap">
 <h1>{_esc(title)}</h1>
-<section data-surface="home"><h2>Home</h2><div class="grid">{body}</div></section>
-<section data-surface="activity"><h2>Activity</h2><div class="grid">{body}</div></section>
+<section data-surface="home"><h2>Home</h2><div class="grid">{home}</div></section>
+<section data-surface="activity"><h2>Activity</h2><div class="grid">{activity}</div></section>
 </main>
 </body>
 </html>

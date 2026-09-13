@@ -67,7 +67,7 @@ def test_reading_receipts_never_executes_workspace_script(tmp_path):
         "type": "command", "argv": ["python", "write.py"], "expect_exit": 0,
     })
     result = evidence_for_session(tmp_path, "reader")
-    assert result["state"] != "verified"
+    assert result["state"] == "unknown"
     assert not (tmp_path / "executed.txt").exists()
 
 

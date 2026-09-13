@@ -811,6 +811,7 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         return {**base, "type": None, "status": "error", "detail": "check type must be a string"}
     if allowed_check_types is not None and ctype not in allowed_check_types:
         return {**base, "type": ctype, "status": "error",
+                "policy_disabled": True,
                 "detail": "check disabled by read-only verification policy"}
     fn = CHECKERS.get(ctype)
     if fn is None:

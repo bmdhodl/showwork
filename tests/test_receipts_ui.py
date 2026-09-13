@@ -60,3 +60,12 @@ def test_badge_markup_opens_claim_without_js(tmp_path):
     assert "<details class=\"evidence\"" in html
     assert "<summary class=\"badge verified\"" in html
     assert "<p class=\"claim\">ok.txt exists</p>" in html
+
+
+def test_cards_only_appear_on_their_requested_surface(tmp_path):
+    """REGRESSION: mixed Home/Activity rows were duplicated into both sections."""
+    html = render_badges_html(_fixture_records(tmp_path))
+    home, activity = html.split('<section data-surface="activity">')
+    assert 'green run' in home and 'claimed run' not in home
+    assert 'claimed run' in activity and 'green run' not in activity
+    assert html.count('<p class="claim">ok.txt exists</p>') == 1

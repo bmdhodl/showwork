@@ -1,0 +1,6 @@
+My verification tool forgot a deleted file when I reopened the session.
+
+showwork 0.5.0 keeps the original snapshot and refuses the false done. Same script, two installed versions in the picture.
+
+pip install -U showwork
+https://github.com/bmdhodl/showwork/releases/tag/v0.5.0
