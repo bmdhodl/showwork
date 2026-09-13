@@ -1,0 +1,17 @@
+# Paste into packaging/bmd-server.spec Analysis(hiddenimports=...)
+# Do not collect showwork.pytest_plugin.
+showwork
+showwork.cli
+showwork.ledger
+showwork.checks
+showwork.audit
+showwork.report
+showwork.receipts
+showwork.snapshot
+showwork.hooks
+showwork.scaffold
+showwork.dashboard
+showwork.control
+showwork.guards
+showwork.budgets
+showwork.__main__

@@ -33,9 +33,11 @@ def pytest_sessionfinish(session, exitstatus):
         return
     root_opt = str(session.config.getoption("--showwork-root") or "").strip()
     root = Path(root_opt).resolve() if root_opt else Path(session.config.rootpath).resolve()
-    ledger = root / ".showwork"
-    ledger.mkdir(parents=True, exist_ok=True)
-    report = ledger / "pytest-last.json"
+    from showwork.ledger import session_artifacts_dir
+
+    artifacts = session_artifacts_dir(root, slug)
+    artifacts.mkdir(parents=True, exist_ok=True)
+    report = artifacts / "pytest-last.json"
     passed = int(exitstatus) == 0
     payload = {
         "session": slug,
@@ -60,7 +62,7 @@ def pytest_sessionfinish(session, exitstatus):
         "pytest session passed",
         check={
             "type": "file_contains",
-            "path": ".showwork/pytest-last.json",
+            "path": report.relative_to(root).as_posix(),
             "pattern": '"passed": true',
         },
     )

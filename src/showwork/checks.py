@@ -36,6 +36,7 @@ import os
 import fnmatch
 import re
 import subprocess
+from .process import run_process
 import sys
 import urllib.error
 import urllib.parse
@@ -589,7 +590,7 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
     try:
-        proc = subprocess.run(run_argv, capture_output=True, text=True,
+        proc = run_process(run_argv, capture_output=True,
                               timeout=120, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")
@@ -777,7 +778,7 @@ CHECKERS = {
 # ---------- verification driver ----------
 
 
-def verify_claim(record: dict, root: Path) -> dict:
+def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str] | None = None) -> dict:
     claim = record.get("claim", "(no description)")
     # SPEC: severity is RED or YELLOW. Anything else (empty, GREEN, typos)
     # must not demote a failed claim out of the exit gate — default to RED.
@@ -806,6 +807,12 @@ def verify_claim(record: dict, root: Path) -> dict:
         return {**base, "type": None, "status": "error",
                 "detail": f"check must be a JSON object, got {type(check).__name__}"}
     ctype = check.get("type")
+    if not isinstance(ctype, str):
+        return {**base, "type": None, "status": "error", "detail": "check type must be a string"}
+    if allowed_check_types is not None and ctype not in allowed_check_types:
+        return {**base, "type": ctype, "status": "error",
+                "policy_disabled": True,
+                "detail": "check disabled by read-only verification policy"}
     fn = CHECKERS.get(ctype)
     if fn is None:
         return {**base, "type": ctype, "status": "error",
@@ -881,14 +888,15 @@ def apply_append_retractions(records: list[dict]) -> list[dict]:
     return out
 
 
-def evaluate_records(records: list[dict], root: Path, label: str = "") -> dict:
+def evaluate_records(records: list[dict], root: Path, label: str = "", *,
+                     allowed_check_types: frozenset[str] | None = None) -> dict:
     """Verify a list of claim records. Verdict: any failed RED claim => RED;
     any other failure or checker error => YELLOW; else GREEN."""
     records = apply_append_retractions(records)
     # Retraction markers are bookkeeping, not claims; do not list them.
     claims = [r for r in records
               if not (r.get("retracted") and isinstance(r.get("retracts"), dict))]
-    results = [verify_claim(r, root) for r in claims]
+    results = [verify_claim(r, root, allowed_check_types=allowed_check_types) for r in claims]
     fails = [r for r in results if r["status"] == "fail"]
     errors = [r for r in results if r["status"] == "error"]
     red = [r for r in fails if r["severity"] == "RED"]

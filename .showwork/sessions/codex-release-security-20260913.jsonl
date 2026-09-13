@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "codex-release-security-20260913", "ts": "2026-09-13T04:24:56", "agent": "codex", "tree_snapshot": {"count": 238, "sha256": "21a06dc94b5f3cdaab8e6187b958317186b95adb16e065496d6ee2303bea702b"}, "prev": "b0a239bf0300e9519263036afd888fdd9dd742293f47991714f501be37275f18"}
+{"event": "session.finish", "session": "codex-release-security-20260913", "ts": "2026-09-13T04:27:14", "status": "ok", "claims_verdict": "GREEN", "prev": "7fe5564a38c1b4a0f94380db19b2729b7d78a67a02a0cd75eb024b6b6a7550ec"}

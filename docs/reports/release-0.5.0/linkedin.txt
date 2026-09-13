@@ -1,0 +1,14 @@
+I found a way to make my verification tool forget a deleted file.
+
+Start a session. Delete config.txt. Reopen the same session. Claim that a different file exists.
+
+showwork 0.4.0 accepted the clean close. Restarting had replaced the snapshot it needed to catch the deletion.
+
+In 0.5.0, the original snapshot stays. The same script gets RED, names config.txt, and exits 2. The picture shows both installed versions running that sequence. No model call.
+
+I used Codex to audit the package and ship the fix. This release also adds a read-only receipt view for supervisor apps, isolates pytest evidence between sessions, and stops ordinary child processes when a run times out.
+
+A passing claim still only proves what its check covers. showwork is not a sandbox or a backup.
+
+pip install --upgrade showwork
+https://github.com/bmdhodl/showwork/releases/tag/v0.5.0

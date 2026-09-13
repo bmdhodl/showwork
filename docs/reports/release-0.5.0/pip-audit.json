@@ -1,0 +1,1 @@
+{"dependencies": [{"name": "pip", "version": "26.2.1", "vulns": []}, {"name": "showwork", "skip_reason": "Dependency not found on PyPI and could not be audited: showwork (0.5.0)"}], "fixes": []}

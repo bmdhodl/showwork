@@ -372,6 +372,13 @@ tests/test_snapshot.py::test_missing_snapshot_is_red] fail RED. A named
 path MAY [test: tests/test_snapshot.py::test_declared_path_may_change]
 change. `.showwork/` is excluded from the snapshot.
 
+Reopening a session MUST [test:
+tests/test_snapshot.py::test_restart_preserves_damage_baseline] preserve its
+existing snapshot and anchor. Use a new session id for a new baseline.
+Snapshot paths MUST [test:
+tests/test_snapshot.py::test_snapshot_directory_cannot_escape_ledger] remain
+inside the ledger after symlink resolution.
+
 A file under `.showwork/artifacts/<stem>/` that no active claim names MUST
 [test: tests/test_snapshot.py::test_unreferenced_artifact_warns_but_does_not_refuse]
 produce a YELLOW result. Such a file ships with the change and proves

@@ -6,6 +6,7 @@
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
     showwork status [--session S] [--json]
+    showwork receipts [--session S | --task-id ID] [--json] [--html FILE]
     showwork report [--since YYYY-MM-DD] [--exclude-campaign] [--json]
     showwork init [--cursor] [--claude] [--ci] [--force]
 
@@ -21,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+from .process import run_process
 import sys
 from pathlib import Path
 
@@ -58,6 +60,7 @@ from .ledger import (
     verify_date,
     verify_session,
 )
+from .receipts import receipts_payload, render_badges_html
 from .scaffold import init_project
 from .report import render_status, render_usage, session_status, usage_report
 
@@ -279,6 +282,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--session", help="one session id (default: all)")
     p.add_argument("--json", action="store_true")
 
+    p = sub.add_parser(
+        "receipts",
+        help="read-only evidence badges for a supervisor UI (never writes)",
+    )
+    p.add_argument("--session", help="one session id")
+    p.add_argument("--task-id", dest="task_id", help="BMD task id (session bmd-<id>)")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--html", type=Path, help="write a self-contained badge HTML file")
+
     p = sub.add_parser("report", help="usage + False Done Rate for a date window")
     p.add_argument("--since", help="include ledger rows on/after YYYY-MM-DD")
     p.add_argument("--exclude-campaign", action="store_true",
@@ -421,6 +433,21 @@ def main(argv: list[str] | None = None) -> int:
             print(render_status(status))
         return 0
 
+    if args.cmd == "receipts":
+        payload = receipts_payload(
+            root, session=args.session, task_id=args.task_id,
+        )
+        if args.html:
+            args.html.parent.mkdir(parents=True, exist_ok=True)
+            args.html.write_text(
+                render_badges_html(payload["records"], title="Receipts"),
+                encoding="utf-8",
+            )
+            print(f"wrote {args.html}")
+        if args.json or not args.html:
+            print(json.dumps(payload, indent=2))
+        return 0
+
     if args.cmd == "report":
         try:
             report = usage_report(root, since=args.since,
@@ -479,13 +506,13 @@ def main(argv: list[str] | None = None) -> int:
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}
         try:
             if keep_re is None:
-                proc_code = subprocess.run(
+                proc_code = run_process(
                     cmd, cwd=str(root), env=env, timeout=args.max_seconds
                 ).returncode
             else:
-                proc = subprocess.run(
+                proc = run_process(
                     cmd, cwd=str(root), env=env, timeout=args.max_seconds,
-                    capture_output=True, text=True, errors="replace",
+                    capture_output=True,
                 )
                 proc_code = proc.returncode
                 output = (proc.stdout or "") + (proc.stderr or "")

@@ -16,6 +16,7 @@ testable without sleeping and deterministic under replay.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Callable
 
 __all__ = [
@@ -69,13 +70,19 @@ class RunBudget:
     _tripped: BudgetVerdict | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.max_seconds is not None and self.max_seconds <= 0:
-            raise ValueError("max_seconds must be > 0, or None to disable")
-        if self.max_tool_calls is not None and self.max_tool_calls < 1:
-            raise ValueError("max_tool_calls must be >= 1, or None to disable")
+        if self.max_seconds is not None and (
+            isinstance(self.max_seconds, bool)
+            or not isinstance(self.max_seconds, (int, float))
+            or not math.isfinite(self.max_seconds) or self.max_seconds <= 0
+        ):
+            raise ValueError("max_seconds must be finite and > 0, or None to disable")
+        if self.max_tool_calls is not None and (
+            type(self.max_tool_calls) is not int or self.max_tool_calls < 1
+        ):
+            raise ValueError("max_tool_calls must be an integer >= 1, or None to disable")
         if self.max_calls_per_tool:
             for tool, limit in self.max_calls_per_tool.items():
-                if limit < 1:
+                if type(limit) is not int or limit < 1:
                     raise ValueError(f"max_calls_per_tool[{tool!r}] must be >= 1")
         if self.clock is None:
             import time

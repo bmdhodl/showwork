@@ -1,0 +1,20 @@
+{
+  "version": "0.5.0",
+  "python": "3.10.11",
+  "installed_from": "C:\\Users\\patri\\.codex\\worktrees\\showwork-release-20260913\\.venv\\py310\\lib\\site-packages\\showwork\\__init__.py",
+  "passed": [
+    "init",
+    "start",
+    "claim missing file",
+    "refuse false done",
+    "accept real outcome",
+    "verify",
+    "chain audit",
+    "receipts",
+    "status",
+    "report",
+    "wrapper",
+    "empty wrapper gate",
+    "timeout"
+  ]
+}

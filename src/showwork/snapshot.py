@@ -49,6 +49,7 @@ SKIP_DIRS = frozenset({
     "test-results",
     "playwright-report",
     ".playwright",
+    ".playwright-cli",
 })
 SKIP_FILES = frozenset({
     ".coverage",
@@ -64,7 +65,11 @@ MAX_UNREFERENCED_ARTIFACTS = 100
 
 
 def snapshot_file(ledger: Path, stem: str) -> Path:
-    return (ledger / "snapshots" / f"{stem}.json").resolve()
+    base = ledger.resolve()
+    path = (base / "snapshots" / f"{stem}.json").resolve()
+    if not path.is_relative_to(base):
+        raise ValueError("snapshot path escapes the ledger")
+    return path
 
 
 def capture_tree(root: Path) -> dict[str, str]:

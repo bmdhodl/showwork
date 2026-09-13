@@ -55,6 +55,7 @@ Three rules drive every design decision below:
 | `src/showwork/guards.py` | `StuckDetector`: repeat / alternation / no-progress signatures |
 | `src/showwork/budgets.py` | `RunBudget`: wall clock, tool-call count, per-tool rate. Library only |
 | `src/showwork/dashboard.py` | Static HTML render of replay data |
+| `src/showwork/receipts.py` | Read-only supervisor overlay: four evidence states for BMD. Never appends |
 | `js/showwork-audit/index.mjs` | Zero-dependency Node implementation of the reading half of the spec |
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 

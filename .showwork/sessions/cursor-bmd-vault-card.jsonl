@@ -1,0 +1,2 @@
+{"event": "session.start", "session": "cursor-bmd-vault-card", "ts": "2026-09-03T22:14:28", "agent": "cursor", "note": "Track BMD overlay in the vault, not GitHub Projects", "tree_snapshot": {"count": 249, "sha256": "24940ff13a3c712ee734e80ec48b496e68cc241d8c4600ed810b41210e1246ab"}, "prev": "b272bc32c22d20e984f110c406cda6459780b1175bbb8af962be8eafae911044"}
+{"event": "session.finish", "session": "cursor-bmd-vault-card", "ts": "2026-09-03T22:15:29", "status": "ok", "claims_verdict": "GREEN", "prev": "1c439ea82401d614a2f6292f828a41b4106550e2fe91cd60edf8b0df16c7a67d"}

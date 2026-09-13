@@ -1,0 +1,8 @@
+{
+  "version": "0.4.0",
+  "scenario": "delete config.txt, reopen the same session, claim result.txt",
+  "config_exists": false,
+  "finish_exit": 0,
+  "verdict": "GREEN",
+  "gaps": []
+}

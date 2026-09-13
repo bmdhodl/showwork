@@ -2,7 +2,21 @@
 
 All notable changes to showwork are recorded here.
 
-## Unreleased
+## 0.5.0 - 2026-09-13
+
+- Reject nonfinite, boolean, and fractional budget limits that cannot enforce
+  the advertised ceilings.
+- Preserve the original damage baseline when a session slug is reopened.
+  Refuse snapshot paths that escape the ledger through symlinks.
+- Require publish tags to select current main and match the package version.
+- Keep supervisor receipt inspection read-only: no workspace commands, Git,
+  or network checks run. Unverified ledger integrity produces UNKNOWN.
+- Isolate pytest evidence per session so another run cannot overwrite proof.
+- Terminate ordinary process descendants when a wrapper or command check
+  times out. Captured output no longer waits on inherited pipes.
+- Correct frozen-application interpreter guidance and contain long badge text
+  at phone, tablet, and desktop widths.
+
 
 - **Artifact hygiene** - `verify` and `finish` warn YELLOW for every file under
   `.showwork/artifacts/<session>/` that no active claim names. A receipt
@@ -31,6 +45,10 @@ All notable changes to showwork are recorded here.
   so `showwork run -- pnpm test` died with WinError 2 on Windows where the file
   on PATH is `pnpm.cmd`. `run` now resolves a bare name through `shutil.which`
   and leaves an explicit path alone.
+- **Supervisor receipts API** - `showwork.receipts` maps a workspace session
+  to verified / claimed / failed / unknown. The UI process never appends.
+  `showwork receipts --json|--html` is the CLI. BMD copies
+  `examples/bmd/`. Empty workspace is unknown, never green.
 
 ## 0.4.0 - 2026-09-03
 

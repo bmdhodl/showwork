@@ -1,0 +1,10 @@
+{
+  "version": "0.5.0",
+  "scenario": "delete config.txt, reopen the same session, claim result.txt",
+  "config_exists": false,
+  "finish_exit": 2,
+  "verdict": "RED",
+  "gaps": [
+    "undeclared deletion: config.txt"
+  ]
+}
