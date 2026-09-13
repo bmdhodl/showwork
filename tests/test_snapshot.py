@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 
 from showwork.cli import main
 from showwork.ledger import (
@@ -13,6 +14,34 @@ from showwork.ledger import (
     verify_session,
 )
 from showwork.snapshot import capture_tree, declared_paths
+
+
+def test_restart_preserves_damage_baseline(tmp_path):
+    """REGRESSION: starting the same slug erased evidence of a deletion."""
+    target = tmp_path / "keep.txt"
+    target.write_text("before", encoding="utf-8")
+    start_session(tmp_path, "restart")
+    sidecar = tmp_path / ".showwork/snapshots/restart.json"
+    original = sidecar.read_bytes()
+    target.unlink()
+    start_session(tmp_path, "restart")
+    assert sidecar.read_bytes() == original
+    assert verify_session(tmp_path, "restart")["verdict"] == "RED"
+
+
+def test_snapshot_directory_cannot_escape_ledger(tmp_path):
+    from showwork.snapshot import snapshot_file
+    ledger = tmp_path / ".showwork"
+    ledger.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    try:
+        (ledger / "snapshots").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="escapes"):
+        snapshot_file(ledger, "safe")
+    assert not list(outside.iterdir())
 
 
 def _events(root, session):

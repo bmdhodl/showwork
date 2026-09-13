@@ -691,7 +691,12 @@ def verify_session(root: str | Path | None = None, session: str = "") -> dict:
         ))
     else:
         extra += unreferenced_artifacts(rt, claims, artifacts)
-    extra += undeclared_results(rt, claims, start, snapshot_file(ledger_dir(rt), stem))
+    try:
+        snap_path = snapshot_file(ledger_dir(rt), stem)
+    except ValueError as exc:
+        extra.append(escape_result("snapshot path escapes the ledger", str(exc)))
+    else:
+        extra += undeclared_results(rt, claims, start, snap_path)
     return merge_undeclared(state, extra)
 
 
@@ -709,7 +714,12 @@ def _latest_session_start(root: Path, session: str) -> dict | None:
 def start_session(root: Path, session: str, agent: str | None = None,
                   note: str | None = None) -> dict:
     snap_path = snapshot_file(ledger_dir(root), session_file_stem(session))
-    tree_snapshot = write_tree_snapshot(root, snap_path)
+    previous = _latest_session_start(root, session)
+    if previous and isinstance(previous.get("tree_snapshot"), dict):
+        # Reopening a slug must not erase its original damage baseline.
+        tree_snapshot = previous["tree_snapshot"]
+    else:
+        tree_snapshot = write_tree_snapshot(root, snap_path)
     return record_event(
         root, "session.start", session, agent=agent, note=note,
         tree_snapshot=tree_snapshot,
