@@ -2,6 +2,23 @@
 
 All notable changes to showwork are recorded here.
 
+## 0.6.1 - 2026-09-14
+
+- Audit ledger integrity after acceptance commands. A command that corrupts a
+  receipt can no longer run after the gate's final integrity observation.
+- Add opt-in `gate --legacy-integrity-baseline FULL_COMMIT_ID` for adopting
+  per-session receipts in a repository with damaged shared legacy history.
+  Every legacy file at that ancestor stays present and unchanged. The report
+  retains its historical RED result and lists each acknowledged file.
+- Never acknowledge current per-session corruption or a selected session in
+  the baseline. New, edited, deleted and renamed legacy files still fail.
+- Expose the same explicit input in the GitHub Action, with passing and
+  intentionally broken clean-room cases. Strict behavior stays the default.
+
+This is an acknowledgement of lost historical integrity, not its repair.
+Protect the pinned commit and its review as part of the repository's CI policy.
+See [legacy adoption](docs/legacy-baseline.md).
+
 ## 0.6.0 - 2026-09-14
 
 GolfFly exposed a verification gap: a claim about a working model passed when

@@ -1,4 +1,4 @@
-# CI migration for 0.6.0
+# CI migration for 0.6.1
 
 The action now requires an outcome receipt. Declare acceptance requirements,
 finish successfully, and commit every receipt file. `require-tracked` defaults
@@ -15,6 +15,13 @@ No receipt can establish the adequacy of its tests or the completeness of its
 requirements. Review those before merge.
 
 See [the evidence-scope guide](evidence-scope.md) for the incident and commands.
+
+Version 0.6.1 audits integrity after the acceptance commands have finished. It
+also offers an optional `legacy-integrity-baseline` input: a reviewed full Git
+commit ID, fixed in CI, can acknowledge damaged shared history while leaving
+its audit RED. The pinned files remain immutable, and the current session is
+never exempt. See [the adoption policy and limits](legacy-baseline.md). Omit
+this input when the requirement is intact integrity across all history.
 
 ## Historical action notes (through 0.5.0)
 

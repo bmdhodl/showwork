@@ -149,7 +149,7 @@ concurrency can pass `showwork audit --strict`. Rationale:
 ## Gate your CI on receipts
 
 ```yaml
-- uses: bmdhodl/showwork/actions/verify@v0.6.0
+- uses: bmdhodl/showwork/actions/verify@v0.6.1
   with:
     session: my-agent-session
     require-tracked: true
@@ -160,6 +160,11 @@ Fails on broken chains, unmet acceptance checks, missing claim definitions,
 uncommitted receipts, missing outcome closes, and bypass or checks-only closes.
 For PRs, use `changed-since` to select every changed receipt.
 Fork-safe by default ([docs/ci.md](docs/ci.md)).
+
+Version 0.6.1 adds an explicit adoption option for repositories with damaged
+shared legacy ledgers. A full Git commit ID pins those files unchanged. Their
+audit remains RED; current session receipts and new corruption cannot qualify
+for that exception. [Read the migration limits](docs/legacy-baseline.md).
 
 ## Wrap any agent, no integration
 

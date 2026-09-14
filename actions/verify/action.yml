@@ -16,6 +16,9 @@ inputs:
   require-tracked:
     description: "Require receipt files to match committed HEAD"
     default: "true"
+  legacy-integrity-baseline:
+    description: "Optional full Git commit ID acknowledging unchanged shared legacy files; their audit remains RED"
+    default: ""
   python-path:
     description: "Prepared Python interpreter with the project's test dependencies; empty uses an isolated venv"
     default: ""
@@ -52,6 +55,7 @@ runs:
         SW_SESSION: ${{ inputs.session }}
         SW_BASE: ${{ inputs.changed-since }}
         SW_TRACKED: ${{ inputs.require-tracked }}
+        SW_LEGACY_BASELINE: ${{ inputs.legacy-integrity-baseline }}
         SW_ALLOW_COMMANDS: ${{ inputs.allow-commands }}
         SW_ALLOW_NETWORK: ${{ inputs.allow-network }}
       run: |
@@ -68,6 +72,7 @@ runs:
           exit 2
         fi
         if [ "$SW_TRACKED" = "true" ]; then args+=(--require-tracked); fi
+        if [ -n "$SW_LEGACY_BASELINE" ]; then args+=(--legacy-integrity-baseline "$SW_LEGACY_BASELINE"); fi
         echo '## showwork declared acceptance checks' >> "$GITHUB_STEP_SUMMARY"
         set +e
         output=$("$SHOWWORK_ACTION_PY" -I -m showwork "${args[@]}" 2>&1)

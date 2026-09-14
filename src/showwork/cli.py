@@ -275,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
     selection.add_argument("--session")
     selection.add_argument("--changed-since", help="gate every receipt changed from a Git revision")
     p.add_argument("--require-tracked", action="store_true")
+    p.add_argument("--legacy-integrity-baseline",
+                   help="explicitly acknowledge unchanged shared legacy history at a full Git commit ID; audit stays RED")
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser("doctor", help="show the actual verifier import and installed version")
@@ -414,13 +416,20 @@ def main(argv: list[str] | None = None) -> int:
         from .outcomes import changed_sessions, release_gate
         try:
             sessions = [args.session] if args.session else changed_sessions(root, args.changed_since)
-            results = [release_gate(root, s, require_tracked=args.require_tracked) for s in sessions]
+            results = [release_gate(root, s, require_tracked=args.require_tracked,
+                                    legacy_integrity_baseline=args.legacy_integrity_baseline) for s in sessions]
             result = {"verdict": "GREEN" if all(r["verdict"] == "GREEN" for r in results) else "RED",
                       "errors": [error for r in results for error in r["errors"]], "sessions": results,
                       "notes": [f"{r['session']}: historical integrity {r['historical_integrity']}; "
                                 + r["integrity_scope"] for r in results]}
         except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
             result = {"verdict": "RED", "errors": [str(exc)]}
+        for session_result in result.get("sessions", []):
+            baseline = session_result.get("legacy_baseline")
+            if baseline:
+                result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")
+                result["notes"].extend(f"acknowledged historical RED: {row['path']} ({row['detail']})"
+                                       for row in baseline["acknowledged"])
         print(json.dumps(result, indent=2) if args.json else
               "showwork outcome gate: " + result["verdict"] + "\n"
               + "\n".join([*result.get("notes", []), *result["errors"]]))
