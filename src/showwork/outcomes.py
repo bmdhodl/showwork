@@ -106,23 +106,34 @@ def receipt_manifest(root: Path, session: str) -> dict:
             "requirement_count": len(requirements)}
 
 
-def release_gate(root: Path, session: str, *, require_tracked: bool = False) -> dict:
+def release_gate(root: Path, session: str, *, require_tracked: bool = False,
+                 legacy_integrity_baseline: str | None = None) -> dict:
     from .audit import audit_root
     from .ledger import load_all_events, session_events_path, session_file_stem, verify_session
     from .snapshot import snapshot_file
     from .ledger import ledger_dir, _read_jsonl
     root = root.resolve()
     errors = []
+    # Commands are trusted project code, but their ledger mutations still need
+    # to be audited. Auditing first left a gap after the last command ran.
+    state = verify_session(root, session)
     audit = audit_root(root)
+    baseline = None
+    acknowledged = set()
+    if legacy_integrity_baseline is not None:
+        from .legacy import inspect_legacy_baseline
+        baseline = inspect_legacy_baseline(root, session, legacy_integrity_baseline)
+        errors.extend(baseline["errors"])
+        if not baseline["errors"]:
+            acknowledged = {row["path"] for row in baseline["acknowledged"]}
     # Historical pre-chain files do not certify this session, and must remain
     # visible. Any broken chain still fails, including unrelated history.
     for entry in audit["files"]:
-        if entry["verdict"] == "RED":
+        if entry["verdict"] == "RED" and f".showwork/{entry['file']}" not in acknowledged:
             errors.append(f"ledger integrity is RED: {entry['file']}")
         elif entry["verdict"] != "GREEN" and any(
                 row.get("session") == session for row in _read_jsonl(Path(entry["path"]))):
             errors.append(f"selected session integrity is not GREEN: {entry['file']}")
-    state = verify_session(root, session)
     if state["verdict"] != "GREEN" or state["outcome"]["verdict"] != "VERIFIED":
         errors.append("declared acceptance checks are not verified")
         errors.extend(f"{r.get('requirement_id', r.get('claim', 'check'))}: {r['detail']}"
@@ -153,7 +164,9 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False) -> 
                 errors.append(f"receipt is not committed exactly at HEAD: {rel}")
     return {"verdict": "RED" if errors else "GREEN", "session": session,
             "errors": errors, "checks": state, "historical_integrity": audit["verdict"],
-            "integrity_scope": "selected session; unrelated RED findings still fail"}
+            "legacy_baseline": baseline,
+            "integrity_scope": ("selected session; pinned legacy history remains unverified"
+                                if baseline else "selected session; unrelated RED findings still fail")}
 
 
 def changed_sessions(root: Path, base: str) -> list[str]:

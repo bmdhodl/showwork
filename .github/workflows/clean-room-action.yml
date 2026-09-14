@@ -46,6 +46,18 @@ jobs:
             case: missing-claims
             session: clean-room-missing-claims
             expected: failure
+          - name: pinned legacy baseline
+            case: legacy
+            session: clean-room-legacy
+            expected: success
+          - name: changed legacy baseline
+            case: legacy-tampered
+            session: clean-room-legacy-tampered
+            expected: failure
+          - name: unacknowledged legacy baseline
+            case: legacy-unacknowledged
+            session: clean-room-legacy-unacknowledged
+            expected: failure
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -68,6 +80,18 @@ jobs:
           echo "fixture root: $FIXTURE"
           echo "case: $CASE"
           echo "session: $SESSION"
+          if [[ "$CASE" == legacy* ]]; then
+            git -C "$FIXTURE" init
+            git -C "$FIXTURE" config user.name 'Fixture'
+            git -C "$FIXTURE" config user.email 'fixture@example.invalid'
+            mkdir -p "$FIXTURE/.showwork"
+            printf '{"session":"old","prev":"not-a-hash"}\n' > "$FIXTURE/.showwork/claims-2026-01-01.jsonl"
+            git -C "$FIXTURE" add .showwork
+            git -C "$FIXTURE" commit -m 'historical fixture'
+            if [ "$CASE" != "legacy-unacknowledged" ]; then
+              echo "legacy_baseline=$(git -C "$FIXTURE" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            fi
+          fi
           "$PY" -m showwork.cli --root "$FIXTURE" start --session "$SESSION" --agent codex
 
           if [ "$CASE" = "fork-safe" ]; then
@@ -95,7 +119,7 @@ jobs:
               "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION"
               rm "$FIXTURE/.showwork/claims/${SESSION}.jsonl"
               ;;
-            green)
+            green|legacy|legacy-tampered|legacy-unacknowledged)
               printf 'green\n' > "$FIXTURE/ready.txt"
               "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
                 --claim 'ready fixture exists' --type file_exists --path ready.txt
@@ -143,6 +167,14 @@ jobs:
               ;;
           esac
 
+          if [[ "$CASE" == legacy* ]]; then
+            git -C "$FIXTURE" add .
+            git -C "$FIXTURE" commit -m 'current fixture receipt'
+            if [ "$CASE" = "legacy-tampered" ]; then
+              printf '{"session":"old","prev":"changed"}\n' > "$FIXTURE/.showwork/claims-2026-01-01.jsonl"
+            fi
+          fi
+
           echo "ledger files:"
           find "$FIXTURE/.showwork" -type f -printf '%p\n' | sort
 
@@ -153,7 +185,8 @@ jobs:
         with:
           root: ${{ steps.fixture.outputs.fixture }}
           session: ${{ matrix.session }}
-          require-tracked: "false"
+          require-tracked: ${{ startsWith(matrix.case, 'legacy') }}
+          legacy-integrity-baseline: ${{ steps.fixture.outputs.legacy_baseline }}
 
       - name: Assert the expected gate result and print the summary
         if: always()

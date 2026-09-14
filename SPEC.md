@@ -484,6 +484,39 @@ return a nonzero status when versions disagree.
 
 ## Verdict algebra
 
+### Optional legacy adoption policy
+
+This is a release-gate policy option, not a change to record framing or the
+audit verdict. Without it, a broken chain in any ledger prevents a release.
+
+An explicitly supplied full Git commit ID can pin the shared legacy files
+`sessions.jsonl` and `claims-YYYY-MM-DD.jsonl`. The baseline MUST [test:
+tests/test_legacy_baseline.py::test_baseline_requires_existing_full_commit_id]
+be an existing immutable commit and MUST [test:
+tests/test_legacy_baseline.py::test_baseline_rejects_unrelated_commit] be an
+ancestor of HEAD. It MUST [test:
+tests/test_legacy_baseline.py::test_baseline_cannot_include_selected_session]
+predate the selected session. Every pinned legacy file MUST [test:
+tests/test_legacy_baseline.py::test_baseline_cannot_hide_changed_or_removed_history]
+remain present and byte-identical apart from Git LF/CRLF checkout conversion.
+
+The gate MUST [test:
+tests/test_legacy_baseline.py::test_explicit_baseline_keeps_historical_red_visible]
+retain the historical RED verdict and list acknowledged files separately from
+the current acceptance result. It MUST [test:
+tests/test_legacy_baseline.py::test_baseline_never_excuses_per_session_corruption]
+never use the baseline to acknowledge per-session corruption. New broken
+legacy files MUST [test:
+tests/test_legacy_baseline.py::test_baseline_refuses_new_broken_legacy_file]
+still fail. Final integrity observations MUST [test:
+tests/test_legacy_baseline.py::test_acceptance_command_cannot_corrupt_ledger_after_audit]
+occur after all acceptance commands have run.
+
+The operator is responsible for reviewing and protecting the baseline choice.
+It establishes an explicit boundary for new work, not authentic past records.
+
+### Check verdicts
+
 - `RED`: at least one active failed claim has RED severity.
 - `YELLOW`: no RED failure exists, but a YELLOW claim fails or a checker errors.
 - `GREEN`: no active claim fails or errors. Unchecked prose is recorded but does
