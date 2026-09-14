@@ -1,6 +1,6 @@
 # showwork Claims Ledger Specification
 
-**Specification version:** `spec-v0.4`
+**Specification version:** `spec-v0.5`
 
 This document defines a portable, append-only format for falsifiable agent
 claims, deterministic verification, retractions, session lifecycle events, and
@@ -379,11 +379,17 @@ Snapshot paths MUST [test:
 tests/test_snapshot.py::test_snapshot_directory_cannot_escape_ledger] remain
 inside the ledger after symlink resolution.
 
+Snapshot comparison MUST [test:
+tests/test_outcomes.py::test_windows_receipt_verifies_after_git_lf_checkout]
+accept LF/CRLF checkout conversion of UTF-8 text while detecting other content
+changes. Binary line-ending changes MUST [test:
+tests/test_outcomes.py::test_binary_line_endings_still_count_as_changed] remain
+changes. This does not rewrite a prior snapshot or its anchor.
+
 A file under `.showwork/artifacts/<stem>/` that no active claim names MUST
-[test: tests/test_snapshot.py::test_unreferenced_artifact_warns_but_does_not_refuse]
-produce a YELLOW result. Such a file ships with the change and proves
-nothing, but it damages nothing either, so it warns and never refuses a
-clean close. A file in that directory that an active claim does name MUST
+[test: tests/test_snapshot.py::test_unreferenced_artifact_prevents_outcome_close]
+produce a YELLOW result and prevent an outcome close. A file in that
+directory that an active claim or acceptance requirement names MUST
 [test: tests/test_snapshot.py::test_cited_artifact_does_not_warn] produce no
 such result. The directory is walked directly, because files created after
 start are out of the snapshot check and `.showwork/` is excluded from it.
@@ -416,6 +422,65 @@ tests/test_hooks.py::test_stop_hook_marks_unbound_payload_session] stamp
 tests/test_run.py::test_run_gate_refuses_success_with_no_claims] refuse with
 exit 2 when the wrapped command exits 0 without check-backed claims, matching
 the finish gate.
+
+## Acceptance requirements (`spec-v0.5`)
+
+A `session.requirement` event adds `requirement_id`, `claim` (description),
+`scope` (`artifact` or `behavior`), `check`, and RED severity to the existing
+session event stream. IDs are unique within a session. Requirements are
+declared after start and before completion claims.
+
+A behavior requirement MUST [test:
+tests/test_outcomes.py::test_behavior_requirement_rejects_string_check] use a
+`command` check. File predicates cannot prove behavior. Requirements MUST [test:
+tests/test_outcomes.py::test_requirements_cannot_be_weakened_or_retracted_as_claims]
+remain independent of claim retractions and reject replacement of an existing ID.
+
+An ordinary successful finish MUST [test:
+tests/test_outcomes.py::test_golffly_magic_strings_cannot_close_an_outcome] refuse
+when no acceptance requirements were declared. It MUST [test:
+tests/test_outcomes.py::test_one_pass_cannot_hide_an_unmet_requirement] refuse
+when any declared requirement remains unmet. Disabled execution MUST [test:
+tests/test_outcomes.py::test_disabled_command_never_certifies_behavior] leave
+behavior unverified. The explicit `checks_only` close MUST [test:
+tests/test_outcomes.py::test_checks_only_close_is_explicit_and_not_an_outcome]
+record `completion_scope: checks_only` and cannot pass the outcome gate.
+The gated subprocess wrapper MUST [test:
+tests/test_outcomes.py::test_wrapper_cannot_promote_string_check_to_outcome]
+apply the same acceptance requirement. Observe mode remains exit-transparent.
+
+Acceptance command results MUST [test:
+tests/test_outcomes.py::test_actual_controller_failure_then_repair] contain
+the actual exit code and hashes of output, script and bounded source tree, plus
+the Git revision when available and Python/showwork versions. A source-tree
+change during the command MUST [test:
+tests/test_outcomes.py::test_acceptance_command_changing_source_fails] prevent
+acceptance. These fields attest to the observed invocation, not test adequacy.
+
+Finish records include `outcome`, `completion_scope`, `command_evidence`, and
+`receipt_manifest`. The manifest maps claim file paths to SHA-256 after CRLF
+normalization and hashes the requirement records. The release gate MUST [test:
+tests/test_outcomes.py::test_gate_detects_missing_claim_file_in_fresh_checkout]
+reject missing/changed definitions, compare receipt files against HEAD when
+`require_tracked` is set, and rerun acceptance checks. It MUST [test:
+tests/test_outcomes.py::test_gate_refuses_reopened_session] reject an open or
+subsequently refused session. A missing receipt MUST [test:
+tests/test_outcomes.py::test_empty_session_cannot_pass_release_gate] fail.
+
+Read-only receipt views MUST [test:
+tests/test_outcomes.py::test_read_only_badge_does_not_certify_a_prose_claim]
+leave loose claims as CLAIMED. They MUST [test:
+tests/test_outcomes.py::test_read_only_requirement_does_not_run_python] never
+run Python to obtain a badge. Scope is displayed separately from author prose.
+
+Legacy ledgers remain readable. GREEN is still a check verdict. It is not
+evidence of complete user requirements or semantic truth of arbitrary prose.
+An outcome result is limited to the declared acceptance checks; unlisted
+requirements and test adequacy remain unassessed. No checker infers coverage
+from natural language. `doctor` reports actual runtime/distribution identity
+and MUST [test:
+tests/test_outcomes.py::test_doctor_reports_actual_import_and_metadata_mismatch]
+return a nonzero status when versions disagree.
 
 ## Verdict algebra
 

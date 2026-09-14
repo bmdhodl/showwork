@@ -19,6 +19,9 @@ def _events(tmp_path, session):
 def test_full_green_lifecycle(tmp_path, capsys):
     (tmp_path / "out.md").write_text("shipped: yes", encoding="utf-8")
     assert run(tmp_path, "start", "--session", "s1", "--agent", "test") == 0
+    assert run(tmp_path, "require", "--session", "s1", "--id", "output", "--description",
+               "out.md contains shipped", "--scope", "artifact", "--check-json",
+               '{"type":"file_contains","path":"out.md","pattern":"shipped"}') == 0
     assert run(tmp_path, "claim", "--session", "s1", "--claim", "wrote out.md",
                "--type", "file_contains", "--path", "out.md", "--pattern", "shipped") == 0
     assert run(tmp_path, "verify", "--session", "s1") == 0
@@ -42,6 +45,9 @@ def test_exit_gate_refuses_red_close(tmp_path, capsys):
 
 def test_retraction_unblocks_close(tmp_path):
     run(tmp_path, "start", "--session", "s3")
+    run(tmp_path, "require", "--session", "s3", "--id", "file", "--description",
+        "real.txt exists", "--scope", "artifact", "--check-json",
+        '{"type":"file_exists","path":"real.txt"}')
     run(tmp_path, "claim", "--session", "s3", "--claim", "made a file",
         "--type", "file_exists", "--path", "never-created.txt")
     assert run(tmp_path, "finish", "--session", "s3") == 2

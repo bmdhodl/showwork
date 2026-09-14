@@ -2,6 +2,40 @@
 
 All notable changes to showwork are recorded here.
 
+## 0.6.0 - 2026-09-14
+
+GolfFly exposed a verification gap: a claim about a working model passed when
+a file contained `m.weights`. Another claim about tests and HDR passed when a
+handwritten JSON file contained `2360`. Those checks did not prove the claims.
+
+- Add declared acceptance requirements with separate artifact and behavior scopes.
+  Behavior requires an executed Python check. Matching text cannot substitute.
+- Refuse an outcome close without passing acceptance checks. The explicit
+  `--checks-only` close remains available and cannot pass the release gate.
+- Preserve requirements independently of claim retractions. Reject duplicate IDs
+  and attempts to change the acceptance check in place.
+- Capture exit codes, output hashes, test script hashes, verifier version,
+  Git revision and a bounded source fingerprint when checking behavior.
+- Bind each close to its claim files and requirements. The CI gate rejects missing
+  or changed receipt files and checks that they were committed at HEAD.
+- Gate the receipts changed by the current PR. Disabled command checks fail
+  even when the previous action's `strict` input is false.
+- Show each result's scope and leave unlisted requirements unknown.
+  Read-only badges no longer promote loose file claims to verified outcomes.
+- Add `showwork doctor` to expose stale imports and package-version mismatches.
+- Run test, conformance and publishing jobs on GitHub-hosted runners.
+
+Migration: declare acceptance checks with `showwork require` before recording
+completion claims. See [the incident and migration guide](docs/evidence-scope.md).
+Older ledgers remain readable. Their check results do not retroactively become
+acceptance evidence. The [reproduction](examples/evidence_scope_demo.py) runs
+without the GolfFly game or an external service.
+
+Limits: showwork cannot determine whether an author's requirements cover the
+whole request, or whether a test is adequate. A trivial script can still pass
+a command check. Test review remains necessary. This release enforces evidence
+scope and receipt completeness; it does not detect arbitrary false statements.
+
 ## 0.5.0 - 2026-09-13
 
 - Reject nonfinite, boolean, and fractional budget limits that cannot enforce

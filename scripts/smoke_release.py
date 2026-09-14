@@ -27,6 +27,9 @@ def smoke():
 
         run("init", ["init"])
         run("start", ["start", "--session", "smoke"])
+        run("declare acceptance", ["require", "--session", "smoke", "--id", "output",
+                                    "--scope", "artifact", "--description", "output.txt exists",
+                                    "--check-json", '{"type":"file_exists","path":"output.txt"}'])
         run("claim missing file", ["claim", "--session", "smoke", "--claim", "output exists",
                                    "--type", "file_exists", "--path", "output.txt"])
         run("refuse false done", ["finish", "--session", "smoke"], 2)
@@ -34,6 +37,9 @@ def smoke():
         run("accept real outcome", ["finish", "--session", "smoke"])
         state = json.loads(run("verify", ["verify", "--session", "smoke", "--json", "--no-report"]))
         assert state["verdict"] == "GREEN"
+        assert state["outcome"]["verdict"] == "VERIFIED"
+        run("complete receipt gate", ["gate", "--session", "smoke"])
+        run("version identity", ["doctor", "--json"])
         run("chain audit", ["audit"])
         payload = json.loads(run("receipts", ["receipts", "--session", "smoke", "--json"]))
         assert payload["states"] == ["verified"]

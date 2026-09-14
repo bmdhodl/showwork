@@ -13,6 +13,7 @@ from showwork.ledger import (  # noqa: E402
     record_retraction,
     start_session,
 )
+from showwork.outcomes import record_requirement
 
 
 def _touch(root: Path, name: str) -> str:
@@ -22,6 +23,8 @@ def _touch(root: Path, name: str) -> str:
 
 def test_clean_session_is_eligible_not_false(tmp_path):
     start_session(tmp_path, "clean", agent="a1")
+    record_requirement(tmp_path, "clean", "file", "f exists", "artifact",
+                       {"type": "file_exists", "path": "f"})
     record_claim(tmp_path, "clean", "made f",
                  check={"type": "file_exists", "path": _touch(tmp_path, "f")})
     assert finish_session(tmp_path, "clean")[0] == 0
@@ -33,6 +36,8 @@ def test_clean_session_is_eligible_not_false(tmp_path):
 
 def test_refused_close_is_false_done(tmp_path):
     start_session(tmp_path, "liar")
+    record_requirement(tmp_path, "liar", "file", "missing.txt exists", "artifact",
+                       {"type": "file_exists", "path": "missing.txt"})
     record_claim(tmp_path, "liar", "made g",
                  check={"type": "file_exists", "path": "missing.txt"})
     assert finish_session(tmp_path, "liar")[0] == 2  # REFUSED
@@ -46,6 +51,8 @@ def test_refused_close_is_false_done(tmp_path):
 
 def test_retraction_counts_as_false_done(tmp_path):
     start_session(tmp_path, "s")
+    record_requirement(tmp_path, "s", "file", "ok exists", "artifact",
+                       {"type": "file_exists", "path": "ok"})
     record_claim(tmp_path, "s", "bad claim",
                  check={"type": "file_exists", "path": "nope"})
     record_retraction(tmp_path, "s", "bad claim", "was wrong")

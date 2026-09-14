@@ -31,6 +31,12 @@ jobs:
       - name: Run behavioral and conformance tests
         run: .venv/bin/python scripts/run_tests.py
 
+      - name: Install Chromium for receipt UI verification
+        run: .venv/bin/python -m playwright install --with-deps chromium
+
+      - name: Exercise receipt UI and responsive states
+        run: .venv/bin/python scripts/check_receipts_ui.py
+
       - name: Verify the committed genesis receipt
         run: .venv/bin/showwork verify --session genesis --no-report
 
@@ -39,17 +45,14 @@ jobs:
 
   conformance-js:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, pc]
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Require host-provisioned Node.js 24
-        shell: bash
-        run: |
-          node_version="$(node --version)"
-          echo "Using ${node_version}"
-          [[ "$node_version" == v24.* ]]
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
 
       - name: JS auditor must match the frozen chain fixtures
         run: node js/showwork-audit/test.mjs
@@ -60,11 +63,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
 
-      - name: Gate on the repo's own receipts (chain audit + phase-1 session)
+      - name: Install acceptance test dependencies
+        run: bash scripts/ci/ensure-python-dependencies.sh
+
+      - name: Install acceptance browser
+        run: .venv/bin/python -m playwright install --with-deps chromium
+
+      - name: Gate the receipts shipped by this change
         uses: ./actions/verify
         with:
-          session: v02-phase-1
-          # allow-commands stays false: this doubles as a live demonstration
-          # of fork-safe mode - the suite's command claim reports the policy
-          # error honestly and the gate tolerates YELLOW unless strict.
+          changed-since: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          allow-commands: "true"
+          require-tracked: "true"
+          python-path: .venv/bin/python

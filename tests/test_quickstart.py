@@ -54,6 +54,10 @@ def test_readme_quickstart_names_the_refusal_commands():
 def test_quickstart_refuses_false_done_in_empty_directory(tmp_path):
     start = _run(tmp_path, ["start", "--session", "first-look", "--agent", "cursor"])
     assert start.returncode == 0, start.stderr
+    requirement = _run(tmp_path, ["require", "--session", "first-look", "--id", "config",
+        "--description", "config/api.yaml exists", "--scope", "artifact", "--check-json",
+        '{"type":"file_exists","path":"config/api.yaml"}'])
+    assert requirement.returncode == 0, requirement.stderr
     claim = _run(tmp_path, [
         "claim", "--session", "first-look",
         "--claim", "config/api.yaml exists",

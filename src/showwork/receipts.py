@@ -129,12 +129,16 @@ def agent_prompt_block(
         f"interpreter, not a PATH python:\n"
         "\n"
         f"    {quoted} -m showwork start --session {session} --agent {agent_name}\n"
+        "\nDeclare acceptance requirements with `showwork require` before completion "
+        "claims. Behavior needs an executable command test of the changed path. "
+        "File observations use artifact scope and do not certify behavior.\n\n"
         f"    {quoted} -m showwork claim --session {session} "
         "--claim \"<what changed>\" --type file_exists --path <file>\n"
         f"    {quoted} -m showwork finish --session {session} --status ok\n"
         "\n"
-        "A clean close needs at least one check-backed claim. If finish exits 2, "
-        "fix the file or retract the claim. Do not pass --no-verify. Do not wrap "
+        "A clean close needs passing declared acceptance checks. If finish exits 2, "
+        "fix the failed behavior. Do not pass --no-verify or use --checks-only "
+        "to report an outcome. Commit the complete receipt and run gate. Do not wrap "
         "with --gate: a refused close is a badge, not a dead terminal.\n"
     )
 
@@ -262,15 +266,20 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
             return _payload("failed", details)
         if any(r.get("policy_disabled") for r in checked):
             return _payload("unknown", {**details, "reason": "checks require active verification"})
-        if has_minimum_proof(state) and state.get("verdict") == "GREEN":
+        details["outcome"] = state.get("outcome")
+        if (has_minimum_proof(state) and state.get("verdict") == "GREEN"
+                and state.get("outcome", {}).get("verdict") == "VERIFIED"):
             first = next((r for r in checked if r.get("status") == "pass"), {})
             details["claim"] = first.get("claim")
             details["check"] = first.get("type")
             details["detail"] = first.get("detail")
             return _payload("verified", details)
         prose = next((r for r in results if r.get("status") == "skipped"), {})
-        details["claim"] = prose.get("claim") or "(no check-backed claims)"
-        details["detail"] = prose.get("detail") or "done without a falsifiable check"
+        observed = next((r for r in checked if r.get("status") == "pass"), {})
+        details["claim"] = prose.get("claim") or observed.get("claim") or "(no check-backed claims)"
+        details["check"] = observed.get("type")
+        details["detail"] = prose.get("detail") or (
+            "individual checks passed; outcome requirements are unverified. " + observed.get("detail", ""))
         return _payload("claimed", details)
     except OSError:
         return _payload("unknown", {**details, "reason": "ledger unreadable"})
@@ -342,6 +351,9 @@ def render_badges_html(
         claim = _esc(verification.get("claim") or verification.get("reason") or "No receipts yet.")
         check = _esc(verification.get("check") or "")
         detail = _esc(verification.get("detail") or verification.get("verdict") or "")
+        outcome = verification.get("outcome") or {}
+        scope = _esc(f"Declared checks only: {outcome.get('behavior_checks', 0)} behavior, "
+                     f"{outcome.get('artifact_checks', 0)} artifact. Unlisted requirements: unknown.")
         session = _esc(verification.get("session") or "")
         cards[surface].append(
             "<article class=\"card\" data-surface=\""
@@ -353,6 +365,7 @@ def render_badges_html(
             f"<p class=\"claim\">{claim}</p>"
             f"<p class=\"check\">{check}</p>"
             f"<p class=\"detail\">{detail}</p>"
+            f"<p class=\"scope\">{scope}</p>"
             "</div></details></article>"
         )
     home = "".join(cards["home"])

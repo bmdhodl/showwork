@@ -1,7 +1,8 @@
 # Agent Instructions — showwork
 
 showwork is outcome verification for AI agents: falsifiable claims, deterministic
-verification, an exit gate that refuses a false "done." Read `README.md` for the
+checks, and an exit gate for declared acceptance requirements. It cannot judge
+whether those requirements cover the user's request. Read `README.md` for the
 model and `SPEC.md` for the ledger format before changing anything.
 
 ## Ground rules
@@ -26,7 +27,13 @@ your own exit gate is the first thing that will tell you.
    Set `SHOWWORK_SESSION=<agent>-<task-slug>` in the same shell so the Claude Stop hook
    binds to the task slug (otherwise it stamps `session_unbound` on the host id).
    Distinct slugs write distinct files under `.showwork/sessions/` and `.showwork/claims/`.
-2. After each completed change, record a claim with a check that can fail
+2. Before recording completion claims, declare acceptance requirements. A behavior
+   requirement needs a Python test of the actual changed path, including a case
+   that fails when the behavior is broken:
+   `python -m showwork.cli require --session <slug> --id regression --scope behavior --description "<tested behavior>" --check-json '{"type":"command","argv":["python","scripts/run_tests.py"]}'`
+   Use artifact scope only for artifact observations. Never use a text match on
+   a handwritten summary to certify tests, behavior, or a video encoding.
+   After each completed change, record a claim with a check that can fail
    (types: `file_exists`, `file_contains`, `path_moved`, `frontmatter`,
    `glob_count`, `command`, `http_probe`, `git_state`):
    `python -m showwork.cli claim --session <agent>-<task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"`
@@ -43,7 +50,8 @@ your own exit gate is the first thing that will tell you.
    `showwork report [--since YYYY-MM-DD] [--exclude-campaign]`.
 5. `git add .showwork/` and commit the ledger with your change — the receipt is
    part of the work. Do not gitignore it. The ledger is append-only; never
-   rewrite history in it.
+   rewrite history in it. Run `showwork gate --session <slug> --require-tracked`
+   against the committed tree. Check the required GitHub receipt job too.
 6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 
