@@ -191,7 +191,7 @@ def test_declared_paths_include_path_moved_from(tmp_path):
     assert "b.txt" in named
 
 
-def test_unreferenced_artifact_warns_but_does_not_refuse(tmp_path):
+def test_unreferenced_artifact_prevents_outcome_close(tmp_path):
     """A log no claim cites still ships in the PR. Verify names it."""
     (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
     start_session(tmp_path, "art")
@@ -207,8 +207,8 @@ def test_unreferenced_artifact_warns_but_does_not_refuse(tmp_path):
     rows = [r for r in state["results"] if r["type"] == "unreferenced_artifact"]
     assert len(rows) == 1
     assert "full-build.txt" in rows[0]["claim"]
-    # YELLOW warns. Only RED refuses a clean close.
-    assert main(["--root", str(tmp_path), "finish", "--session", "art"]) == 0
+    # A partially checked receipt must not certify a completed outcome.
+    assert main(["--root", str(tmp_path), "finish", "--session", "art"]) == 2
 
 
 def test_cited_artifact_does_not_warn(tmp_path):

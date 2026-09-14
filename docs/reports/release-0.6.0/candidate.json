@@ -1,0 +1,54 @@
+{
+  "candidate": "0.6.0",
+  "recorded_at": "2026-09-14T21:58:16.792501+00:00",
+  "python_suite": "407 passed in 38.61s",
+  "wheel_sha256": "f8fef8d75500f2f08a0ee032e4d6c2db4fa04681699c2bb883304ba9cab8cc23",
+  "installed_smokes": [
+    {
+      "version": "0.6.0",
+      "python": "3.10.11",
+      "passed": [
+        "init",
+        "start",
+        "declare acceptance",
+        "claim missing file",
+        "refuse false done",
+        "accept real outcome",
+        "verify",
+        "complete receipt gate",
+        "version identity",
+        "chain audit",
+        "receipts",
+        "status",
+        "report",
+        "wrapper",
+        "empty wrapper gate",
+        "timeout"
+      ],
+      "installation": "isolated wheel installation"
+    },
+    {
+      "version": "0.6.0",
+      "python": "3.13.2",
+      "passed": [
+        "init",
+        "start",
+        "declare acceptance",
+        "claim missing file",
+        "refuse false done",
+        "accept real outcome",
+        "verify",
+        "complete receipt gate",
+        "version identity",
+        "chain audit",
+        "receipts",
+        "status",
+        "report",
+        "wrapper",
+        "empty wrapper gate",
+        "timeout"
+      ],
+      "installation": "isolated wheel installation"
+    }
+  ]
+}

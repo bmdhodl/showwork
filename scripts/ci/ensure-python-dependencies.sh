@@ -16,6 +16,7 @@ venv_dir="${CI_VENV_DIR:-.venv}"
 marker="$venv_dir/.ci-dependencies.sha256"
 dependency_hash="$({
   sha256sum pyproject.toml
+  sha256sum requirements-ui.txt
   python3 --version
 } | sha256sum | awk '{print $1}')"
 
@@ -29,4 +30,5 @@ rm -rf -- "$venv_dir"
 python3 -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --prefer-binary --cache-dir "${PIP_CACHE_DIR:-$HOME/.cache/pip}" --upgrade pip build pytest
 "$venv_dir/bin/python" -m pip install --prefer-binary --cache-dir "${PIP_CACHE_DIR:-$HOME/.cache/pip}" -e .
+"$venv_dir/bin/python" -m pip install -r requirements-ui.txt
 printf '%s\n' "$dependency_hash" > "$marker"

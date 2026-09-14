@@ -5,18 +5,25 @@
 
 **Make your AI agents show their work.**
 
-Observability tools log what an agent *did*. showwork verifies what an agent *claimed* it did, deterministically, against reality, and refuses to bless a "done" that isn't real.
+showwork runs the checks an agent supplies and keeps an append-only receipt.
+Version 0.6.0 separates file observations from declared behavior tests. A clean
+outcome close requires passing acceptance checks, and CI checks that the full
+receipt was committed.
+
+**A passing check only proves what it tests.** showwork cannot judge whether a
+requirement covers the request or a test matches its description. GolfFly exposed
+that gap in our own use. [Read the incident and fix](docs/evidence-scope.md).
 
 Zero dependencies. Stdlib only. One append-only ledger.
 
-[Read the portable `spec-v0.4` ledger specification](SPEC.md). Install the
+[Read the portable `spec-v0.5` ledger specification](SPEC.md). Install the
 [Claude Code Stop-hook adapter](docs/claude-code.md) or run
 `showwork init` for Cursor, Claude, and a CI draft.
 
 Surveyed 2026-09-03: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads.
 Day-0 False Done Rate, measured by showwork on the author's own fleet,
 21 sessions, 2026-07, not independently measured: 42.9% contained a false
-done. Every one was caught by the gate. Source:
+done. These are historical results from the selected corpus, not a general detection rate. Source:
 [docs/false-done-rate-day0.md](docs/false-done-rate-day0.md).
 
 ## The problem
@@ -29,7 +36,7 @@ That gap is why agent pilots die before production, and it's what audit-trail re
 
 1. **Claims are falsifiable or they're just prose.** When an agent (or its harness) reports a completed change, it appends a structured claim to the ledger: a file changed, a path moved, a metric holds, a command passes. Free-form prose is recorded but never counted as proof.
 2. **Verification is deterministic.** `showwork verify` re-checks every claim against the filesystem and locked commands. No LLM judges an LLM.
-3. **The exit gate refuses false dones.** `showwork finish --status ok` verifies the session's own claims first. If any is RED, the close is refused (exit 2). Fix it, retract it, or close as `blocked`. The bypass is stamped on the record either way.
+3. **The exit gate requires declared acceptance checks.** `showwork finish --status ok` verifies the session's own claims first. Missing requirements, failed checks, and disabled checks refuse the close (exit 2). Fix the behavior or close as `blocked`. The bypass is stamped on the record either way.
 4. **The ledger is append-only.** Corrections are retraction records that reference the original claim. History is never rewritten.
 5. **Undeclared damage is not GREEN.** `session.start` snapshots the project tree. `verify` and `finish` go RED if a file that existed at start is deleted or changed and no active claim named that path. That is issue #64.
 
@@ -46,6 +53,7 @@ pip install showwork
 
 ```bash
 showwork start --session first-look --agent cursor
+showwork require --session first-look --id config --scope artifact --description 'config/api.yaml exists' --check-json '{"type":"file_exists","path":"config/api.yaml"}'
 showwork claim --session first-look --claim "config/api.yaml exists" --type file_exists --path config/api.yaml
 showwork finish --session first-look --status ok
 ```
@@ -65,7 +73,8 @@ showwork finish --session first-look --status ok
 ```
 
 ```
-claims: GREEN (1/1 verified)
+Outcome: VERIFIED. Declared acceptance checks passed.
+Scope: 0 behavior checks, 1 artifact check. Undeclared requirements: unknown.
 session.finish recorded: first-look
 ```
 
@@ -123,7 +132,7 @@ showwork audit
 Alter, delete, or reorder one byte of chained history and the audit goes RED
 at the exact line. Publishing a file's *head hash* anywhere out-of-band (a
 commit message, a post) anchors the entire history behind it. Spec:
-[SPEC.md](SPEC.md) § Integrity chain. A zero-dependency Node auditor
+[SPEC.md](SPEC.md) Â§ Integrity chain. A zero-dependency Node auditor
 ([js/showwork-audit](js/showwork-audit/)) is held to the same frozen
 conformance fixtures as the Python reference.
 
@@ -140,13 +149,16 @@ concurrency can pass `showwork audit --strict`. Rationale:
 ## Gate your CI on receipts
 
 ```yaml
-- uses: bmdhodl/showwork/actions/verify@v0.3.0
+- uses: bmdhodl/showwork/actions/verify@v0.6.0
   with:
     session: my-agent-session
+    require-tracked: true
+    allow-commands: true # Trusted repository branches only
 ```
 
-Fails the job on a chain break, failed claims, a missing exit-gate close, or
-a `--no-verify` bypass stamp, and renders the receipt into the step summary.
+Fails on broken chains, unmet acceptance checks, missing claim definitions,
+uncommitted receipts, missing outcome closes, and bypass or checks-only closes.
+For PRs, use `changed-since` to select every changed receipt.
 Fork-safe by default ([docs/ci.md](docs/ci.md)).
 
 ## Wrap any agent, no integration
@@ -165,8 +177,8 @@ showwork receipts --task-id first --json
 showwork receipts --task-id first --html badges.html
 ```
 
-Empty workspace → `unknown`. Prose-only close → `claimed`. Check-backed
-GREEN → `verified`. Copy-paste for the sidecar: [examples/bmd/](examples/bmd/).
+Empty workspace â†’ `unknown`. Prose-only close â†’ `claimed`. Check-backed
+GREEN â†’ `verified`. Copy-paste for the sidecar: [examples/bmd/](examples/bmd/).
 
 Bound an unattended command by wall clock:
 
@@ -211,9 +223,13 @@ refuses to generate from a tampered ledger
 ## Python API
 
 ```python
-from showwork import record_claim, verify_session, resolve_root
+from showwork import record_claim, verify_session, resolve_root, start_session
+from showwork.outcomes import record_requirement
 
 root = resolve_root()
+start_session(root, "nightly")
+record_requirement(root, "nightly", "report", "report file exists", "artifact",
+                   {"type": "file_exists", "path": "reports/2026-07-09.md"})
 record_claim(root, session="nightly", claim="report written",
              check={"type": "file_exists", "path": "reports/2026-07-09.md"})
 state = verify_session(root=root, session="nightly")
@@ -237,20 +253,20 @@ marketing number.
 
 ## Where this sits
 
-The 2026 survey [*Code as Agent Harness*](https://arxiv.org/abs/2605.18747) (Ning et al., UIUC / Meta / Stanford) argues that code has become the runtime medium agents operate inside rather than the artifact they produce, and it names the layer showwork implements. Its §3.4.4, "Verification through Deterministic Sensors," states the rule plainly: deterministic sensors are "reproducible enough to serve as control signals," and agentic critics "should interpret sensor outputs rather than replace them." Same commitment as *no LLM judges an LLM*, reached from a literature review instead of from an incident.
+The 2026 survey [*Code as Agent Harness*](https://arxiv.org/abs/2605.18747) (Ning et al., UIUC / Meta / Stanford) argues that code has become the runtime medium agents operate inside rather than the artifact they produce, and it names the layer showwork implements. Its Â§3.4.4, "Verification through Deterministic Sensors," states the rule plainly: deterministic sensors are "reproducible enough to serve as control signals," and agentic critics "should interpret sensor outputs rather than replace them." Same commitment as *no LLM judges an LLM*, reached from a literature review instead of from an incident.
 
 Two of the survey's open problems are the ones this package exists for:
 
-- **§5.2.1 Harness-Level Evaluation and Oracle Adequacy.** End-task success "conflates the capabilities of the base model, the quality of the harness, the reliability of tools, the informativeness of feedback, and the difficulty of the environment." The [False Done Rate](docs/false-done-rate.md) measures the substrate rather than the model.
-- **§5.2.5 Human-in-the-Loop Safety and Accountability as Harness State.** Safety "cannot be delegated to the base model or encoded only as a natural-language instruction." An append-only ledger with a refusing exit gate makes accountability a piece of harness state instead of a sentence in a prompt.
+- **Â§5.2.1 Harness-Level Evaluation and Oracle Adequacy.** End-task success "conflates the capabilities of the base model, the quality of the harness, the reliability of tools, the informativeness of feedback, and the difficulty of the environment." The [False Done Rate](docs/false-done-rate.md) measures the substrate rather than the model.
+- **Â§5.2.5 Human-in-the-Loop Safety and Accountability as Harness State.** Safety "cannot be delegated to the base model or encoded only as a natural-language instruction." An append-only ledger with a refusing exit gate makes accountability a piece of harness state instead of a sentence in a prompt.
 
 The survey predates this package and does not cite it. It is context for the problem, not an endorsement of the solution.
 
 ## What showwork is not
 
-- Not observability. Traces show what happened; showwork proves what was *claimed* to have happened.
-- Not agent testing. Test frameworks check behavior pre-deployment; showwork verifies outcomes at runtime, every session.
-- Not an LLM judge. Every check is deterministic and reproducible, which is what makes the record audit-grade.
+- Not observability. Traces and receipts answer different questions. showwork evaluates explicit checks; author prose is not itself verified.
+- Not agent testing. Test frameworks supply behavioral checks. showwork runs those checks and binds them to declared requirements and a session receipt.
+- Not an LLM judge. Checks are executable predicates. Their quality and coverage still need review; a trivial script can pass without proving useful behavior.
 
 ## Roadmap
 

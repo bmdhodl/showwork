@@ -159,10 +159,14 @@ def _print_state(state: dict, as_json: bool) -> None:
         print(json.dumps(state, indent=2))
         return
     print(f"showwork verify - {state['label']}  =>  {state['verdict']}  "
-          f"({state['passed']}/{state['total']} verified)")
+          f"({state['passed']}/{state['total']} checks passed)")
+    outcome = state.get("outcome", {"verdict": "UNVERIFIED", "reason": "Individual checks only."})
+    print(f"Outcome: {outcome['verdict']}. {outcome['reason']}")
+    print(f"Scope: {outcome.get('behavior_checks', 0)} behavior checks, "
+          f"{outcome.get('artifact_checks', 0)} artifact checks. Undeclared requirements: unknown.")
     marks = {"pass": "OK ", "fail": "XX ", "error": "!! ", "skipped": ".. "}
     for r in state["results"]:
-        print(f"  {marks.get(r['status'], '?? ')} {r['claim']}")
+        print(f"  {marks.get(r['status'], '?? ')} check for claim: {r['claim']}")
         print(f"       {r['detail']}")
     if state["gaps"]:
         print(f"\n{len(state['gaps'])} gap(s): a claimed 'done' is not backed by reality.")
@@ -259,6 +263,23 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--branch")
     p.add_argument("--commit")
 
+    p = sub.add_parser("require", help="declare an acceptance check before completion claims")
+    p.add_argument("--session", required=True)
+    p.add_argument("--id", required=True)
+    p.add_argument("--description", required=True)
+    p.add_argument("--scope", choices=["artifact", "behavior"], required=True)
+    p.add_argument("--check-json", required=True)
+
+    p = sub.add_parser("gate", help="require a complete outcome receipt and rerun its checks")
+    selection = p.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--session")
+    selection.add_argument("--changed-since", help="gate every receipt changed from a Git revision")
+    p.add_argument("--require-tracked", action="store_true")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("doctor", help="show the actual verifier import and installed version")
+    p.add_argument("--json", action="store_true")
+
     p = sub.add_parser("retract", help="append-only retraction of an earlier claim")
     p.add_argument("--session", required=True)
     p.add_argument("--claim", required=True, help="exact text of the claim being retracted")
@@ -277,6 +298,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-verify", action="store_true",
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
+
+    p.add_argument("--checks-only", action="store_true",
+                   help="close individual checks only; does not certify an outcome")
 
     p = sub.add_parser("status", help="show open/closed sessions and live verdicts")
     p.add_argument("--session", help="one session id (default: all)")
@@ -375,6 +399,36 @@ def main(argv: list[str] | None = None) -> int:
         print(f"session.start recorded: {args.session}")
         return 0
 
+    if args.cmd == "require":
+        from .outcomes import record_requirement
+        try:
+            record_requirement(root, args.session, args.id, args.description,
+                               args.scope, json.loads(args.check_json))
+        except (ValueError, TypeError) as exc:
+            print(f"requirement rejected: {exc}", file=sys.stderr)
+            return 2
+        print("acceptance requirement recorded")
+        return 0
+
+    if args.cmd == "gate":
+        from .outcomes import changed_sessions, release_gate
+        try:
+            sessions = [args.session] if args.session else changed_sessions(root, args.changed_since)
+            results = [release_gate(root, s, require_tracked=args.require_tracked) for s in sessions]
+            result = {"verdict": "GREEN" if all(r["verdict"] == "GREEN" for r in results) else "RED",
+                      "errors": [error for r in results for error in r["errors"]], "sessions": results}
+        except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+            result = {"verdict": "RED", "errors": [str(exc)]}
+        print(json.dumps(result, indent=2) if args.json else
+              "showwork outcome gate: " + result["verdict"] + "\n" + "\n".join(result["errors"]))
+        return 0 if result["verdict"] == "GREEN" else 2
+
+    if args.cmd == "doctor":
+        from .outcomes import runtime_identity
+        identity = runtime_identity()
+        print(json.dumps(identity, indent=2))
+        return 0 if identity["consistent"] else 2
+
     if args.cmd == "claim":
         check = _build_check(args)
         if check is not None:
@@ -412,9 +466,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "finish":
         code, state = finish_session(root, args.session, status=args.status,
-                                     no_verify=args.no_verify, note=args.note)
+                                     no_verify=args.no_verify, note=args.note,
+                                     checks_only=args.checks_only)
         if state is not None:
-            print(f"claims: {state['verdict']} ({state['passed']}/{state['total']} verified)")
+            _print_state(state, False)
         if code != 0:
             reason = (state or {}).get("refuse_reason")
             extra = f" ({reason})" if reason else ""
@@ -566,11 +621,14 @@ def main(argv: list[str] | None = None) -> int:
         verdict = budget.check()
         gate_refuse = (
             args.gate and proc_code == 0
-            and (state["verdict"] == "RED" or not has_minimum_proof(state))
+            and (state["verdict"] != "GREEN" or not has_minimum_proof(state)
+                 or state["outcome"]["verdict"] != "VERIFIED")
         )
         if gate_refuse:
             refuse_reason = (
-                "claims_red" if state["verdict"] == "RED" else "no_check_backed_claims"
+                "no_check_backed_claims" if not has_minimum_proof(state) else
+                "claims_red" if state["verdict"] != "GREEN" else
+                "acceptance_requirements_unverified"
             )
             unverified = gaps_payload(state)
             if refuse_reason == "no_check_backed_claims":
@@ -599,9 +657,13 @@ def main(argv: list[str] | None = None) -> int:
             print("GATE: the command reported success but this session's "
                   "claims do not meet the exit gate.", file=sys.stderr)
             return 2
+        from .outcomes import receipt_manifest
         record_event(root, "session.finish", args.session,
                      status=("ok" if proc_code == 0 else "error"),
                      claims_verdict=state["verdict"], command_exit=proc_code,
+                     completion_scope="outcome" if args.gate else "observed",
+                     outcome=state["outcome"],
+                     receipt_manifest=receipt_manifest(root, args.session),
                      observed_by="run-wrapper",
                      budget_max_seconds=args.max_seconds,
                      budget_elapsed_seconds=round(budget.elapsed, 3),

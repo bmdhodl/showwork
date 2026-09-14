@@ -6,6 +6,7 @@ from pathlib import Path
 
 from showwork.cli import main
 from showwork.receipts import decorate_records, render_badges_html
+from showwork.outcomes import record_requirement
 
 
 def _run(root: Path, *argv: str) -> int:
@@ -15,6 +16,8 @@ def _run(root: Path, *argv: str) -> int:
 def _fixture_records(tmp_path: Path) -> list[dict]:
     (tmp_path / "ok.txt").write_text("ok", encoding="utf-8")
     assert _run(tmp_path, "start", "--session", "bmd-green") == 0
+    record_requirement(tmp_path, "bmd-green", "file", "ok.txt exists", "artifact",
+                       {"type": "file_exists", "path": "ok.txt"})
     assert _run(
         tmp_path, "claim", "--session", "bmd-green",
         "--claim", "ok.txt exists", "--type", "file_exists", "--path", "ok.txt",

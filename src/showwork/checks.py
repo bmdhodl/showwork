@@ -32,6 +32,7 @@ checker at all.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import fnmatch
 import re
@@ -572,7 +573,7 @@ def _required_path_field(check: dict, key: str) -> str | None:
     return None
 
 
-def chk_command(c: dict, root: Path) -> tuple[str, str]:
+def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[str, str]:
     """Run a LOCKED command. Only `python <script under the project root>`,
     no shell, no metacharacters, no `..` escape. A ledger data file must never
     be able to run arbitrary commands."""
@@ -589,11 +590,28 @@ def chk_command(c: dict, root: Path) -> tuple[str, str]:
     script = (root / argv[1]).resolve()
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
+    if evidence is not None:
+        from . import __version__
+        from .snapshot import capture_tree
+        before = capture_tree(root)
+        git_status, git_head = _run_git(root, ["rev-parse", "HEAD"])
+        evidence.update(argv=list(argv), python=sys.version.split()[0],
+                        showwork_version=__version__,
+                        git_commit=git_head.strip() if git_status == "pass" else None,
+                        script_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
+                        source_sha256=hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest(),
+                        source_files=len(before), source_scope="bounded showwork tree snapshot")
     try:
         proc = run_process(run_argv, capture_output=True,
                               timeout=120, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")
+    if evidence is not None:
+        evidence.update(exit_code=proc.returncode,
+                        stdout_sha256=hashlib.sha256(proc.stdout.encode()).hexdigest(),
+                        stderr_sha256=hashlib.sha256(proc.stderr.encode()).hexdigest())
+        if capture_tree(root) != before:
+            return ("fail", "source tree changed while the acceptance command was running")
     if proc.returncode != expect:
         return ("fail", f"exit {proc.returncode}, expected {expect}")
     needle = c.get("stdout_contains")
@@ -788,7 +806,10 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         severity = "RED"
     check = record.get("check")
     base = {"claim": claim, "session": record.get("session", ""),
-            "severity": severity}
+            "severity": severity, "verification_scope": "check only"}
+    if "requirement_id" in record:
+        base.update(requirement_id=record["requirement_id"], scope=record.get("scope"),
+                    verification_scope="declared acceptance check")
     if record.get("_parse_error"):
         # A corrupt ledger line is never harmless: it could be a real claim.
         return {**base, "type": None, "status": "error",
@@ -818,7 +839,12 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         return {**base, "type": ctype, "status": "error",
                 "detail": f"unknown check type {ctype!r}"}
     try:
-        status, detail = fn(check, root)
+        if ctype == "command" and "requirement_id" in record:
+            evidence = {}
+            status, detail = chk_command(check, root, evidence=evidence)
+            base["evidence"] = evidence
+        else:
+            status, detail = fn(check, root)
     except PathEscapeError as e:
         status, detail = "fail", str(e)
     except PathArgError as e:
@@ -936,8 +962,11 @@ def gaps_payload(state: dict) -> list[dict]:
 
 def render_report(state: dict) -> str:
     lines = [f"# Claims audit - {state['label']}", "",
-             f"**Verdict: {state['verdict']}**  "
-             f"({state['passed']}/{state['total']} verified)", ""]
+             f"**Check verdict: {state['verdict']}**  "
+             f"({state['passed']}/{state['total']} checks passed)", ""]
+    outcome = state.get("outcome", {"verdict": "UNVERIFIED", "reason": "Individual checks only."})
+    lines += [f"**Outcome: {outcome['verdict']}**. {outcome['reason']}", "",
+              "Claim descriptions are author supplied. Results establish only the stated check.", ""]
     if not state["results"]:
         lines += ["No claims recorded.", ""]
         return "\n".join(lines)
@@ -947,7 +976,7 @@ def render_report(state: dict) -> str:
         # is only meaningful where the row actually failed. Printed on a pass it
         # is noise that reads as a failure.
         sev = f", {r['severity']}" if r["status"] in ("fail", "error") else ""
-        lines.append(f"- {mark.get(r['status'], '??')} **{r['claim']}** "
+        lines.append(f"- {mark.get(r['status'], '??')} Check for claim: **{r['claim']}** "
                      f"(`{r['type']}`{sev})")
         lines.append(f"    - {r['detail']}")
     lines.append("")

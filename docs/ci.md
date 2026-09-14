@@ -1,3 +1,25 @@
+# CI migration for 0.6.0
+
+The action now requires an outcome receipt. Declare acceptance requirements,
+finish successfully, and commit every receipt file. `require-tracked` defaults
+to true. Set `changed-since` to the PR base SHA to check the current change's
+receipts. The old `strict: false` setting cannot accept incomplete outcomes.
+
+Command checks stay disabled by default. Enable them only for trusted branches.
+Prepare the Python dependencies required by your acceptance tests, and pass
+`python-path` if they are installed in a job-specific environment. The action
+installs showwork from its own pinned ref into that interpreter.
+
+A hook is only an observer. Configure the receipt job as a required branch check.
+No receipt can establish the adequacy of its tests or the completeness of its
+requirements. Review those before merge.
+
+See [the evidence-scope guide](evidence-scope.md) for the incident and commands.
+
+## Historical action notes (through 0.5.0)
+
+The following describes the previous check-only action, retained for migration.
+
 # Gating CI on receipts
 
 The `showwork verify` GitHub Action turns receipts from artifacts into
@@ -23,7 +45,7 @@ jobs:
           session: my-agent-session     # omit to audit the chain only
 ```
 
-The action installs showwork from its own ref — no PyPI dependency, and the
+The action installs showwork from its own ref â€” no PyPI dependency, and the
 verifier version always matches the action version you pinned.
 
 ## Pinning the version
@@ -65,7 +87,7 @@ ref. Mixed refs produce verdicts you cannot compare across repos.
   record was deleted, or something appended outside the writer.
 - **Failed claim** (`showwork verify --session` RED): a claimed "done" is
   not backed by the checked-out reality.
-- **No exit-gate close**: the session has no `session.finish` event — the
+- **No exit-gate close**: the session has no `session.finish` event â€” the
   agent never went through the gate.
 - **Bypass stamp**: the session closed with `--no-verify`. A bypassed gate
   is not a clean close, and the record says so durably.
@@ -74,7 +96,7 @@ ref. Mixed refs produce verdicts you cannot compare across repos.
 
 ## Fork-PR safety
 
-`command` checks execute a (locked) `python <script under project root>` —
+`command` checks execute a (locked) `python <script under project root>` â€”
 that is repo code, and running repo code from an untrusted fork inside a
 privileged workflow is how CI gets owned. By default the action sets
 `SHOWWORK_NO_COMMANDS=1`: command checks refuse to run and report an error,
@@ -111,6 +133,6 @@ session-verifying form on agent-labeled PRs.
 ## The step summary is the receipt
 
 Both the audit and the session verification render into the job's step
-summary — reviewers see the OK/XX table and per-file head hashes without
+summary â€” reviewers see the OK/XX table and per-file head hashes without
 leaving the PR. Publishing a head hash anywhere out-of-band anchors the
 entire ledger history behind it.

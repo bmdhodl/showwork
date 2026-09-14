@@ -51,22 +51,28 @@ def test_receipt_action_sensitive_inputs_default_to_refusal():
     assert "SHOWWORK_NO_NETWORK" in action
 
 
-def test_ci_receipt_gate_keeps_sensitive_opt_ins_disabled():
+def test_ci_receipt_gate_enforces_changed_committed_outcomes_on_trusted_branches():
     workflow = read_repo_file(".github", "workflows", "ci.yml")
-    assert "allow-commands stays false" in workflow
+    assert 'allow-commands: "true"' in workflow
+    assert 'require-tracked: "true"' in workflow
+    assert 'changed-since:' in workflow
+    assert 'github.event.pull_request.head.repo.full_name == github.repository' in workflow
     assert "allow-network" not in workflow
 
 
-def test_ci_js_conformance_uses_host_node_without_setup_action():
+def test_ci_and_publishing_use_github_hosted_runners():
     workflow = read_repo_file(".github", "workflows", "ci.yml")
-    assert "actions/setup-node@" not in workflow
-    assert "Require host-provisioned Node.js 24" in workflow
-    assert '[[ "$node_version" == v24.* ]]' in workflow
+    assert "actions/setup-node@" in workflow
+    assert 'node-version: "24"' in workflow
+    for name in ("ci.yml", "publish.yml", "clean-room-action.yml"):
+        assert "self-hosted" not in read_repo_file(".github", "workflows", name)
 
 
-def test_action_strict_mode_turns_yellow_into_failure():
+def test_action_cannot_tolerate_unverified_outcomes():
     action = read_repo_file("actions", "verify", "action.yml")
-    assert '3) if [ "${SW_STRICT}" = "true" ]; then fail=1; fi' in action
+    assert 'args=(--root "$SW_ROOT" gate)' in action
+    assert 'exit "$code"' in action
+    assert 'default: "true"' in input_block(action, "require-tracked")
 
 
 def test_ci_checkout_and_documentation_preserve_pin_boundary():

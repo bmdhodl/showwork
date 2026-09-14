@@ -13,6 +13,7 @@ from pathlib import Path
 from showwork.cli import main
 from showwork.ledger import sessions_path
 from showwork.ledger import record_claim, start_session, session_claims_path
+from showwork.outcomes import record_requirement
 from showwork.receipts import (
     agent_environ,
     agent_prompt_block,
@@ -92,6 +93,8 @@ def test_empty_workspace_is_unknown(tmp_path):
 def test_green_session_is_verified(tmp_path):
     (tmp_path / "out.md").write_text("shipped: yes", encoding="utf-8")
     assert _run(tmp_path, "start", "--session", "bmd-green", "--agent", "test") == 0
+    record_requirement(tmp_path, "bmd-green", "file", "out.md contains shipped", "artifact",
+                       {"type": "file_contains", "path": "out.md", "pattern": "shipped"})
     assert _run(
         tmp_path, "claim", "--session", "bmd-green",
         "--claim", "wrote out.md", "--type", "file_contains",
@@ -137,6 +140,8 @@ def test_broken_jsonl_is_unknown(tmp_path):
 def test_overlay_joins_task_id(tmp_path):
     (tmp_path / "ok.txt").write_text("ok", encoding="utf-8")
     assert _run(tmp_path, "start", "--session", "bmd-task-9") == 0
+    record_requirement(tmp_path, "bmd-task-9", "file", "ok.txt exists", "artifact",
+                       {"type": "file_exists", "path": "ok.txt"})
     assert _run(
         tmp_path, "claim", "--session", "bmd-task-9",
         "--claim", "ok.txt exists", "--type", "file_exists", "--path", "ok.txt",

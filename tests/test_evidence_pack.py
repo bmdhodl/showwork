@@ -13,12 +13,15 @@ from showwork.ledger import (  # noqa: E402
     session_claims_path,
     start_session,
 )
+from showwork.outcomes import record_requirement
 
 DAY = "2026-07-16"
 
 
 def _seed(root: Path) -> None:
     start_session(root, "sess-a", agent="claude-code")
+    record_requirement(root, "sess-a", "artifact", "artifact.txt exists", "artifact",
+                       {"type": "file_exists", "path": "artifact.txt"})
     (root / "artifact.txt").write_text("done", encoding="utf-8")
     record_claim(root, "sess-a", "wrote artifact for client-x",
                  check={"type": "file_exists", "path": "artifact.txt"})

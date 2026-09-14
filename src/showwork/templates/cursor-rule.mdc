@@ -11,6 +11,13 @@ Start material work with:
 
 Set SHOWWORK_SESSION=cursor-<task-slug> in the same shell.
 
+Before completion claims, declare the acceptance tests for the user's request:
+
+    python -m showwork require --session cursor-<task-slug> --id regression --scope behavior --description "<behavior tested>" --check-json '{"type":"command","argv":["python","scripts/run_tests.py"]}'
+
+Test the real changed path, including a failing negative case. Use artifact scope
+only for file observations. A matching string does not certify behavior or tests.
+
 After each completed change, record a claim that can fail:
 
     python -m showwork claim --session cursor-<task-slug> --claim "<what changed>" --type file_contains --path <file> --pattern "<regex>"
@@ -25,4 +32,9 @@ Before reporting success:
 
 If finish exits 2, the claimed done is not real. Fix the gap or retract the claim. Never pass --no-verify to manufacture a clean close.
 
-Commit .showwork/ with the work. The ledger is part of the change.
+Commit .showwork/ with the work, then run:
+
+    python -m showwork gate --session cursor-<task-slug> --require-tracked
+
+The gate covers declared checks only. Review omitted requirements and test
+adequacy separately. Never use --checks-only as an outcome completion.

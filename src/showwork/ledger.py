@@ -673,14 +673,17 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
                    allowed_check_types: frozenset[str] | None = None) -> dict:
     rt = resolve_root(root)
     claims = claims_for_session(rt, session)
+    from .outcomes import evaluate_requirements, outcome_summary, requirement_records
     state = evaluate_records(claims, rt, label=f"session {session}",
                              allowed_check_types=allowed_check_types)
     start = _latest_session_start(rt, session)
+    state["outcome"] = outcome_summary(state)
     try:
         stem = session_file_stem(session)
     except ValueError:
         return state
-    extra: list[dict] = []
+    extra: list[dict] = evaluate_requirements(rt, session, allowed_check_types=allowed_check_types)
+    declared = claims + requirement_records(rt, session)
     try:
         artifacts = session_artifacts_dir(rt, session)
     except ValueError as exc:
@@ -692,14 +695,16 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
             f"{exc}; the undeclared-change gate still ran",
         ))
     else:
-        extra += unreferenced_artifacts(rt, claims, artifacts)
+        extra += unreferenced_artifacts(rt, declared, artifacts)
     try:
         snap_path = snapshot_file(ledger_dir(rt), stem)
     except ValueError as exc:
         extra.append(escape_result("snapshot path escapes the ledger", str(exc)))
     else:
-        extra += undeclared_results(rt, claims, start, snap_path)
-    return merge_undeclared(state, extra)
+        extra += undeclared_results(rt, declared, start, snap_path)
+    state = merge_undeclared(state, extra)
+    state["outcome"] = outcome_summary(state)
+    return state
 
 
 def _latest_session_start(root: Path, session: str) -> dict | None:
@@ -722,14 +727,16 @@ def start_session(root: Path, session: str, agent: str | None = None,
         tree_snapshot = previous["tree_snapshot"]
     else:
         tree_snapshot = write_tree_snapshot(root, snap_path)
+    from . import __version__
     return record_event(
         root, "session.start", session, agent=agent, note=note,
-        tree_snapshot=tree_snapshot,
+        tree_snapshot=tree_snapshot, verifier_version=__version__,
     )
 
 
 def finish_session(root: Path, session: str, status: str = "ok",
-                   no_verify: bool = False, note: str | None = None) -> tuple[int, dict | None]:
+                   no_verify: bool = False, note: str | None = None,
+                   checks_only: bool = False) -> tuple[int, dict | None]:
     """Close a session. A clean close (`status=ok`) verifies this session's own
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
     ledger is not done. A clean close also REFUSES when the session has no
@@ -763,22 +770,31 @@ def finish_session(root: Path, session: str, status: str = "ok",
                 "detail": "clean close needs at least one falsifiable claim that verifies",
                 "type": None,
             }]
-        elif verdict == "RED":
+        elif verdict != "GREEN":
             refuse_reason = "claims_red"
+        elif not checks_only and state["outcome"]["verdict"] != "VERIFIED":
+            refuse_reason = "acceptance_requirements_unverified"
         if refuse_reason is not None:
             record_event(root, "session.finish.refused", session,
                          status=status, claims_verdict=verdict, note=note,
                          refuse_reason=refuse_reason,
                          claims_unverified=unverified)
-            if refuse_reason == "no_check_backed_claims" and state is not None:
+            if state is not None:
                 # Surface the refuse reason on the returned state for CLI/tests.
                 state = dict(state)
                 state["verdict"] = "RED"
                 state["gaps"] = unverified
                 state["refuse_reason"] = refuse_reason
             return 2, state
+    from .outcomes import receipt_manifest
     record_event(root, "session.finish", session, status=status,
                  claims_verdict=verdict,
+                 completion_scope="checks_only" if checks_only else "outcome",
+                 outcome=(state or {}).get("outcome"),
+                 receipt_manifest=receipt_manifest(root, session),
+                 command_evidence=[{k: r[k] for k in ("requirement_id", "evidence")}
+                                   for r in (state or {}).get("results", [])
+                                   if "requirement_id" in r and "evidence" in r],
                  verify_bypassed=(True if (no_verify and status == "ok") else None),
                  note=note)
     return 0, state

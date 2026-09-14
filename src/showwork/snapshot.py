@@ -207,13 +207,27 @@ def undeclared_results(
                 f"{rel} existed at session.start and is gone; "
                 "no active claim named that path",
             ))
-        elif current[rel] != old_hash:
+        elif current[rel] != old_hash and not _git_line_endings_only(root / rel, old_hash):
             results.append(_fail(
                 f"undeclared change: {rel}",
                 f"{rel} changed since session.start; "
                 "no active claim named that path",
             ))
     return results
+
+
+def _git_line_endings_only(path: Path, expected: str) -> bool:
+    """Accept LF/CRLF checkout conversion for UTF-8 text, never binary data."""
+    try:
+        raw = path.read_bytes()
+        if b"\x00" in raw:
+            return False
+        raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    lf = raw.replace(b"\r\n", b"\n")
+    return any(hashlib.sha256(candidate).hexdigest() == expected
+               for candidate in (lf, lf.replace(b"\n", b"\r\n")))
 
 
 def unreferenced_artifacts(

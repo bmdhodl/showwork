@@ -10,17 +10,22 @@ from showwork.ledger import (
     start_session,
 )
 from showwork.report import analyze_fdr, session_status, usage_report
+from showwork.outcomes import record_requirement
 
 
 def test_usage_report_and_fdr(tmp_path):
     (tmp_path / "a.txt").write_text("x", encoding="utf-8")
     start_session(tmp_path, "real-work", agent="codex")
+    record_requirement(tmp_path, "real-work", "file", "a.txt exists", "artifact",
+                       {"type": "file_exists", "path": "a.txt"})
     record_claim(tmp_path, "real-work", "a",
                  check={"type": "file_exists", "path": "a.txt"})
     assert finish_session(tmp_path, "real-work")[0] == 0
 
     start_session(tmp_path, "proof-campaign-r99", agent="codex",
                   note="research_proof")
+    record_requirement(tmp_path, "proof-campaign-r99", "file", "a.txt exists", "artifact",
+                       {"type": "file_exists", "path": "a.txt"})
     record_claim(tmp_path, "proof-campaign-r99", "a",
                  check={"type": "file_exists", "path": "a.txt"})
     assert finish_session(tmp_path, "proof-campaign-r99")[0] == 0
@@ -41,6 +46,8 @@ def test_usage_report_and_fdr(tmp_path):
 def test_session_status_open_vs_closed(tmp_path):
     (tmp_path / "b.txt").write_text("x", encoding="utf-8")
     start_session(tmp_path, "open-s")
+    record_requirement(tmp_path, "open-s", "file", "b.txt exists", "artifact",
+                       {"type": "file_exists", "path": "b.txt"})
     record_claim(tmp_path, "open-s", "b",
                  check={"type": "file_exists", "path": "b.txt"})
     status = session_status(tmp_path, session="open-s")
@@ -57,6 +64,8 @@ def test_session_status_open_vs_closed(tmp_path):
 def test_session_status_uses_latest_close_attempt(tmp_path):
     (tmp_path / "b.txt").write_text("x", encoding="utf-8")
     start_session(tmp_path, "s")
+    record_requirement(tmp_path, "s", "file", "b.txt exists", "artifact",
+                       {"type": "file_exists", "path": "b.txt"})
     record_claim(tmp_path, "s", "b",
                  check={"type": "file_exists", "path": "b.txt"})
     assert finish_session(tmp_path, "s")[0] == 0

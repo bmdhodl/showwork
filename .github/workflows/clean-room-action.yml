@@ -37,7 +37,15 @@ jobs:
           - name: fork-safe command policy
             case: fork-safe
             session: clean-room-fork-safe
-            expected: success
+            expected: failure
+          - name: strings are not an outcome
+            case: strings
+            session: clean-room-strings
+            expected: failure
+          - name: missing claim definitions
+            case: missing-claims
+            session: clean-room-missing-claims
+            expected: failure
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -62,7 +70,31 @@ jobs:
           echo "session: $SESSION"
           "$PY" -m showwork.cli --root "$FIXTURE" start --session "$SESSION" --agent codex
 
+          if [ "$CASE" = "fork-safe" ]; then
+            mkdir -p "$FIXTURE/scripts"
+            printf 'print("ok")\n' > "$FIXTURE/scripts/ok.py"
+            "$PY" -m showwork.cli --root "$FIXTURE" require --session "$SESSION" --id accepts \
+              --description 'script exits successfully' --scope behavior \
+              --check-json '{"type":"command","argv":["python","scripts/ok.py"]}'
+          elif [ "$CASE" != "strings" ]; then
+            "$PY" -m showwork.cli --root "$FIXTURE" require --session "$SESSION" --id ready \
+              --description 'ready.txt exists' --scope artifact \
+              --check-json '{"type":"file_exists","path":"ready.txt"}'
+          fi
           case "$CASE" in
+            strings)
+              printf '2360\n' > "$FIXTURE/receipt.txt"
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'Tests and HDR verified' --type file_contains --path receipt.txt --pattern 2360
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION" --checks-only
+              ;;
+            missing-claims)
+              printf 'ready\n' > "$FIXTURE/ready.txt"
+              "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
+                --claim 'ready file exists' --type file_exists --path ready.txt
+              "$PY" -m showwork.cli --root "$FIXTURE" finish --session "$SESSION"
+              rm "$FIXTURE/.showwork/claims/${SESSION}.jsonl"
+              ;;
             green)
               printf 'green\n' > "$FIXTURE/ready.txt"
               "$PY" -m showwork.cli --root "$FIXTURE" claim --session "$SESSION" \
@@ -121,6 +153,7 @@ jobs:
         with:
           root: ${{ steps.fixture.outputs.fixture }}
           session: ${{ matrix.session }}
+          require-tracked: "false"
 
       - name: Assert the expected gate result and print the summary
         if: always()

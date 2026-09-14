@@ -1177,6 +1177,7 @@ def test_retracted_claims_leave_the_verified_ratio(tmp_path):
     state = evaluate_records([live_a, live_b, dead], tmp_path, label="t")
     assert state["verdict"] == "GREEN"
     assert (state["passed"], state["total"]) == (2, 2)
-    assert "2/2 verified" in checks.render_report(state)
+    assert "2/2 checks passed" in checks.render_report(state)
+    assert "Outcome: UNVERIFIED" in checks.render_report(state)
     # The retracted claim is still shown, just not counted.
     assert "dead" in checks.render_report(state)

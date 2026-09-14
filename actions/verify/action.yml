@@ -1,117 +1,78 @@
 name: "showwork verify"
-description: >-
-  Gate a job on agent receipts: fails when the ledger's integrity chain is
-  broken, when a session's claims do not verify, or when the session closed
-  through a --no-verify bypass. Verification is deterministic - no LLM judges
-  an LLM.
+description: "Rerun declared acceptance checks and require a complete committed outcome receipt."
 branding:
-  icon: "check-circle"
-  color: "green"
-
+  icon: check-circle
+  color: green
 inputs:
   root:
-    description: "Project root containing the .showwork/ ledger"
+    description: "Project root containing .showwork"
     default: "."
   session:
-    description: "Session id to verify (empty: audit the chain only)"
+    description: "One session to verify; mutually exclusive with changed-since"
+    default: ""
+  changed-since:
+    description: "Git base revision; verify all receipts changed by this PR"
+    default: ""
+  require-tracked:
+    description: "Require receipt files to match committed HEAD"
+    default: "true"
+  python-path:
+    description: "Prepared Python interpreter with the project's test dependencies; empty uses an isolated venv"
     default: ""
   strict:
-    description: "Fail on YELLOW too, not only RED (YELLOW = unprovable or partially verified)"
-    default: "false"
+    description: "Deprecated: outcome gates always reject incomplete verification"
+    default: "true"
   allow-commands:
-    description: >-
-      Execute locked `command` checks. Leave false for fork PRs / untrusted
-      code: command checks then report an error and the verdict honestly
-      degrades to YELLOW instead of running repo code.
+    description: "Execute repository Python checks only in a trusted context"
     default: "false"
   allow-network:
-    description: >-
-      Execute `http_probe` checks. Leave false for fork PRs / untrusted code:
-      network checks then report an error and the verdict honestly degrades to
-      YELLOW instead of making requests controlled by repository data.
+    description: "Permit HTTP checks only in a trusted context"
     default: "false"
-
 runs:
-  using: "composite"
+  using: composite
   steps:
-    - name: Install showwork (from this action's ref)
+    - name: Install the verifier from this action's exact ref
       shell: bash
       env:
-        PIP_BREAK_SYSTEM_PACKAGES: "1"
+        SW_PYTHON: ${{ inputs.python-path }}
       run: |
-        PY="$(command -v python || command -v python3)"
-        "$PY" -m pip install --quiet --user "${GITHUB_ACTION_PATH}/../.." \
-          || "$PY" -m pip install --quiet "${GITHUB_ACTION_PATH}/../.."
-        "$PY" -m showwork.cli --help >/dev/null
-        echo "SHOWWORK_PY=$PY" >> "$GITHUB_ENV"
-
-    - name: Verify receipts
+        if [ -n "$SW_PYTHON" ]; then
+          PY="$SW_PYTHON"
+        else
+          python -m venv "${RUNNER_TEMP}/showwork-action-venv"
+          PY="${RUNNER_TEMP}/showwork-action-venv/bin/python"
+        fi
+        "$PY" -m pip install --quiet "${GITHUB_ACTION_PATH}/../.."
+        "$PY" -I -m showwork doctor
+        echo "SHOWWORK_ACTION_PY=$PY" >> "$GITHUB_ENV"
+    - name: Verify the outcome receipt
       shell: bash
       env:
         SW_ROOT: ${{ inputs.root }}
         SW_SESSION: ${{ inputs.session }}
-        SW_STRICT: ${{ inputs.strict }}
+        SW_BASE: ${{ inputs.changed-since }}
+        SW_TRACKED: ${{ inputs.require-tracked }}
         SW_ALLOW_COMMANDS: ${{ inputs.allow-commands }}
         SW_ALLOW_NETWORK: ${{ inputs.allow-network }}
       run: |
-        set -u
-        PY="${SHOWWORK_PY:-python}"
-        if [ "${SW_ALLOW_COMMANDS}" != "true" ]; then
-          export SHOWWORK_NO_COMMANDS=1
+        set -euo pipefail
+        if [ "$SW_ALLOW_COMMANDS" != "true" ]; then export SHOWWORK_NO_COMMANDS=1; fi
+        if [ "$SW_ALLOW_NETWORK" != "true" ]; then export SHOWWORK_NO_NETWORK=1; fi
+        args=(--root "$SW_ROOT" gate)
+        if [ -n "$SW_SESSION" ] && [ -z "$SW_BASE" ]; then
+          args+=(--session "$SW_SESSION")
+        elif [ -n "$SW_BASE" ] && [ -z "$SW_SESSION" ]; then
+          args+=(--changed-since "$SW_BASE")
+        else
+          echo "Supply exactly one of session or changed-since." >&2
+          exit 2
         fi
-        if [ "${SW_ALLOW_NETWORK}" != "true" ]; then
-          export SHOWWORK_NO_NETWORK=1
-        fi
-        fail=0
-
-        gate () { # $1 = exit code of a showwork command
-          case "$1" in
-            0) : ;;
-            3) if [ "${SW_STRICT}" = "true" ]; then fail=1; fi ;;
-            *) fail=1 ;;
-          esac
-        }
-
-        echo '## showwork receipt' >> "$GITHUB_STEP_SUMMARY"
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-
+        if [ "$SW_TRACKED" = "true" ]; then args+=(--require-tracked); fi
+        echo '## showwork declared acceptance checks' >> "$GITHUB_STEP_SUMMARY"
         set +e
-        audit_out=$("$PY" -m showwork.cli --root "${SW_ROOT}" audit 2>&1)
-        gate $?
-        echo "$audit_out"
-        echo "$audit_out" >> "$GITHUB_STEP_SUMMARY"
-
-        if [ -n "${SW_SESSION}" ]; then
-          verify_out=$("$PY" -m showwork.cli --root "${SW_ROOT}" verify --session "${SW_SESSION}" --no-report 2>&1)
-          gate $?
-          echo "$verify_out"
-          echo "$verify_out" >> "$GITHUB_STEP_SUMMARY"
-
-          bypass_out=$("$PY" - "$SW_ROOT" "$SW_SESSION" <<'PY'
-        import sys
-        from pathlib import Path
-        from showwork.ledger import load_all_events
-        root, session = sys.argv[1], sys.argv[2]
-        finishes = [
-            rec for rec in load_all_events(Path(root))
-            if rec.get("session") == session and rec.get("event") == "session.finish"
-        ]
-        if not finishes:
-            print(f"no session.finish recorded for {session!r}: the exit gate never ran")
-            raise SystemExit(2)
-        last = finishes[-1]
-        if last.get("verify_bypassed"):
-            print(f"session {session!r} closed with --no-verify: bypass is stamped on the record")
-            raise SystemExit(2)
-        print(f"session {session!r} closed clean (status={last.get('status')}, "
-              f"claims_verdict={last.get('claims_verdict')})")
-        PY
-        )
-          gate $?
-          echo "$bypass_out"
-          echo "$bypass_out" >> "$GITHUB_STEP_SUMMARY"
-        fi
+        output=$("$SHOWWORK_ACTION_PY" -I -m showwork "${args[@]}" 2>&1)
+        code=$?
         set -e
-
-        echo '```' >> "$GITHUB_STEP_SUMMARY"
-        exit $fail
+        printf '%s\n' "$output"
+        printf '```text\n%s\n```\n' "$output" >> "$GITHUB_STEP_SUMMARY"
+        exit "$code"
