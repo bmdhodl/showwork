@@ -52,12 +52,14 @@ SKIP_DIRS = frozenset({
     ".playwright-cli",
 })
 SKIP_FILES = frozenset({
+    ".git",  # Worktrees use a pointer file where ordinary clones use a directory.
+    ".env.local",  # Machine-local configuration is absent from CI checkouts.
     ".coverage",
     ".DS_Store",
     "Thumbs.db",
     "desktop.ini",
 })
-SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo")
+SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo", ".log")
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_FILES = 50_000
 # One row per dead artifact is a nudge; a thousand is a wall of noise.
@@ -199,7 +201,8 @@ def undeclared_results(
         # A snapshot written before a directory joined SKIP_DIRS still lists
         # its files. Judge the baseline by today's rule, or every such file
         # reads as an undeclared deletion the moment the tool improves.
-        if _in_skipped_dir(rel):
+        if (_in_skipped_dir(rel) or Path(rel).name in SKIP_FILES
+                or rel.endswith(SKIP_SUFFIXES) or rel.endswith("~")):
             continue
         if rel not in current:
             results.append(_fail(

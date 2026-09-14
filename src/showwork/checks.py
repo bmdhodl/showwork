@@ -796,7 +796,8 @@ CHECKERS = {
 # ---------- verification driver ----------
 
 
-def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str] | None = None) -> dict:
+def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str] | None = None,
+                 acceptance_requirement: bool = False) -> dict:
     claim = record.get("claim", "(no description)")
     # SPEC: severity is RED or YELLOW. Anything else (empty, GREEN, typos)
     # must not demote a failed claim out of the exit gate — default to RED.
@@ -807,7 +808,9 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
     check = record.get("check")
     base = {"claim": claim, "session": record.get("session", ""),
             "severity": severity, "verification_scope": "check only"}
-    if "requirement_id" in record:
+    # Only the requirement-event evaluator grants this role. Claim-file fields
+    # are author input and cannot promote a string check to an acceptance check.
+    if acceptance_requirement:
         base.update(requirement_id=record["requirement_id"], scope=record.get("scope"),
                     verification_scope="declared acceptance check")
     if record.get("_parse_error"):
@@ -839,7 +842,7 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         return {**base, "type": ctype, "status": "error",
                 "detail": f"unknown check type {ctype!r}"}
     try:
-        if ctype == "command" and "requirement_id" in record:
+        if ctype == "command" and acceptance_requirement:
             evidence = {}
             status, detail = chk_command(check, root, evidence=evidence)
             base["evidence"] = evidence

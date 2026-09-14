@@ -102,6 +102,9 @@ Command evidence records hashes of stdout, stderr, the script and the source
 tree, plus the exit code, Git revision, Python version and showwork version.
 The source fingerprint has the existing snapshot bounds: generated directories,
 symlinks, files over 32 MiB, and files beyond the 50,000-file limit are excluded.
+Git worktree pointers, `.env.local`, and generated `.log` files are excluded too;
+these machine-local files do not travel with a checkout. Check them explicitly
+when their contents are part of the requested result.
 It is not a full-machine or dependency attestation. Command checks execute trusted
 project Python and are not sandboxed.
 

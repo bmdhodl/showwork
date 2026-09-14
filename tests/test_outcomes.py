@@ -304,3 +304,47 @@ def test_gated_wrapper_persists_command_evidence(tmp_path):
     close = [e for e in load_all_events(tmp_path) if e["event"] == "session.finish"][-1]
     assert close["command_evidence"][0]["evidence"]["exit_code"] == 0
     assert close["command_evidence"][0]["requirement_id"] == "shot"
+
+
+def test_claim_cannot_impersonate_acceptance_requirement(tmp_path):
+    # REGRESSION: author-supplied requirement_id was trusted in ordinary claims.
+    from showwork.ledger import _append, session_claims_path
+    (tmp_path / "fake.txt").write_text("2360")
+    start_session(tmp_path, "golf")
+    _append(session_claims_path(tmp_path, "golf"), {
+        "session": "golf", "claim": "All tests passed", "requirement_id": "forged",
+        "scope": "behavior", "verification_scope": "declared acceptance check",
+        "check": {"type": "file_contains", "path": "fake.txt", "pattern": "2360"},
+    })
+    state = verify_session(tmp_path, "golf")
+    assert state["outcome"]["verdict"] == "UNVERIFIED"
+    assert state["outcome"]["total"] == 0
+    assert finish_session(tmp_path, "golf")[0] == 2
+
+
+def test_worktree_git_pointer_is_not_application_source(tmp_path):
+    # REGRESSION: a worktree .git file became a deletion in a regular CI clone.
+    from showwork.snapshot import capture_tree, undeclared_results
+    (tmp_path / ".git").write_text("gitdir: /private/worktree/pointer\n")
+    assert ".git" not in capture_tree(tmp_path)
+    # Existing snapshots keep their bytes and hash; metadata is ignored at read.
+    from showwork.snapshot import _files_digest
+    import hashlib
+    files = {".git": hashlib.sha256((tmp_path / ".git").read_bytes()).hexdigest()}
+    meta = {"sha256": _files_digest(files), "count": 1}
+    snap = tmp_path / ".showwork/snapshots/old.json"
+    snap.parent.mkdir(parents=True)
+    snap.write_text(json.dumps({**meta, "files": files}))
+    (tmp_path / ".git").unlink()
+    (tmp_path / ".git").mkdir()
+    assert undeclared_results(tmp_path, [], {"tree_snapshot": meta}, snap) == []
+
+
+@pytest.mark.parametrize("local_name", [".env.local", "install.log"])
+def test_machine_local_inputs_do_not_break_portable_receipts(tmp_path, local_name):
+    from showwork.snapshot import capture_tree
+    (tmp_path / local_name).write_text("local-only data")
+    (tmp_path / ".env.example").write_text("public template")
+    captured = capture_tree(tmp_path)
+    assert local_name not in captured
+    assert ".env.example" in captured

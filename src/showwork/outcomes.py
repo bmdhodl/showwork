@@ -72,7 +72,8 @@ def evaluate_requirements(root: Path, session: str, *, allowed_check_types=None)
             # Evaluate individually: claim retractions cannot erase requirements.
             clean = {k: record[k] for k in ("claim", "session", "check") if k in record}
             clean.update(requirement_id=requirement_id, scope=scope, severity="RED")
-            rows.append(verify_claim(clean, root, allowed_check_types=allowed_check_types))
+            rows.append(verify_claim(clean, root, allowed_check_types=allowed_check_types,
+                                     acceptance_requirement=True))
     return rows
 
 
