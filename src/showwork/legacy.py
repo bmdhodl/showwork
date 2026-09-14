@@ -49,6 +49,13 @@ def inspect_legacy_baseline(root: Path, session: str, commit: str) -> dict:
     with tempfile.TemporaryDirectory(prefix="showwork-legacy-") as directory:
         for rel in paths:
             blob = git("show", f"{commit}:{rel}")
+            committed = git("show", f"HEAD:{rel}")
+            tree_entry = git("ls-tree", "HEAD", "--", rel)
+            mode = tree_entry.stdout.split(maxsplit=1)[0] if tree_entry.stdout else b""
+            if (committed.returncode or mode not in {b"100644", b"100755"}
+                    or committed.stdout.replace(b"\r\n", b"\n") != blob.stdout.replace(b"\r\n", b"\n")):
+                result["errors"].append(f"legacy baseline file differs or is missing in HEAD: {rel}")
+                continue
             path = root / rel
             if (blob.returncode or not path.is_file() or path.is_symlink()
                     or not path.resolve().is_relative_to(root)

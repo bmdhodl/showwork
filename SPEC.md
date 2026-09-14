@@ -499,6 +499,10 @@ tests/test_legacy_baseline.py::test_baseline_cannot_include_selected_session]
 predate the selected session. Every pinned legacy file MUST [test:
 tests/test_legacy_baseline.py::test_baseline_cannot_hide_changed_or_removed_history]
 remain present and byte-identical apart from Git LF/CRLF checkout conversion.
+The comparison MUST [test:
+tests/test_legacy_baseline.py::test_restored_working_copy_cannot_hide_changed_head]
+cover regular files in both HEAD and the working tree; restoring uncommitted
+bytes cannot excuse a different released commit.
 
 The gate MUST [test:
 tests/test_legacy_baseline.py::test_explicit_baseline_keeps_historical_red_visible]

@@ -19,10 +19,13 @@ actual 40- or 64-character commit ID, never `main`, `HEAD`, or a moving PR base.
 Protect changes to this CI input through your repository's review policy.
 
 The baseline predates the selected session. All its shared legacy files stay
-present and identical, with LF/CRLF checkout conversion allowed. Editing,
+present and identical in both HEAD and the working tree, with LF/CRLF checkout conversion allowed. Editing,
 deleting, renaming or replacing one fails. New broken files fail. Per-session
 receipts cannot be acknowledged this way, and the selected session cannot be
 part of the pinned legacy history.
+
+Restoring old bytes as an uncommitted file cannot hide a changed or missing
+file in HEAD. The released commit must contain the pinned regular file too.
 
 The gate output names the pinned commit, each acknowledged RED file, and its
 audit failure. A passing current acceptance result does not change historical

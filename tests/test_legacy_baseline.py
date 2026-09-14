@@ -89,6 +89,27 @@ def test_baseline_freezes_unchained_history_too(tmp_path):
     assert release_gate(tmp_path, "current", legacy_integrity_baseline=baseline)["verdict"] == "RED"
 
 
+@pytest.mark.parametrize("change", ["edit", "delete", "symlink_mode"])
+def test_restored_working_copy_cannot_hide_changed_head(tmp_path, change):
+    # REGRESSION: restoring baseline bytes locally hid a different released HEAD.
+    baseline = project(tmp_path)
+    path = tmp_path / LEGACY
+    if change == "edit":
+        path.write_text(BAD.replace("historical", "changed in commit"))
+        git(tmp_path, "add", LEGACY)
+    elif change == "delete":
+        git(tmp_path, "rm", LEGACY)
+    else:
+        blob = git(tmp_path, "rev-parse", f"HEAD:{LEGACY}")
+        git(tmp_path, "update-index", "--cacheinfo", f"120000,{blob},{LEGACY}")
+    git(tmp_path, "commit", "-m", "changed history")
+    path.write_text(BAD)
+    result = release_gate(tmp_path, "current", require_tracked=True,
+                          legacy_integrity_baseline=baseline)
+    assert result["verdict"] == "RED"
+    assert any("HEAD" in error for error in result["errors"])
+
+
 def test_baseline_refuses_new_broken_legacy_file(tmp_path):
     baseline = project(tmp_path)
     (tmp_path / ".showwork/claims-2026-02-02.jsonl").write_text(BAD)
@@ -161,3 +182,11 @@ def test_cli_names_acknowledged_red_files(tmp_path, capsys):
     assert "historical integrity RED" in output
     assert LEGACY in output
     assert baseline in output
+
+
+def test_init_workflow_uses_installed_release(tmp_path):
+    # REGRESSION: the 0.6.1 package emitted an action pin that missed its fix.
+    from showwork import __version__
+    assert main(["--root", str(tmp_path), "init"]) == 0
+    workflow = (tmp_path / "docs/ci/showwork-verify.yml").read_text()
+    assert f"bmdhodl/showwork/actions/verify@v{__version__}" in workflow
