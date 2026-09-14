@@ -416,11 +416,14 @@ def main(argv: list[str] | None = None) -> int:
             sessions = [args.session] if args.session else changed_sessions(root, args.changed_since)
             results = [release_gate(root, s, require_tracked=args.require_tracked) for s in sessions]
             result = {"verdict": "GREEN" if all(r["verdict"] == "GREEN" for r in results) else "RED",
-                      "errors": [error for r in results for error in r["errors"]], "sessions": results}
+                      "errors": [error for r in results for error in r["errors"]], "sessions": results,
+                      "notes": [f"{r['session']}: historical integrity {r['historical_integrity']}; "
+                                + r["integrity_scope"] for r in results]}
         except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
             result = {"verdict": "RED", "errors": [str(exc)]}
         print(json.dumps(result, indent=2) if args.json else
-              "showwork outcome gate: " + result["verdict"] + "\n" + "\n".join(result["errors"]))
+              "showwork outcome gate: " + result["verdict"] + "\n"
+              + "\n".join([*result.get("notes", []), *result["errors"]]))
         return 0 if result["verdict"] == "GREEN" else 2
 
     if args.cmd == "doctor":
@@ -664,6 +667,9 @@ def main(argv: list[str] | None = None) -> int:
                      completion_scope="outcome" if args.gate else "observed",
                      outcome=state["outcome"],
                      receipt_manifest=receipt_manifest(root, args.session),
+                     command_evidence=[{k: r[k] for k in ("requirement_id", "evidence")}
+                                       for r in state["results"]
+                                       if "requirement_id" in r and "evidence" in r],
                      observed_by="run-wrapper",
                      budget_max_seconds=args.max_seconds,
                      budget_elapsed_seconds=round(budget.elapsed, 3),

@@ -109,14 +109,23 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False) -> 
     from .audit import audit_root
     from .ledger import load_all_events, session_events_path, session_file_stem, verify_session
     from .snapshot import snapshot_file
-    from .ledger import ledger_dir
+    from .ledger import ledger_dir, _read_jsonl
+    root = root.resolve()
     errors = []
     audit = audit_root(root)
-    if audit["verdict"] != "GREEN":
-        errors.append("ledger integrity is not GREEN")
+    # Historical pre-chain files do not certify this session, and must remain
+    # visible. Any broken chain still fails, including unrelated history.
+    for entry in audit["files"]:
+        if entry["verdict"] == "RED":
+            errors.append(f"ledger integrity is RED: {entry['file']}")
+        elif entry["verdict"] != "GREEN" and any(
+                row.get("session") == session for row in _read_jsonl(Path(entry["path"]))):
+            errors.append(f"selected session integrity is not GREEN: {entry['file']}")
     state = verify_session(root, session)
     if state["verdict"] != "GREEN" or state["outcome"]["verdict"] != "VERIFIED":
         errors.append("declared acceptance checks are not verified")
+        errors.extend(f"{r.get('requirement_id', r.get('claim', 'check'))}: {r['detail']}"
+                      for r in state["results"] if r["status"] != "pass")
     events = [e for e in load_all_events(root) if e.get("session") == session]
     closes = [e for e in events if e.get("event") == "session.finish"]
     close = closes[-1] if closes else {}
@@ -142,7 +151,8 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False) -> 
                     or result.stdout.replace(b"\r\n", b"\n") != path.read_bytes().replace(b"\r\n", b"\n")):
                 errors.append(f"receipt is not committed exactly at HEAD: {rel}")
     return {"verdict": "RED" if errors else "GREEN", "session": session,
-            "errors": errors, "checks": state}
+            "errors": errors, "checks": state, "historical_integrity": audit["verdict"],
+            "integrity_scope": "selected session; unrelated RED findings still fail"}
 
 
 def changed_sessions(root: Path, base: str) -> list[str]:
@@ -150,7 +160,7 @@ def changed_sessions(root: Path, base: str) -> list[str]:
     from .ledger import load_all_events, session_file_stem
     if not base or base.startswith("-"):
         raise ValueError("changed-since must be a Git revision")
-    diff = subprocess.run(["git", "-C", str(root), "diff", "--name-only", base, "HEAD",
+    diff = subprocess.run(["git", "-C", str(root), "diff", "--no-renames", "--name-only", base, "HEAD",
                            "--", ".showwork/"], capture_output=True, text=True, timeout=15)
     if diff.returncode:
         raise ValueError("cannot resolve changed receipt paths")

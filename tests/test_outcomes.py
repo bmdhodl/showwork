@@ -241,3 +241,66 @@ def test_deleted_entire_receipt_remains_in_changed_session_gate(tmp_path):
     git("add", "-A")
     git("commit", "-m", "replace receipts")
     assert changed_sessions(tmp_path, base) == ["removed", "replacement"]
+
+
+def test_unrelated_pre_chain_history_is_visible_without_certifying_it(tmp_path):
+    from showwork.outcomes import release_gate
+    (tmp_path / "check.py").write_text('print("passed")\n')
+    start_session(tmp_path, "golf")
+    assert require(tmp_path) == 0
+    assert finish_session(tmp_path, "golf")[0] == 0
+    (tmp_path / ".showwork/claims-2020-01-01.jsonl").write_text(
+        '{"session":"historical","claim":"old unanchored observation"}\n')
+    result = release_gate(tmp_path, "golf")
+    assert result["verdict"] == "GREEN"
+    assert result["historical_integrity"] == "YELLOW"
+    assert result["integrity_scope"] == "selected session; unrelated RED findings still fail"
+
+
+def test_unrelated_tampering_still_fails_release_gate(tmp_path):
+    from showwork.outcomes import release_gate
+    (tmp_path / "check.py").write_text('print("passed")\n')
+    start_session(tmp_path, "golf")
+    assert require(tmp_path) == 0
+    assert finish_session(tmp_path, "golf")[0] == 0
+    path = tmp_path / ".showwork/claims-2020-01-01.jsonl"
+    path.write_text('{"session":"other","claim":"tampered","prev":"' + 'f'*64 + '"}\n')
+    assert release_gate(tmp_path, "golf")["verdict"] == "RED"
+
+
+def test_moved_receipt_cannot_hide_deleted_session(tmp_path):
+    # REGRESSION: Git rename detection hid the deleted source receipt path.
+    from showwork.outcomes import changed_sessions
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=tmp_path, capture_output=True,
+                              text=True, check=True).stdout.strip()
+    git("init")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "Receipt test")
+    git("config", "diff.renames", "true")
+    start_session(tmp_path, "removed")
+    git("add", ".showwork")
+    git("commit", "-m", "receipt")
+    base = git("rev-parse", "HEAD")
+    paths = list((tmp_path / ".showwork").rglob("*"))
+    (tmp_path / ".showwork/archive").mkdir()
+    for path in paths:
+        if path.is_file():
+            path.rename(tmp_path / ".showwork/archive" / path.name)
+    start_session(tmp_path, "replacement")
+    git("add", "-A")
+    git("commit", "-m", "archive receipts")
+    assert changed_sessions(tmp_path, base) == ["removed", "replacement"]
+
+
+def test_gated_wrapper_persists_command_evidence(tmp_path):
+    # REGRESSION: wrapper closes dropped evidence that ordinary finish saved.
+    from showwork.ledger import load_all_events
+    (tmp_path / "check.py").write_text('print("passed")\n')
+    start_session(tmp_path, "golf")
+    assert require(tmp_path) == 0
+    assert cli(tmp_path, "run", "--session", "golf", "--gate", "--",
+               sys.executable, "-c", "print('done')") == 0
+    close = [e for e in load_all_events(tmp_path) if e["event"] == "session.finish"][-1]
+    assert close["command_evidence"][0]["evidence"]["exit_code"] == 0
+    assert close["command_evidence"][0]["requirement_id"] == "shot"

@@ -1,8 +1,8 @@
 {
   "candidate": "0.6.0",
-  "recorded_at": "2026-09-14T21:58:16.792501+00:00",
-  "python_suite": "407 passed in 38.61s",
-  "wheel_sha256": "f8fef8d75500f2f08a0ee032e4d6c2db4fa04681699c2bb883304ba9cab8cc23",
+  "recorded_at": "2026-09-14T22:12:20.805803+00:00",
+  "python_suite": "411 passed in 42.24s",
+  "wheel_sha256": "29b75799341a65fe16c74d3c311fed8f42fd19319f00ffcff6aab4b68cac27c7",
   "installed_smokes": [
     {
       "version": "0.6.0",

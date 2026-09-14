@@ -21,3 +21,8 @@ def _clear_verifying_env(monkeypatch):
     monkeypatch.delenv("SHOWWORK_VERIFYING", raising=False)
     monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
     monkeypatch.delenv("SHOWWORK_ROOT", raising=False)
+    # Isolated tests use temporary leaf scripts and loopback HTTP fixtures.
+    # Individual policy tests set these explicitly. The caller's policy still
+    # controls whether it can launch this trusted acceptance command at all.
+    monkeypatch.delenv("SHOWWORK_NO_NETWORK", raising=False)
+    monkeypatch.delenv("SHOWWORK_NO_COMMANDS", raising=False)

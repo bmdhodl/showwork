@@ -64,6 +64,9 @@ The gate checks the integrity chain, reruns acceptance checks, checks the latest
 close, compares the manifest, and verifies receipt files against committed HEAD.
 LF and CRLF checkouts are both supported. A missing claim file fails even when
 a historical finish event says GREEN.
+The selected session must have an intact chain. Historical unchained files are
+reported as YELLOW separately; a broken chain anywhere still fails the gate.
+Moving an old receipt out of its directory cannot hide its deletion.
 
 The GitHub action can select every receipt changed by a PR:
 
