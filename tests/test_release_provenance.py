@@ -3,6 +3,7 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import shlex
 
 import pytest
 
@@ -51,3 +52,20 @@ def test_release_refuses_version_mismatch(repo):
     git("tag", "v9.9.9")
     with pytest.raises(ValueError, match="package version"):
         module.validate_release(root, "refs/tags/v9.9.9")
+
+
+def test_publisher_fetch_handles_checkout_peeled_annotated_tag(repo):
+    # REGRESSION: checkout peels an annotated tag into a local lightweight tag.
+    # Fetching --tags then refuses to replace it, before provenance can run.
+    root, git = repo
+    git("tag", "-f", "-a", "v0.5.0", "-m", "annotated release")
+    remote = root.parent / (root.name + "-origin.git")
+    subprocess.run(["git", "clone", "--bare", str(root), str(remote)], check=True,
+                   capture_output=True)
+    git("remote", "add", "origin", str(remote))
+    git("tag", "-f", "v0.5.0", "HEAD")
+    workflow = (Path(__file__).parents[1] / ".github/workflows/publish.yml").read_text()
+    fetch = next(line.strip() for line in workflow.splitlines() if line.strip().startswith("git fetch "))
+    result = subprocess.run(shlex.split(fetch), cwd=root, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert module.validate_release(root, "refs/tags/v0.5.0") == git("rev-parse", "HEAD")

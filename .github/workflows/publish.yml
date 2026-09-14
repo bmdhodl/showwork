@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing version tag to publish after a runner failure"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -27,13 +32,18 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          ref: ${{ inputs.release_tag || github.ref }}
           clean: false
           fetch-depth: 0
 
       - name: Validate release tag provenance
+        env:
+          RELEASE_REF: ${{ inputs.release_tag && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
         run: |
-          git fetch origin main --tags
-          python3 scripts/validate_release.py
+          # checkout may peel an annotated tag locally. Its commit is already
+          # present; refreshing tags would reject that equivalent local ref.
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          GITHUB_REF="$RELEASE_REF" python3 scripts/validate_release.py
 
       - name: Reset workspace and keep the Python environment
         run: git clean -ffdx -e /.venv/
