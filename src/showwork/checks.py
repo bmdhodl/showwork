@@ -585,6 +585,12 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[s
     shape_err = _command_shape_error(c, root, require_script_file=True)
     if shape_err is not None:
         return ("error", shape_err)
+    # Runner policy, rather than a mutable claim, chooses the execution budget.
+    # Keep a finite upper bound and reject malformed settings before execution.
+    timeout_value = os.environ.get("SHOWWORK_COMMAND_TIMEOUT_SECONDS", "120")
+    if not re.fullmatch(r"[0-9]{1,4}", timeout_value) or not 1 <= int(timeout_value) <= 3600:
+        return ("error", "SHOWWORK_COMMAND_TIMEOUT_SECONDS must be an integer from 1 to 3600")
+    timeout_seconds = int(timeout_value)
     argv = c["argv"]
     expect = int(c.get("expect_exit", 0))
     script = (root / argv[1]).resolve()
@@ -596,6 +602,7 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[s
         before = capture_tree(root)
         git_status, git_head = _run_git(root, ["rev-parse", "HEAD"])
         evidence.update(argv=list(argv), python=sys.version.split()[0],
+                        timeout_seconds=timeout_seconds,
                         showwork_version=__version__,
                         git_commit=git_head.strip() if git_status == "pass" else None,
                         script_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
@@ -603,7 +610,7 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[s
                         source_files=len(before), source_scope="bounded showwork tree snapshot")
     try:
         proc = run_process(run_argv, capture_output=True,
-                              timeout=120, cwd=str(root), env=env)
+                              timeout=timeout_seconds, cwd=str(root), env=env)
     except Exception as e:  # noqa: BLE001
         return ("error", f"command failed to run: {e}")
     if evidence is not None:

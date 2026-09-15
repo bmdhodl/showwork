@@ -118,6 +118,12 @@ trusted same-repository workflows with `allow-network: true`.
 It accepts at least one of `clean`, `branch`, or a seven-plus-character commit
 prefix, so an empty check cannot pass as proof.
 
+Command checks default to 120 seconds. For a larger suite, set
+`SHOWWORK_COMMAND_TIMEOUT_SECONDS=300` in the runner environment. Values must be
+whole seconds from 1 through 3600; invalid values refuse execution. The receipt
+records the chosen limit. A timeout remains an error and never proves success.
+This changes the execution budget, not the declared tests or their assertions.
+
 ## Tamper-evident by construction (v0.2)
 
 Every appended record carries the SHA-256 of the record before it, so
