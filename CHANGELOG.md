@@ -2,6 +2,15 @@
 
 All notable changes to showwork are recorded here.
 
+## 0.6.2 - 2026-09-14
+
+- Allow runners to set `SHOWWORK_COMMAND_TIMEOUT_SECONDS` from 1 through 3600
+  seconds. The default remains 120 seconds. This lets a full suite run on slower
+  machines without removing acceptance checks.
+- Reject invalid limits before running project code and record the effective
+  limit in command evidence. Timeouts still terminate the process tree and fail
+  verification, even when the claim expects a timeout-like exit code.
+
 ## 0.6.1 - 2026-09-14
 
 - Audit ledger integrity after acceptance commands. A command that corrupts a

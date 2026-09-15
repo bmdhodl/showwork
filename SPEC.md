@@ -204,6 +204,18 @@ escape, and MUST [test:
 tests/test_checks.py::test_command_recursion_guard] reject nested command
 verification.
 
+The runner may set `SHOWWORK_COMMAND_TIMEOUT_SECONDS` to an integer from 1 to
+3600, default 120. Invalid limits MUST [test:
+tests/test_command_timeout.py::test_invalid_command_deadline_never_executes]
+refuse execution. The effective deadline MUST [test:
+tests/test_command_timeout.py::test_command_deadline_reaches_process_and_receipt]
+reach the process runner and appear as `timeout_seconds` in command evidence.
+A timeout MUST [test:
+tests/test_command_timeout.py::test_longer_deadline_runs_same_check_and_timeout_cannot_pass]
+remain an error regardless of the claimed expected exit code. Existing command
+shapes and receipts remain valid; this is optional runner policy and additive
+execution metadata.
+
 ### `http_probe`
 
 ```json
