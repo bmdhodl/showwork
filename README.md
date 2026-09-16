@@ -287,6 +287,10 @@ The survey predates this package and does not cite it. It is context for the pro
 - False Done Rate at study scale: controlled task sets, per-model corpora
 - Detached signing of ledger heads (external timestamp anchoring)
 
+## Contributing
+
+Every pull request carries the committed `.showwork/` receipt for the session that produced it, and a pull request without one is not reviewed. [Read CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 MIT

@@ -1,24 +1,37 @@
+## Receipt
+
+<!--
+Required. Name the committed receipt file for the session that produced this
+pull request. A pull request with no receipt is not reviewed.
+See CONTRIBUTING.md.
+-->
+
+- Receipt path: `.showwork/sessions/<session-id>.jsonl`
+- Session id: `<session-id>`
+- Close verdict: <!-- ok | blocked -->
+
 ## What changed
 
 <!-- Brief description of the change -->
 
-## Verification
+## How to see it
 
-<!-- How did you verify this works? -->
+<!-- The commands a reviewer runs to see this working. -->
 
-- [ ] Tests pass locally (`pytest tests/ -q`)
-- [ ] Claims recorded (`showwork verify --session <session-id>` exits 0)
-- [ ] `.showwork/` receipts committed with this PR
+```bash
+python scripts/run_tests.py
+python -m showwork.cli gate --session <session-id> --require-tracked
+```
 
 ## Checklist
 
-- [ ] Changes are falsifiable (if claiming "done", a check can fail)
-- [ ] Receipts committed - `.showwork/` ledger is part of the work
+- [ ] Receipt committed - the `.showwork/` session and claims files are in this diff
 - [ ] Session closed through `showwork finish` (no `--no-verify` bypass)
+- [ ] Claims are falsifiable - a check can fail if the change is wrong
+- [ ] Tests pass locally (`python scripts/run_tests.py`)
 - [ ] SPEC.md updated if the ledger format changed
-- [ ] Tests green before commit
+- [ ] Title starts with `agent:` if an agent produced this change
 
 ---
 
-**For agent-authored PRs:** the session id is required. Human reviewers: verify
-the receipts in `.showwork/` before merge.
+Human reviewers: read the receipt against the diff before merge.
