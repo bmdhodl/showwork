@@ -33,6 +33,9 @@ def test_sdist_contains_readme_targets(tmp_path):
         names = {name.removeprefix(root + "/") for name in archive.getnames()}
 
     required = {
+        "llms.txt",
+        "docs/README.md",
+        "docs/quickstart-python.md",
         "CONTRIBUTING.md",
         "SPEC.md",
         "docs/claude-code.md",
