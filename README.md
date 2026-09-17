@@ -18,6 +18,10 @@ a requirement covers your request or a test matches its description.
 Read the [evidence-scope incident](docs/evidence-scope.md) for an example of
 that limit in our own use.
 
+An optional [Jev evidence-assessment example](docs/check-proof.md) is being
+prepared to flag claim/check mismatches. Live evaluation and hosted launch are
+pending. It is advisory and does not change showwork's deterministic verifier.
+
 ## Quickstart
 
 Use a new empty directory. The first close deliberately fails because the
