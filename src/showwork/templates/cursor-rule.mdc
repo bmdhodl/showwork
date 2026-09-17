@@ -13,7 +13,7 @@ Set SHOWWORK_SESSION=cursor-<task-slug> in the same shell.
 
 Before completion claims, declare the acceptance tests for the user's request:
 
-    python -m showwork require --session cursor-<task-slug> --id regression --scope behavior --description "<behavior tested>" --check-json '{"type":"command","argv":["python","scripts/run_tests.py"]}'
+    python -m showwork require --session cursor-<task-slug> --id regression --scope behavior --description "<behavior tested>" --type command --command-arg python --command-arg scripts/run_tests.py --expect-exit 0 --stdout-contains passed
 
 Test the real changed path, including a failing negative case. Use artifact scope
 only for file observations. A matching string does not certify behavior or tests.

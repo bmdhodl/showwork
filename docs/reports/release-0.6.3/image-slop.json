@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "detail": "spec slop QA: PASS (score 0.0 <= 0.08, 9 text lines)",
+  "hdr_generate": "discarded",
+  "hdr_reason": "generated still added SHOW YOUR WORK and PIP INSTALL SHOWWORK; extra slogans fail the locked copy",
+  "release_image": "demo.png Playwright capture of demo.html; overflow 375/768/1280 equaled viewport width"
+}

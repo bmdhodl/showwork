@@ -37,7 +37,7 @@ file. A claim retraction cannot remove a requirement.
 showwork start --session shot-fix --agent codex
 showwork require --session shot-fix --id shot --scope behavior \
   --description 'The club handoff preserves model aim and distance' \
-  --check-json '{"type":"command","argv":["python","scripts/check_shot.py"]}'
+  --type command --command-arg python --command-arg scripts/check_shot.py
 showwork finish --session shot-fix
 ```
 
@@ -71,7 +71,7 @@ Moving an old receipt out of its directory cannot hide its deletion.
 The GitHub action can select every receipt changed by a PR:
 
 ```yaml
-- uses: bmdhodl/showwork/actions/verify@v0.6.0
+- uses: bmdhodl/showwork/actions/verify@v0.6.3
   with:
     changed-since: ${{ github.event.pull_request.base.sha }}
     require-tracked: 'true'

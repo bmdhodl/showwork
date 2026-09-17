@@ -30,7 +30,7 @@ your own exit gate is the first thing that will tell you.
 2. Before recording completion claims, declare acceptance requirements. A behavior
    requirement needs a Python test of the actual changed path, including a case
    that fails when the behavior is broken:
-   `python -m showwork.cli require --session <slug> --id regression --scope behavior --description "<tested behavior>" --check-json '{"type":"command","argv":["python","scripts/run_tests.py"]}'`
+   `python -m showwork.cli require --session <slug> --id regression --scope behavior --description "<tested behavior>" --type command --command-arg python --command-arg scripts/run_tests.py --expect-exit 0 --stdout-contains passed`
    Use artifact scope only for artifact observations. Never use a text match on
    a handwritten summary to certify tests, behavior, or a video encoding.
    After each completed change, record a claim with a check that can fail

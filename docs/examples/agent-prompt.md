@@ -14,6 +14,10 @@ Start material work with:
 Use a distinct slug per agent (`cursor-fix-nav`, `codex-fix-nav`). Two agents
 that share a slug share one ledger file.
 
+Before completion claims, declare the acceptance tests for the user's request:
+
+    showwork require --session <agent>-<task-slug> --id regression --scope behavior --description "tests fail when the behavior is broken" --type command --command-arg python --command-arg scripts/run_tests.py --expect-exit 0 --stdout-contains passed
+
 After each completed change, record a falsifiable claim with a check that can fail:
 
     showwork claim --session <agent>-<task-slug> \
@@ -35,8 +39,9 @@ Before reporting success, close through the exit gate:
 
     showwork finish --session <agent>-<task-slug> --status ok
 
-A clean close needs at least one check-backed claim. If the finish command
-refuses (exit 2), fix the failed claim or retract it truthfully:
+A clean close needs declared acceptance checks and at least one check-backed
+claim. If the finish command refuses (exit 2), fix the failed claim or retract
+it truthfully:
 
     showwork retract --session <agent>-<task-slug> --claim "<exact claim text>" --reason "<why>"
 

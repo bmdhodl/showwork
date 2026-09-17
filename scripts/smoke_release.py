@@ -29,7 +29,7 @@ def smoke():
         run("start", ["start", "--session", "smoke"])
         run("declare acceptance", ["require", "--session", "smoke", "--id", "output",
                                     "--scope", "artifact", "--description", "output.txt exists",
-                                    "--check-json", '{"type":"file_exists","path":"output.txt"}'])
+                                    "--type", "file_exists", "--path", "output.txt"])
         run("claim missing file", ["claim", "--session", "smoke", "--claim", "output exists",
                                    "--type", "file_exists", "--path", "output.txt"])
         run("refuse false done", ["finish", "--session", "smoke"], 2)

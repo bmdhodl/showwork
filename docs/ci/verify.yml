@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: bmdhodl/showwork/actions/verify@v0.6.1
+      - uses: bmdhodl/showwork/actions/verify@v0.6.3
         with:
           session: ${{ github.head_ref || github.ref_name }}
           # Fork PRs stay safe: command and network checks refuse to run.

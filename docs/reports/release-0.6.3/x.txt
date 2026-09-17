@@ -1,0 +1,6 @@
+The Cursor walk claimed first. After that, require was rejected and finish stayed refused.
+
+showwork 0.6.3 gives require the same flags as claim.
+
+pip install -U showwork
+https://github.com/bmdhodl/showwork/releases/tag/v0.6.3

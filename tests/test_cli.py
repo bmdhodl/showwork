@@ -16,6 +16,66 @@ def _events(tmp_path, session):
             if line.strip()]
 
 
+def test_require_accepts_claim_flags(tmp_path):
+    (tmp_path / "output.txt").write_text("real output", encoding="utf-8")
+    assert run(tmp_path, "start", "--session", "flags") == 0
+    assert run(tmp_path, "require", "--session", "flags", "--id", "output",
+               "--description", "output.txt exists", "--scope", "artifact",
+               "--type", "file_exists", "--path", "output.txt") == 0
+    assert run(tmp_path, "claim", "--session", "flags", "--claim", "output exists",
+               "--type", "file_exists", "--path", "output.txt") == 0
+    assert run(tmp_path, "finish", "--session", "flags") == 0
+    events = _events(tmp_path, "flags")
+    requirement = next(row for row in events if row.get("event") == "session.requirement")
+    assert requirement["check"] == {"type": "file_exists", "path": "output.txt"}
+
+
+def test_require_accepts_command_flags_for_behavior(tmp_path):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "run_tests.py").write_text("print('passed')\n", encoding="utf-8")
+    assert run(tmp_path, "start", "--session", "cmd") == 0
+    assert run(tmp_path, "require", "--session", "cmd", "--id", "regression",
+               "--description", "tests fail when the behavior is broken",
+               "--scope", "behavior", "--type", "command",
+               "--command-arg", "python", "--command-arg", "scripts/run_tests.py",
+               "--expect-exit", "0", "--stdout-contains", "passed") == 0
+    assert run(tmp_path, "claim", "--session", "cmd", "--claim", "script exists",
+               "--type", "file_exists", "--path", "scripts/run_tests.py") == 0
+    assert run(tmp_path, "finish", "--session", "cmd") == 0
+
+
+def test_require_needs_type_or_check_json(tmp_path):
+    run(tmp_path, "start", "--session", "empty-req")
+    try:
+        run(tmp_path, "require", "--session", "empty-req", "--id", "output",
+            "--description", "output.txt exists", "--scope", "artifact")
+    except SystemExit as exc:
+        assert "require needs --type or --check-json" in str(exc)
+    else:
+        raise AssertionError("expected SystemExit when require has no check")
+
+
+def test_require_check_json_still_works(tmp_path):
+    (tmp_path / "output.txt").write_text("real output", encoding="utf-8")
+    run(tmp_path, "start", "--session", "json-req")
+    assert run(tmp_path, "require", "--session", "json-req", "--id", "output",
+               "--description", "output.txt exists", "--scope", "artifact",
+               "--check-json", '{"type":"file_exists","path":"output.txt"}') == 0
+
+
+def test_require_after_claim_is_rejected(tmp_path, capsys):
+    (tmp_path / "output.txt").write_text("real output", encoding="utf-8")
+    run(tmp_path, "start", "--session", "late")
+    run(tmp_path, "claim", "--session", "late", "--claim", "output exists",
+        "--type", "file_exists", "--path", "output.txt")
+    capsys.readouterr()
+    assert run(tmp_path, "require", "--session", "late", "--id", "output",
+               "--description", "output.txt exists", "--scope", "artifact",
+               "--type", "file_exists", "--path", "output.txt") == 2
+    assert "before recording completion claims" in capsys.readouterr().err
+
+
 def test_full_green_lifecycle(tmp_path, capsys):
     (tmp_path / "out.md").write_text("shipped: yes", encoding="utf-8")
     assert run(tmp_path, "start", "--session", "s1", "--agent", "test") == 0

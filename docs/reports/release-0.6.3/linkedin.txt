@@ -1,0 +1,10 @@
+The Cursor walk claimed first.
+
+showwork 0.6.0 already needed a declared check before claims. After the first claim, require is rejected. finish stays refused.
+
+0.6.3 gives require the same flags as claim. The picture is the two walks. Same session order. No JSON blob. No model call.
+
+A passing check still only proves what it tests.
+
+pip install --upgrade showwork
+https://github.com/bmdhodl/showwork/releases/tag/v0.6.3

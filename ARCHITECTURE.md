@@ -60,7 +60,7 @@ Three rules drive every design decision below:
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 
 `src/showwork/__init__.py` re-exports the public Python API and pins
-`__version__ = "0.4.0"`, matching `pyproject.toml`.
+`__version__ = "0.6.3"`, matching `pyproject.toml`.
 
 ## Data model
 
@@ -317,6 +317,7 @@ subcommand.
 | Subcommand | What it does | Exit |
 |---|---|---|
 | `start` | Appends `session.start` to `sessions/<id>.jsonl` | 0 |
+| `require` | Builds a check spec from the flags (or takes `--check-json`) and appends `session.requirement` | 0 or 2 |
 | `claim` | Builds a check spec from the flags (or takes `--check-json`) and appends the claim | 0 |
 | `retract` | Appends a referencing retraction | 0 |
 | `verify` | Verifies a day (`--date`) or a session (`--session`), writes `audit-<label>.md` unless `--no-report` | 0/3/2 |
@@ -327,9 +328,10 @@ subcommand.
 | `dashboard` | Renders replay JSON to a static HTML file, optionally serves it on loopback | 0 or 2 |
 | `guard` | PreToolUse approval gate or PostToolUse stuck detection | 0, or 2 when stuck |
 
-`claim` builds the check dict in `_build_check()`. Each type has a required set
-of flags and `_req()` fails loudly with the missing flag name rather than
-writing a half-formed check.
+`claim` and `require` build the check dict in `_build_check()`. Each type has
+a required set of flags and `_req()` fails loudly with the missing flag name
+rather than writing a half-formed check. `require` with neither `--type` nor
+`--check-json` exits instead of recording an empty check.
 
 ## What can refuse, and what cannot
 
@@ -541,9 +543,9 @@ Four steps, in this order:
    while proving nothing, look harder.
 3. Register it in `CHECKERS`. The driver, verdict algebra, retraction handling,
    and reporting pick it up with no further change.
-4. Add the flags to the `claim` parser in `cli.py` and the branch in
+4. Add the flags to `_add_check_flags()` in `cli.py` and the branch in
    `_build_check()`. `--check-json` works without this step, so the CLI flags
-   are ergonomics rather than a gate.
+   are ergonomics rather than a gate. `require` shares those flags with `claim`.
 
 Then update `SPEC.md` with the normative semantics and a named test beside each
 MUST, and add the test in `tests/test_checks.py`. A check type that is not in
