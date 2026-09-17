@@ -1,0 +1,1 @@
+{"session": "codex-jev-live-20260917", "ts": "2026-09-17T11:04:34", "claim": "Public write-up records the measured pilot, original mismatch and advisory limits", "severity": "RED", "check": {"type": "file_contains", "path": "docs/check-proof.md", "pattern": "authored examples"}, "prev": "acdf62180636b7689585f10b357258f00899e5b7b4945cb33e88e311ea96e0a7"}
