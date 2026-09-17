@@ -7,9 +7,9 @@ Check what an AI agent says it completed.
 [![Python versions](https://img.shields.io/pypi/pyversions/showwork)](https://pypi.org/project/showwork/)
 [![License: MIT](https://img.shields.io/github/license/bmdhodl/showwork)](LICENSE)
 
-showwork records an agent's claims, runs deterministic checks, and refuses a
-clean outcome close when declared acceptance checks fail. Each session keeps
-its own append-only, hash-chained receipt.
+showwork records an agent's claims and runs deterministic checks. Its exit gate
+refuses a clean outcome close when declared acceptance checks fail.
+Each session keeps its own append-only, hash-chained receipt.
 
 Python 3.10 or newer. No runtime dependencies. MIT licensed.
 
