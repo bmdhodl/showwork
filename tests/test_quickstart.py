@@ -51,12 +51,51 @@ def test_readme_quickstart_names_the_refusal_commands():
     assert "python -m showwork" in README
 
 
+def test_readme_require_uses_flags_before_claim():
+    require_at = README.find("showwork require --session first-look")
+    claim_at = README.find("showwork claim --session first-look")
+    assert 0 <= require_at < claim_at
+    line = README[require_at:README.find("\n", require_at)]
+    assert "{" not in line
+    assert "--type file_exists --path config/api.yaml" in line
+
+
+def test_cursor_walk_requires_before_first_claim():
+    walk = (ROOT / "docs" / "walks" / "cursor.md").read_text(encoding="utf-8")
+    require_at = walk.find("python -m showwork require")
+    claim_at = walk.find("python -m showwork claim")
+    assert 0 <= require_at < claim_at
+    line = walk[require_at:walk.find("\n", require_at)]
+    assert "{" not in line
+    assert "--type file_exists" in line
+
+
+def test_agent_prompt_requires_before_claim():
+    prompt = (ROOT / "docs" / "examples" / "agent-prompt.md").read_text(encoding="utf-8")
+    require_at = prompt.find("showwork require --session")
+    claim_at = prompt.find("showwork claim --session")
+    assert 0 <= require_at < claim_at
+    line = next(ln for ln in prompt.splitlines() if "showwork require --session" in ln)
+    assert "{" not in line
+
+
+def test_cursor_rule_require_uses_flags():
+    rule = (ROOT / "src" / "showwork" / "templates" / "cursor-rule.mdc").read_text(
+        encoding="utf-8")
+    require_at = rule.find("showwork require --session")
+    claim_at = rule.find("showwork claim --session")
+    assert 0 <= require_at < claim_at
+    line = next(ln for ln in rule.splitlines() if "showwork require --session" in ln)
+    assert "{" not in line
+    assert "--type command" in line
+
+
 def test_quickstart_refuses_false_done_in_empty_directory(tmp_path):
     start = _run(tmp_path, ["start", "--session", "first-look", "--agent", "cursor"])
     assert start.returncode == 0, start.stderr
     requirement = _run(tmp_path, ["require", "--session", "first-look", "--id", "config",
-        "--description", "config/api.yaml exists", "--scope", "artifact", "--check-json",
-        '{"type":"file_exists","path":"config/api.yaml"}'])
+        "--description", "config/api.yaml exists", "--scope", "artifact",
+        "--type", "file_exists", "--path", "config/api.yaml"])
     assert requirement.returncode == 0, requirement.stderr
     claim = _run(tmp_path, [
         "claim", "--session", "first-look",

@@ -2,6 +2,15 @@
 
 All notable changes to showwork are recorded here.
 
+## 0.6.3 - 2026-09-17
+
+- `require` accepts the same check flags as `claim` (`--type`, `--path`,
+  `--command-arg`, and the rest of the check surface). `--check-json` stays
+  optional for scripts that already pass a check object.
+- Shipped examples declare that check before the first claim. The Cursor walk
+  no longer claims first. After 0.6.0 that order rejected `require` and left
+  `finish` refused.
+
 ## 0.6.2 - 2026-09-14
 
 - Allow runners to set `SHOWWORK_COMMAND_TIMEOUT_SECONDS` from 1 through 3600

@@ -1,6 +1,15 @@
 # showwork build plan
 
-## v0.4.0 stranger onboarding — 2026-09-03  [status: in tree, unreleased]
+## v0.6.3 require flags — 2026-09-17  [status: in tree, owner-gated publish]
+
+- [x] `require` uses the same check flags as `claim`
+- [x] `--check-json` stays optional
+- [x] README, Cursor walk, agent prompt, and Cursor rule declare require before claim
+- [x] Advertised require lines have no JSON braces (PowerShell-safe)
+- [ ] Owner: publish 0.6.3, tag `v0.6.3`, GitHub release
+- [ ] Owner: post LinkedIn / X from `docs/reports/release-0.6.3/`
+
+## v0.4.0 stranger onboarding — 2026-09-03  [status: released]
 
 - [x] README quickstart refuses in an empty directory, then recovers
 - [x] `python -m showwork` (`__main__.py`)
@@ -8,9 +17,7 @@
 - [x] `showwork init` for Cursor, Claude Stop hook, docs/ci draft
 - [x] pytest plugin, opt-in `--showwork-session`
 - [x] `docs/walks/cursor.md`, `docs/ci/verify.yml`, launch drafts
-- [ ] Owner: publish 0.4.0, tag, GitHub release
-- [ ] Owner: post issue #64 reply
-- [ ] Owner: Show HN after PyPI serves 0.4.0
+- [x] Owner: publish 0.4.0, tag, GitHub release
 
 ## BMD supervisor overlay — 2026-09-03  [status: in tree]
 
@@ -23,58 +30,9 @@
 
 ## v0.2 five phases — DONE (2026-07-16)
 
-See git history / CHANGELOG 0.2.0. Provable → enforced → ubiquitous → FDR →
-compliance evidence packs all closed through the exit gate.
+See git history / CHANGELOG 0.2.0.
 
-## PR #65 follow-up — CI + review  [status: in tree]
+## Exit criteria (0.6.3)
 
-- [x] Restore SPEC Integrity chain heading (`spec-v0.2`) so session
-      `v02-phase-1` still verifies
-- [x] Clean-room tamper path uses `.showwork/sessions/<id>.jsonl`
-- [x] Clean-room fork-safe claim uses locked `python scripts/ok.py`
-- [x] Blocked finish stamps `claims_verdict` (Copilot review)
-- [x] Stop-hook docstring matches `session_unbound` behavior (Copilot review)
-- [x] Session stems stay injective after rewrite (Codex P1)
-- [x] `run --gate` refuses empty/prose-only success (Codex P1)
-- [x] `status` reopens after a later `session.start` (Codex P2)
-- [x] Hash stems from the untrimmed session id (Codex P1 round 2)
-- [x] Claim-time shape for every checker type (Codex P1 round 2)
-- [x] FDR script inserts `src/` (Codex P2 round 2)
-- [x] Status uses the latest close attempt (Codex P2 round 2)
-- [x] Keep `lossy = cleaned != raw` as a one-line assignment (CI verify)
-- [x] `record_claim` treats `check={}` as invalid, not prose (Codex P2 PR 66)
-- [x] Hashed session stems use `h-` so they stay outside the exact namespace (Codex P2 PR 66)
-- [x] Split session files merge by first-record timestamp; keep append order in each file (Codex P1 PR 66)
-- [x] Writers reuse a leftover session file; current write-path stream is last (Codex P1 PR 66)
-- [x] Refuse a current stem file owned by another session; keep leftover sessions.jsonl first (Codex P2 PR 66)
-
-## v0.4.0 writer isolation — per-session files  [status: in tree, unreleased]
-
-- [x] New writes: `.showwork/sessions/<id>.jsonl` and `.showwork/claims/<id>.jsonl`
-- [x] Readers still load leftover `sessions.jsonl` and `claims-YYYY-MM-DD.jsonl`
-- [x] Linked worktrees write receipts in that worktree
-- [x] SPEC.md → `spec-v0.3`; package version 0.4.0 (publish is owner-gated)
-
-## v0.3.x operator cut — ergonomics + continuous metrics
-
-Goal: cut agent claim misuse and make FDR/usage visible in the CLI. Defer new
-check types and external adapters until agents stop failing on shipped checks.
-
-- [x] Claim-time shape validation + clearer command-lock remediation
-      (`validate_check_shape`, prefer `stdout_contains=passed`)
-- [x] Finish refuses empty / prose-only sessions; refused events stamp
-      `claims_unverified` + `refuse_reason`
-- [x] `showwork status` / `showwork report` (FDR + usage; `--exclude-campaign`)
-- [x] Stop hook binds `SHOWWORK_SESSION`; stamps `session_unbound` otherwise
-- [x] Docs: AGENTS.md, claude-code.md, agent-prompt, SPEC, ARCHITECTURE 0.3.1
-
-### Explicit non-goals (this cut)
-
-- New checkers, point-in-time verify, detached signing
-- Cursor / OpenAI Agents adapters (trigger: ≥3 external repos)
-- Full claims dashboard UI (report --json is enough for now)
-
-## Exit criteria
-
-- [x] Full suite green (287 tests)
-- [x] Session `improve-ergonomics-metrics-20260828` closed GREEN through the gate
+- [x] Full suite green
+- [x] Session `cursor-require-flags-063` closed GREEN through the gate

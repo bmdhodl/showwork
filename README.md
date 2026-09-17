@@ -10,6 +10,8 @@ Check what an AI agent says it completed.
 showwork records an agent's claims and runs deterministic checks. Its exit gate
 refuses a clean outcome close when declared acceptance checks fail.
 Each session keeps its own append-only, hash-chained receipt.
+Version 0.6.3 gives `require` the same check flags as `claim`. Declare that
+check before the first claim.
 
 Python 3.10 or newer. No runtime dependencies. MIT licensed.
 
@@ -36,7 +38,7 @@ is not on PATH. The commands below use Bash quoting.
 
 ```bash
 showwork start --session first-look --agent cursor
-showwork require --session first-look --id config --scope artifact --description 'config/api.yaml exists' --check-json '{"type":"file_exists","path":"config/api.yaml"}'
+showwork require --session first-look --id config --scope artifact --description 'config/api.yaml exists' --type file_exists --path config/api.yaml
 showwork claim --session first-look --claim "config/api.yaml exists" --type file_exists --path config/api.yaml
 showwork finish --session first-look --status ok
 ```

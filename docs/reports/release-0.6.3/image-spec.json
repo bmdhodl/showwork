@@ -1,0 +1,14 @@
+{
+  "template": "steps",
+  "size": "wide",
+  "kicker": "SHOWWORK 0.6.3 / SAME FLAGS AS CLAIM",
+  "title": "Declare the check before the first claim.",
+  "footer": "Same session order. No JSON blob. No model call.",
+  "source": "github.com/bmdhodl/showwork",
+  "left_verdict": "REFUSED",
+  "right_verdict": "VERIFIED",
+  "steps": [
+    {"label": "0.6.2 Cursor walk", "sub": "require after claims is rejected", "note": "REFUSED"},
+    {"label": "0.6.3", "sub": "require --type file_exists --path config/api.yaml", "note": "VERIFIED", "accent": true}
+  ]
+}

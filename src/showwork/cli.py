@@ -1,6 +1,8 @@
 """showwork CLI: record falsifiable claims, verify them, gate session exits.
 
     showwork start  --session S [--agent A] [--note N]
+    showwork require --session S --id ID --scope artifact|behavior --description TEXT
+                     --type file_exists --path F
     showwork claim  --session S --claim TEXT --type file_contains --path F --pattern P
     showwork retract --session S --claim TEXT --reason R
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
@@ -130,6 +132,30 @@ def _req(args: argparse.Namespace, name: str):
     return val
 
 
+def _add_check_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--check-json")
+    parser.add_argument("--type", choices=CHECK_TYPES)
+    parser.add_argument("--path")
+    parser.add_argument("--pattern")
+    parser.add_argument("--absent", action="store_true")
+    parser.add_argument("--from-path", dest="from_path")
+    parser.add_argument("--to-path", dest="to_path")
+    parser.add_argument("--field")
+    parser.add_argument("--equals")
+    parser.add_argument("--op", choices=["==", ">=", "<=", ">", "<"])
+    parser.add_argument("--n", type=int)
+    parser.add_argument("--command-arg", dest="command_arg", action="append",
+                       help="repeat per argv token, e.g. --command-arg python --command-arg scripts/check.py")
+    parser.add_argument("--expect-exit", dest="expect_exit", type=int)
+    parser.add_argument("--stdout-contains", dest="stdout_contains")
+    parser.add_argument("--url")
+    parser.add_argument("--expect-status", dest="expect_status", type=int)
+    parser.add_argument("--body-contains", dest="body_contains")
+    parser.add_argument("--clean", action="store_true")
+    parser.add_argument("--branch")
+    parser.add_argument("--commit")
+
+
 def _audit_report_path(ledger: Path, label: str) -> Path:
     """Build audit-<label>.md as a single path segment under the ledger dir.
 
@@ -241,34 +267,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--claim", required=True)
     p.add_argument("--severity", default="RED", choices=["RED", "YELLOW"])
     p.add_argument("--artifact")
-    p.add_argument("--check-json")
-    p.add_argument("--type", choices=CHECK_TYPES)
-    p.add_argument("--path")
-    p.add_argument("--pattern")
-    p.add_argument("--absent", action="store_true")
-    p.add_argument("--from-path", dest="from_path")
-    p.add_argument("--to-path", dest="to_path")
-    p.add_argument("--field")
-    p.add_argument("--equals")
-    p.add_argument("--op", choices=["==", ">=", "<=", ">", "<"])
-    p.add_argument("--n", type=int)
-    p.add_argument("--command-arg", dest="command_arg", action="append",
-                   help="repeat per argv token, e.g. --command-arg python --command-arg scripts/check.py")
-    p.add_argument("--expect-exit", dest="expect_exit", type=int)
-    p.add_argument("--stdout-contains", dest="stdout_contains")
-    p.add_argument("--url")
-    p.add_argument("--expect-status", dest="expect_status", type=int)
-    p.add_argument("--body-contains", dest="body_contains")
-    p.add_argument("--clean", action="store_true")
-    p.add_argument("--branch")
-    p.add_argument("--commit")
+    _add_check_flags(p)
 
     p = sub.add_parser("require", help="declare an acceptance check before completion claims")
     p.add_argument("--session", required=True)
     p.add_argument("--id", required=True)
     p.add_argument("--description", required=True)
     p.add_argument("--scope", choices=["artifact", "behavior"], required=True)
-    p.add_argument("--check-json", required=True)
+    _add_check_flags(p)
 
     p = sub.add_parser("gate", help="require a complete outcome receipt and rerun its checks")
     selection = p.add_mutually_exclusive_group(required=True)
@@ -403,9 +409,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "require":
         from .outcomes import record_requirement
+        check = _build_check(args)
+        if check is None:
+            raise SystemExit("require needs --type or --check-json")
         try:
             record_requirement(root, args.session, args.id, args.description,
-                               args.scope, json.loads(args.check_json))
+                               args.scope, check)
         except (ValueError, TypeError) as exc:
             print(f"requirement rejected: {exc}", file=sys.stderr)
             return 2
