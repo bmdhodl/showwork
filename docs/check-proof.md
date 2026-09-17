@@ -80,9 +80,10 @@ python examples/check_proof.py --input examples/check_proof_input.json
 ```
 
 The example uses the standard library. It reads only the selected file, refuses
-redirects, caps input at 32 KiB, and makes one request with a ten-second timeout.
+redirects, caps input at 32 KiB, and makes one request with a ten-second total deadline.
 `--endpoint http://127.0.0.1:3000/api/showwork/check-proof` selects a local server.
-Non-local endpoints require HTTPS. Nothing scans your repository or appends
+Loopback requests bypass configured proxies. Non-local endpoints require HTTPS.
+Nothing scans your repository or appends
 to `.showwork/`. No TypeSafe credential belongs in this public client.
 
 Exit `0` means an advisory response was obtained, **not** that the work passed.

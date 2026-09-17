@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
@@ -22,7 +23,12 @@ def result():
             "usage": {"input_tokens": 100, "output_tokens": 10}, "latency_ms": 100}
 
 
-def test_only_explicit_input_is_sent_to_real_loopback_http(tmp_path, capsys):
+def test_only_explicit_input_is_sent_to_real_loopback_http(tmp_path, capsys, monkeypatch):
+    # REGRESSION: a configured proxy must never receive a loopback submission.
+    monkeypatch.setenv("http_proxy", "http://127.0.0.1:1")
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+    monkeypatch.setenv("NO_PROXY", "")
+    monkeypatch.setenv("no_proxy", "")
     submitted = []
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -84,13 +90,62 @@ def test_network_error_is_redacted_and_not_retried(monkeypatch, tmp_path, capsys
             calls.append(timeout)
             raise HTTPError(request.full_url, 503, "PRIVATE_BODY", {}, io.BytesIO(b"PRIVATE_BODY"))
     monkeypatch.setattr(client, "build_opener", lambda *_: Opener())
-    assert client.main(["--input", str(ROOT / "examples/check_proof_input.json")]) == 2
+    with pytest.raises(ValueError, match="HTTP 503") as error:
+        client._submit_once(client.load_input(ROOT / "examples/check_proof_input.json"), client.DEFAULT_ENDPOINT)
     assert calls == [10]
-    assert "PRIVATE_BODY" not in capsys.readouterr().err
+    assert "PRIVATE_BODY" not in str(error.value)
 
 
 def test_redirects_are_not_followed():
     assert client.NoRedirect().redirect_request(None, None, 307, "redirect", {}, "https://other.example") is None
+
+
+@pytest.mark.parametrize("mode", ["trickle", "bad_chunk"])
+def test_failed_http_exchange_is_bounded_and_redacted(mode, monkeypatch, capsys):
+    # REGRESSION: trickling bodies reset socket timeouts; invalid chunks escaped
+    # as IncompleteRead tracebacks instead of the documented redacted exit 2.
+    received = threading.Event()
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            received.set()
+            self.send_response(200)
+            self.send_header("Transfer-Encoding" if mode == "bad_chunk" else "Content-Length",
+                             "chunked" if mode == "bad_chunk" else "65536")
+            self.end_headers()
+            try:
+                if mode == "bad_chunk":
+                    self.wfile.write(b"PRIVATE_INVALID_CHUNK\r\n")
+                    self.wfile.flush()
+                else:
+                    for _ in range(100):
+                        self.wfile.write(b"x")
+                        self.wfile.flush()
+                        time.sleep(0.05)
+            except OSError:
+                pass
+            self.close_connection = True
+        def log_message(self, *_args):
+            pass
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    monkeypatch.setattr(client, "TIMEOUT_SECONDS", 1)
+    started = time.monotonic()
+    try:
+        assert client.main(["--input", str(ROOT / "examples/check_proof_input.json"),
+                            "--endpoint", f"http://127.0.0.1:{server.server_port}/proof"]) == 2
+        assert time.monotonic() - started < 3
+        assert received.is_set()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+    output = capsys.readouterr()
+    assert not output.out
+    assert "Endpoint" in output.err
+    assert "PRIVATE" not in output.err
+    assert "Traceback" not in output.err
 
 
 def test_nested_provider_extras_are_not_echoed():

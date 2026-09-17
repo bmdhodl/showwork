@@ -8,14 +8,17 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import subprocess
 import sys
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 DEFAULT_ENDPOINT = "https://bmdpat.com/api/showwork/check-proof"
 MAX_BYTES = 32 * 1024
+TIMEOUT_SECONDS = 10
 FIELDS = {"requested_outcome", "claim", "check", "evidence"}
 VERDICTS = {"appears_supported", "scope_gap", "contradicted", "insufficient_context"}
 
@@ -29,6 +32,10 @@ def load_input(path: Path) -> dict:
     """Read only the path the caller explicitly selected, with a byte bound."""
     with path.open("rb") as stream:
         raw = stream.read(MAX_BYTES + 1)
+    return parse_input(raw)
+
+
+def parse_input(raw: bytes) -> dict:
     if len(raw) > MAX_BYTES:
         raise ValueError("Input must be at most 32 KiB.")
     value = json.loads(raw.decode("utf-8"))
@@ -72,7 +79,7 @@ def validate_result(value: object) -> dict:
     return clean
 
 
-def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
+def _submit_once(value: dict, endpoint: str) -> dict:
     target = urlsplit(endpoint)
     if target.username or target.password or target.fragment:
         raise ValueError("Endpoint must not contain credentials or a fragment.")
@@ -83,7 +90,10 @@ def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
         raise ValueError("Encoded request exceeds 32 KiB.")
     request = Request(endpoint, data=body, headers={"Content-Type": "application/json", "User-Agent": "showwork-check-proof-example/1"}, method="POST")
     try:
-        with build_opener(NoRedirect()).open(request, timeout=10) as response:
+        handlers = [NoRedirect()]
+        if target.hostname in {"localhost", "127.0.0.1", "::1"}:
+            handlers.append(ProxyHandler({}))
+        with build_opener(*handlers).open(request, timeout=TIMEOUT_SECONDS) as response:
             raw = response.read(64 * 1024 + 1)
             if len(raw) > 64 * 1024:
                 raise ValueError("Endpoint response is too large.")
@@ -91,8 +101,30 @@ def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
     except HTTPError as error:
         error.close()
         raise ValueError(f"Endpoint returned HTTP {error.code}; no assessment was obtained.") from None
-    except (URLError, TimeoutError):
+    except (URLError, TimeoutError, HTTPException):
         raise ValueError("Endpoint was unreachable or timed out; no assessment was obtained.") from None
+
+
+def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
+    """Bound the entire exchange, including DNS and trickling response bodies.
+
+    A disposable stdlib worker makes the one HTTP request. communicate's timeout
+    kills and reaps it, so no network thread can outlive a failed assessment.
+    Text travels through stdin, never command-line arguments or a scratch file.
+    """
+    body = json.dumps(value, ensure_ascii=False).encode("utf-8")
+    if len(body) > MAX_BYTES:
+        raise ValueError("Encoded request exceeds 32 KiB.")
+    try:
+        worker = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), "--transport-worker", endpoint],
+            input=body, capture_output=True, timeout=TIMEOUT_SECONDS, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise ValueError("Endpoint timed out; no assessment was obtained.") from None
+    if worker.returncode:
+        raise ValueError("Endpoint was unavailable or returned an invalid assessment.")
+    return validate_result(json.loads(worker.stdout))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -114,4 +146,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if len(sys.argv) == 3 and sys.argv[1] == "--transport-worker":
+        try:
+            selected = parse_input(sys.stdin.buffer.read(MAX_BYTES + 1))
+            print(json.dumps(_submit_once(selected, sys.argv[2])))
+        except (OSError, ValueError, UnicodeError, HTTPException):
+            raise SystemExit(2) from None
+    else:
+        raise SystemExit(main())
