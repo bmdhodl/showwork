@@ -1,55 +1,34 @@
 # showwork
 
-[![CI](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml/badge.svg)](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/showwork.svg)](https://pypi.org/project/showwork/)
+Check what an AI agent says it completed.
 
-**Make your AI agents show their work.**
+[![CI](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bmdhodl/showwork/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/showwork)](https://pypi.org/project/showwork/)
+[![Python versions](https://img.shields.io/pypi/pyversions/showwork)](https://pypi.org/project/showwork/)
+[![License: MIT](https://img.shields.io/github/license/bmdhodl/showwork)](LICENSE)
 
-showwork runs the checks an agent supplies and keeps an append-only receipt.
-Version 0.6.0 separates file observations from declared behavior tests. A clean
-outcome close requires passing acceptance checks, and CI checks that the full
-receipt was committed.
+showwork records an agent's claims, runs deterministic checks, and refuses a
+clean outcome close when declared acceptance checks fail. Each session keeps
+its own append-only, hash-chained receipt.
 
-**A passing check only proves what it tests.** showwork cannot judge whether a
-requirement covers the request or a test matches its description. GolfFly exposed
-that gap in our own use. [Read the incident and fix](docs/evidence-scope.md).
+Python 3.10 or newer. No runtime dependencies. MIT licensed.
 
-Zero dependencies. Stdlib only. One append-only ledger.
-
-[Read the portable `spec-v0.5` ledger specification](SPEC.md). Install the
-[Claude Code Stop-hook adapter](docs/claude-code.md) or run
-`showwork init` for Cursor, Claude, and a CI draft.
-
-Surveyed 2026-09-03: 0 GitHub stars, 1 fork, 448 lifetime PyPI downloads.
-Day-0 False Done Rate, measured by showwork on the author's own fleet,
-21 sessions, 2026-07, not independently measured: 42.9% contained a false
-done. These are historical results from the selected corpus, not a general detection rate. Source:
-[docs/false-done-rate-day0.md](docs/false-done-rate-day0.md).
-
-## The problem
-
-An agent reports "done: I updated the config, logged the decision, and moved the task file." Two of those three things never happened. Your logs show the agent ran. Your traces show what tools it called. Nothing checks whether the *outcome it asserted* is true.
-
-That gap is why agent pilots die before production, and it's what audit-trail requirements (EU AI Act, HIPAA, SOC 2) actually ask for: not "what did the agent do," but "prove the record is faithful."
-
-## The model
-
-1. **Claims are falsifiable or they're just prose.** When an agent (or its harness) reports a completed change, it appends a structured claim to the ledger: a file changed, a path moved, a metric holds, a command passes. Free-form prose is recorded but never counted as proof.
-2. **Verification is deterministic.** `showwork verify` re-checks every claim against the filesystem and locked commands. No LLM judges an LLM.
-3. **The exit gate requires declared acceptance checks.** `showwork finish --status ok` verifies the session's own claims first. Missing requirements, failed checks, and disabled checks refuse the close (exit 2). Fix the behavior or close as `blocked`. The bypass is stamped on the record either way.
-4. **The ledger is append-only.** Corrections are retraction records that reference the original claim. History is never rewritten.
-5. **Undeclared damage is not GREEN.** `session.start` snapshots the project tree. `verify` and `finish` go RED if a file that existed at start is deleted or changed and no active claim named that path. That is issue #64.
+**A passing check only proves what it tests.** Showwork cannot judge whether
+a requirement covers your request or a test matches its description.
+Read the [evidence-scope incident](docs/evidence-scope.md) for an example of
+that limit in our own use.
 
 ## Quickstart
 
-Paste this into an empty directory. The first close is supposed to fail.
-The refusal is the product.
+Use a new empty directory. The first close deliberately fails because the
+claimed file does not exist.
 
 ```bash
-pip install showwork
+python -m pip install showwork
 ```
 
-`python -m showwork` is the same CLI after install. Use it if `showwork` is not on PATH.
+`python -m showwork` is the same CLI after install. Use it if `showwork`
+is not on PATH. The commands below use Bash quoting.
 
 ```bash
 showwork start --session first-look --agent cursor
@@ -58,12 +37,10 @@ showwork claim --session first-look --claim "config/api.yaml exists" --type file
 showwork finish --session first-look --status ok
 ```
 
-```
-claims: RED (0/1 verified)
-REFUSED: a clean close requires this session's claims to verify.
-```
+Expected: exit code `2`, a `RED` claims verdict, and a `REFUSED` message.
+The failed close is part of this example.
 
-Then make the claim true and close clean:
+Create the file, retract the premature claim, and record a new one:
 
 ```bash
 python -c "from pathlib import Path; p=Path('config'); p.mkdir(exist_ok=True); (p/'api.yaml').write_text('timeout: 30\n')"
@@ -72,225 +49,125 @@ showwork claim --session first-look --claim "config/api.yaml exists" --type file
 showwork finish --session first-look --status ok
 ```
 
-```
-Outcome: VERIFIED. Declared acceptance checks passed.
-Scope: 0 behavior checks, 1 artifact check. Undeclared requirements: unknown.
-session.finish recorded: first-look
+Expected: exit code `0` and `Outcome: VERIFIED`.
+This proves one artifact requirement. It proves no application behavior.
+
+Inspect the session:
+
+```bash
+showwork verify --session first-look --json
+showwork audit
 ```
 
-Put the same loop on your own repo in one command:
+For a shell-independent example, see the
+[Python quickstart](docs/quickstart-python.md).
+
+## How it works
+
+```mermaid
+flowchart TD
+    accTitle: showwork outcome checks
+    accDescr: Failed checks refuse a clean close and return to the work.
+    A[Start a session] --> B[Declare acceptance checks]
+    B --> C[Do the work and record claims]
+    C --> D{Run checks}
+    D -->|Pass| E[Record verified outcome]
+    D -->|Fail| F[Refuse clean close]
+    F --> C
+```
+
+Text equivalent: start, declare what must pass, do the work, record claims,
+and run the checks. Failed checks refuse a clean close. Fix the work or
+close as blocked; corrections append new records.
+
+- **Artifact checks** observe files, paths, or other declared state.
+- **Behavior checks** run declared test commands.
+- **Session snapshots** detect changed or deleted files that active claims
+  do not name, within the snapshot's scope.
+- **Receipt checks** verify the chain and, when required, that Git tracks
+  the session's evidence.
+
+Distinct session slugs write distinct files under `.showwork/sessions/` and
+`.showwork/claims/`. Reusing one slug requires one writer.
+See [concurrency](docs/concurrency.md) and the
+[`spec-v0.5` ledger specification](SPEC.md).
+
+## Add it to a repository
 
 ```bash
 showwork init
 ```
 
-That writes a Cursor rule, a Claude Code Stop hook, and `docs/ci/showwork-verify.yml`.
-Copy the YAML into `.github/workflows/` when you are ready to gate CI.
-A Cursor walk is in [docs/walks/cursor.md](docs/walks/cursor.md).
+Review the generated Cursor rule, Claude Code Stop hook, and CI draft at
+`docs/ci/showwork-verify.yml`. Copy the CI draft into `.github/workflows/`
+when ready. The Stop hook observes results; the explicit finish or CI gate
+enforces a close.
 
-Audit any day or any session after the fact:
-
-```bash
-showwork verify --date 2026-07-09
-showwork verify --session first-look --json
-```
+[Cursor walkthrough](docs/walks/cursor.md) ·
+[Claude Code adapter](docs/claude-code.md) ·
+[CI setup](docs/ci.md)
 
 ## Check types
 
-| type | asserts |
-|---|---|
-| `file_exists` | a file is present |
-| `file_contains` | a regex matches (or is absent from) a file |
-| `path_moved` | source is gone, destination exists |
-| `frontmatter` | a YAML frontmatter field equals a value |
-| `glob_count` | a glob's match count satisfies `== >= <= > <` |
-| `command` | a **locked** command exits as expected (`python <script under project root>` only; no shell, no metacharacters, no escape) |
-| `http_probe` | an HTTP(S) endpoint returns an exact status and optional body substring, with redirects disabled |
-| `git_state` | the local tree is clean/dirty, on an exact branch, or at a commit prefix |
+| Type | What it checks |
+| --- | --- |
+| `file_exists` | A file exists |
+| `file_contains` | A file matches, or does not match, a regular expression |
+| `path_moved` | The source is gone and the destination exists |
+| `frontmatter` | A frontmatter field has the expected value |
+| `glob_count` | A path count meets the declared comparison |
+| `command` | An allowed Python script exits as expected |
+| `http_probe` | An HTTP response has the expected status and optional text |
+| `git_state` | The local Git state matches declared conditions |
 
-Vacuous checks are rejected, not blessed: a regex that matches the empty string, or a glob count that's always true (`>= 0`), returns an error instead of a pass. A checker that lets an agent record a bogus "done" is worse than no checker.
+Use `showwork <command> --help` for your installed CLI.
+The [specification](SPEC.md) defines check shapes and records;
+[CI documentation](docs/ci.md) explains command and network permissions.
 
-`http_probe` uses a fixed timeout and response-size cap. Network checks are
-disabled by default in the GitHub Action for fork safety; enable them only for
-trusted same-repository workflows with `allow-network: true`.
+## Limits and trust
 
-`git_state` runs fixed, non-shell Git queries against the declared project root.
-It accepts at least one of `clean`, `branch`, or a seven-plus-character commit
-prefix, so an empty check cannot pass as proof.
+- Showwork verifies declared checks, not whether the work satisfies every
+  part of the user's request. Requirements and tests still need review.
+- A passing command can contain a weak test. A text match cannot prove
+  application behavior.
+- Hash chains detect changes relative to retained history or a trusted
+  head hash. They do not prevent an attacker from replacing an entire
+  unanchored ledger.
+- Command restrictions are not a sandbox. Run untrusted code only in an
+  appropriate isolated environment. Network checks are off by default
+  in the GitHub Action.
+- Receipts can contain paths and application data. Review them before
+  publishing.
+- Historical measurements describe their selected corpus. They are not
+  a general detection rate or a compliance certification.
 
-Command checks default to 120 seconds. For a larger suite, set
-`SHOWWORK_COMMAND_TIMEOUT_SECONDS=300` in the runner environment. Values must be
-whole seconds from 1 through 3600; invalid values refuse execution. The receipt
-records the chosen limit. A timeout remains an error and never proves success.
-This changes the execution budget, not the declared tests or their assertions.
+See [evidence scope](docs/evidence-scope.md),
+[legacy ledger migration](docs/legacy-baseline.md), and the
+[dated case study](docs/case-study.md).
 
-## Tamper-evident by construction (v0.2)
+## Documentation and help
 
-Every appended record carries the SHA-256 of the record before it, so
-"append-only" is provable, not promised:
+| You want to | Start here |
+| --- | --- |
+| Find guides and references | [Documentation index](docs/README.md) |
+| Run a quickstart on Windows or another shell | [Python quickstart](docs/quickstart-python.md) |
+| Gate CI on committed receipts | [CI guide](docs/ci.md) |
+| Wrap an agent command | [Adapters](docs/adapters.md) |
+| Read or implement the ledger format | [Specification](SPEC.md) |
+| Review measured results | [Case study](docs/case-study.md) and [measurement method](docs/false-done-rate.md) |
+| Navigate with an AI assistant | [AI documentation index](llms.txt) |
+| Contribute | [Contributing](CONTRIBUTING.md) |
+| Inspect releases | [Changelog](CHANGELOG.md) |
 
-```bash
-showwork audit
-# showwork audit  =>  GREEN  (34/34 records chained)
-#   OK  claims-2026-07-16.jsonl  head ad93b1103b7bfc04
-```
+Every pull request carries the committed `.showwork/` receipt for the session
+that produced it. A pull request without one is not reviewed.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the receipt gate.
 
-Alter, delete, or reorder one byte of chained history and the audit goes RED
-at the exact line. Publishing a file's *head hash* anywhere out-of-band (a
-commit message, a post) anchors the entire history behind it. Spec:
-[SPEC.md](SPEC.md) Â§ Integrity chain. A zero-dependency Node auditor
-([js/showwork-audit](js/showwork-audit/)) is held to the same frozen
-conformance fixtures as the Python reference.
+Maintained by [Patrick Hughes](https://github.com/bmdhodl).
+[Report a bug](https://github.com/bmdhodl/showwork/issues) with the version,
+a minimal reproduction, and the expected result. Report vulnerabilities
+privately using the [contribution guide](CONTRIBUTING.md#security).
 
-**Concurrent sessions do not share a file.** Two agents with distinct session
-slugs (`cursor-fix-nav`, `codex-fix-nav`) write `.showwork/sessions/<id>.jsonl`
-and `.showwork/claims/<id>.jsonl`. Git then merges two paths, not one hash
-chain. Worktree checkouts keep receipts in that worktree so the branch carries
-them. Reuse of one slug is still one writer; `merge=union` remains only for
-leftover shared files. The audit still accepts a fork inside one file as GREEN
-and goes RED on modification, deletion, or reorder. Repos that forbid
-concurrency can pass `showwork audit --strict`. Rationale:
-[docs/concurrency.md](docs/concurrency.md).
-
-## Gate your CI on receipts
-
-```yaml
-- uses: bmdhodl/showwork/actions/verify@v0.6.1
-  with:
-    session: my-agent-session
-    require-tracked: true
-    allow-commands: true # Trusted repository branches only
-```
-
-Fails on broken chains, unmet acceptance checks, missing claim definitions,
-uncommitted receipts, missing outcome closes, and bypass or checks-only closes.
-For PRs, use `changed-since` to select every changed receipt.
-Fork-safe by default ([docs/ci.md](docs/ci.md)).
-
-Version 0.6.1 adds an explicit adoption option for repositories with damaged
-shared legacy ledgers. A full Git commit ID pins those files unchanged. Their
-audit remains RED; current session receipts and new corruption cannot qualify
-for that exception. [Read the migration limits](docs/legacy-baseline.md).
-
-## Wrap any agent, no integration
-
-```bash
-showwork run --session fix-123 --gate -- codex exec "fix the failing test"
-```
-
-Observe mode is exit-transparent; `--gate` exits 2 when the command reports
-success but the receipts are RED ([docs/adapters.md](docs/adapters.md)).
-
-A supervisor UI (BMD desktop) reads the same ledger and never appends:
-
-```bash
-showwork receipts --task-id first --json
-showwork receipts --task-id first --html badges.html
-```
-
-Empty workspace â†’ `unknown`. Prose-only close â†’ `claimed`. Check-backed
-GREEN â†’ `verified`. Copy-paste for the sidecar: [examples/bmd/](examples/bmd/).
-
-Bound an unattended command by wall clock:
-
-```bash
-showwork run --session fix-123 --gate --max-seconds 1800 -- codex exec "fix the failing test"
-```
-
-Keep the one line a claim needs instead of a whole log:
-
-```bash
-showwork run --session fix-123 --keep "Tests .* passed" --keep-as check -- pnpm check
-```
-
-`--keep` writes only the matching lines to
-`.showwork/artifacts/<session>/check.txt`, so the receipt a `file_contains`
-claim cites is one line and not eight hundred. It buffers the command's
-output until the command exits. Anything left in that directory that no
-active claim names warns YELLOW at `verify` and `finish`.
-
-The wrapper terminates the child and records `budget_exceeded` when the time
-envelope trips. Tool-call ceilings remain an integration concern because a
-generic subprocess wrapper cannot see an agent's internal tool stream; use the
-`showwork.RunBudget` API or the live hook adapter for that dimension.
-
-## The False Done Rate
-
-Receipts make a new number measurable: **how often agents claim work that is
-not backed by reality.** Day-0, measured by showwork on the author's own
-production fleet, 2026-07: **21 sessions, 42.9% contained a false done, every
-one caught by the gate.** That is a self-measurement on a self-selected
-sample, not an independent audit. Methodology pre-registered, corpus honesty
-rules included:
-[docs/false-done-rate.md](docs/false-done-rate.md).
-
-## Evidence packs for auditors
-
-`scripts/evidence_pack.py` maps a date range of chain-verified receipts to
-EU AI Act Art. 12/26(6), SOC 2, and HIPAA record-keeping language, and
-refuses to generate from a tampered ledger
-([docs/compliance.md](docs/compliance.md)).
-
-## Python API
-
-```python
-from showwork import record_claim, verify_session, resolve_root, start_session
-from showwork.outcomes import record_requirement
-
-root = resolve_root()
-start_session(root, "nightly")
-record_requirement(root, "nightly", "report", "report file exists", "artifact",
-                   {"type": "file_exists", "path": "reports/2026-07-09.md"})
-record_claim(root, session="nightly", claim="report written",
-             check={"type": "file_exists", "path": "reports/2026-07-09.md"})
-state = verify_session(root=root, session="nightly")
-assert state["verdict"] == "GREEN"
-```
-
-## Provenance
-
-This isn't a spec written on a whiteboard. It's extracted from the verification
-layer that runs a real one-person, AI-operated company. The system began after
-one agent confidently reported three completed actions and two were not real.
-The resulting production ledger now supplies the receipts behind the package.
-
-[Read the sanitized case study and reproduce its aggregate metrics.](docs/case-study.md)
-
-The sanitized snapshot contains 2,158 claims from 842 sessions. Deterministic
-checks back 2,152 claims. The ledger preserves 152 retractions and surfaced one
-malformed line instead of dropping it. Its captured audit was RED at 54/60
-verified, because failed proof remains visible rather than becoming a green
-marketing number.
-
-## Where this sits
-
-The 2026 survey [*Code as Agent Harness*](https://arxiv.org/abs/2605.18747) (Ning et al., UIUC / Meta / Stanford) argues that code has become the runtime medium agents operate inside rather than the artifact they produce, and it names the layer showwork implements. Its Â§3.4.4, "Verification through Deterministic Sensors," states the rule plainly: deterministic sensors are "reproducible enough to serve as control signals," and agentic critics "should interpret sensor outputs rather than replace them." Same commitment as *no LLM judges an LLM*, reached from a literature review instead of from an incident.
-
-Two of the survey's open problems are the ones this package exists for:
-
-- **Â§5.2.1 Harness-Level Evaluation and Oracle Adequacy.** End-task success "conflates the capabilities of the base model, the quality of the harness, the reliability of tools, the informativeness of feedback, and the difficulty of the environment." The [False Done Rate](docs/false-done-rate.md) measures the substrate rather than the model.
-- **Â§5.2.5 Human-in-the-Loop Safety and Accountability as Harness State.** Safety "cannot be delegated to the base model or encoded only as a natural-language instruction." An append-only ledger with a refusing exit gate makes accountability a piece of harness state instead of a sentence in a prompt.
-
-The survey predates this package and does not cite it. It is context for the problem, not an endorsement of the solution.
-
-## What showwork is not
-
-- Not observability. Traces and receipts answer different questions. showwork evaluates explicit checks; author prose is not itself verified.
-- Not agent testing. Test frameworks supply behavioral checks. showwork runs those checks and binds them to declared requirements and a session receipt.
-- Not an LLM judge. Checks are executable predicates. Their quality and coverage still need review; a trivial script can pass without proving useful behavior.
-
-## Roadmap
-
-- More coding-agent adapters (OpenAI Agents SDK / LangGraph middleware)
-- Event stream + point-in-time replay
-- More check types as real outcome gaps emerge
-- False Done Rate at study scale: controlled task sets, per-model corpora
-- Detached signing of ledger heads (external timestamp anchoring)
-
-## Contributing
-
-Every pull request carries the committed `.showwork/` receipt for the session that produced it, and a pull request without one is not reviewed. [Read CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-MIT
+README quickstart commands and documentation links are checked in CI.
+Source metadata defines the branch version; the PyPI badge links to the
+published release. [MIT license](LICENSE).

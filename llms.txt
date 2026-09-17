@@ -1,0 +1,23 @@
+# showwork
+
+> Deterministic checks for declared AI-agent outcomes, with per-session receipts.
+> Install showwork. Python import: showwork. No runtime dependencies.
+
+## Entry points
+
+- [README](https://github.com/bmdhodl/showwork/blob/main/README.md): Installation, failed-close example, and trust limits.
+- [Documentation index](https://github.com/bmdhodl/showwork/blob/main/docs/README.md): Guides by task.
+- [Python quickstart](https://github.com/bmdhodl/showwork/blob/main/docs/quickstart-python.md): Shell-independent example.
+- [Specification](https://github.com/bmdhodl/showwork/blob/main/SPEC.md): Ledger records and check contracts.
+- [CI guide](https://github.com/bmdhodl/showwork/blob/main/docs/ci.md): Committed receipt gates and permissions.
+- [Evidence scope](https://github.com/bmdhodl/showwork/blob/main/docs/evidence-scope.md): What a passing check does and does not establish.
+- [Contributing](https://github.com/bmdhodl/showwork/blob/main/CONTRIBUTING.md): Tests and required receipts.
+- [Agent instructions](https://github.com/bmdhodl/showwork/blob/main/AGENTS.md): Repository contribution rules.
+- [Package metadata](https://github.com/bmdhodl/showwork/blob/main/pyproject.toml): Branch version and Python floor.
+- [Changelog](https://github.com/bmdhodl/showwork/blob/main/CHANGELOG.md): Versioned changes.
+
+## Boundaries
+
+A passing check proves only what it tests. Requirements and test quality need
+review. Hash chaining is tamper evidence, not authentication. Command checks
+are not a sandbox. Each concurrent writer needs a distinct session slug.
