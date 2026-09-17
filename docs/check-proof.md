@@ -1,10 +1,7 @@
 # I tested Jev against weak completion evidence
 
-**Status: the live pilot passed; hosted launch is being verified.**
-The planned page is <https://bmdpat.com/tools/showwork/check-proof> and the
-planned POST endpoint is <https://bmdpat.com/api/showwork/check-proof>.
-Do not describe either as a validated live service until deployment readback
-and the published holdout evaluation pass.
+**Public pilot:** [Check the proof](https://bmdpat.com/tools/showwork/check-proof).
+The POST endpoint is `https://bmdpat.com/api/showwork/check-proof`.
 
 This experiment asks whether supplied evidence supports a completion claim.
 Jev can flag a mismatch for review. It cannot authenticate evidence, execute
@@ -107,5 +104,11 @@ High confidence is not a guarantee. Keep running the
 The public pilot is capped at five requests per IP per hour and 200 total per
 rolling day. The endpoint fails closed if its persistent quota cannot be checked.
 There is no paid tier in this experiment.
+
+The adoption experiment runs for 14 days from publication, within showwork's
+October 13 decision horizon. Consent-aware completed custom checks and walkthrough
+clicks measure interest. Adoption requires an independent user's evidence of
+running showwork on a real project. The target is three such users before any
+expansion. A passing pilot or a page visit is not adoption.
 
 [Try showwork locally](../README.md#quickstart).
