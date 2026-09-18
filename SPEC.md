@@ -119,6 +119,9 @@ All relative paths resolve from the declared project root.
 The check MUST [test: tests/test_checks.py::test_file_exists_pass] pass only
 when `path` is a regular file and MUST [test:
 tests/test_checks.py::test_file_exists_fail] fail when it is missing.
+Unknown keys, including `absent`, MUST [test:
+tests/test_checks.py::test_validate_check_shape_rejects_file_exists_absent]
+be rejected at claim and require time. `absent` belongs to `file_contains`.
 
 ### `file_contains`
 

@@ -6,7 +6,9 @@ chained receipts ledger can do, and `scripts/evidence_pack.py` turns a date
 range of it into an auditor-readable bundle: control ↔ receipt ↔ chain proof.
 
 > **Not legal advice.** The pack is supporting evidence prepared by the
-> operator. It is not a certification and does not by itself establish
+> operator. An intact local hash chain is tamper evidence for these files. It
+> is not authenticated provenance (no independent signer, timestamp, or
+> GitHub/Sigstore attestation) and it does not by itself establish
 > compliance with any framework. Sufficiency is a determination for your
 > auditor or counsel — bring them the pack, not this README.
 
@@ -32,13 +34,16 @@ A sample generated from this repository's own ledger:
    that cannot prove it was not edited is not evidence.
 2. **Activity summary** — sessions, claims, verification-at-export counts,
    exit-gate refusals, bypass stamps.
-3. **Control mapping** — what the ledger demonstrates against:
+3. **Control mapping** — what the ledger can *support* an operator to show,
+   not a claim that the installation is compliant:
    - **EU AI Act** Art. 12 (record-keeping) and Art. 26(6) (deployer log
      retention) — enforcement wave from 2026-08-02;
    - **SOC 2** CC8.1 (change management), CC7.2/7.3 (monitoring, event
      evaluation);
    - **HIPAA Security Rule** 164.312(b) (audit controls), 164.316(b)
      (documentation retention).
+   Mapping a receipt to a control id is not a certification. The chain does
+   not name a signer or an external timestamp.
 4. **Receipt inventory** — every claim in range with its check type and
    whether it verifies at export time.
 

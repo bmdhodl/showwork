@@ -72,18 +72,87 @@ CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
                "glob_count", "command", "http_probe", "git_state"]
 
 
+class CheckSpecError(ValueError):
+    """Invalid check flags or JSON. Callers print this and return exit 2."""
+
+
+FLAG_DEST_TO_CLI = {
+    "path": "--path",
+    "pattern": "--pattern",
+    "absent": "--absent",
+    "from_path": "--from-path",
+    "to_path": "--to-path",
+    "field": "--field",
+    "equals": "--equals",
+    "op": "--op",
+    "n": "--n",
+    "command_arg": "--command-arg",
+    "expect_exit": "--expect-exit",
+    "stdout_contains": "--stdout-contains",
+    "url": "--url",
+    "expect_status": "--expect-status",
+    "body_contains": "--body-contains",
+    "clean": "--clean",
+    "branch": "--branch",
+    "commit": "--commit",
+}
+
+TYPE_FLAG_DESTS = {
+    "file_exists": frozenset({"path"}),
+    "file_contains": frozenset({"path", "pattern", "absent"}),
+    "path_moved": frozenset({"from_path", "to_path"}),
+    "frontmatter": frozenset({"path", "field", "equals"}),
+    "glob_count": frozenset({"pattern", "op", "n"}),
+    "command": frozenset({"command_arg", "expect_exit", "stdout_contains"}),
+    "http_probe": frozenset({"url", "expect_status", "body_contains"}),
+    "git_state": frozenset({"clean", "branch", "commit"}),
+}
+
+
+def _flag_set(args: argparse.Namespace, dest: str) -> bool:
+    val = getattr(args, dest, None)
+    if dest in {"absent", "clean"}:
+        return bool(val)
+    if dest == "command_arg":
+        return bool(val)
+    return val is not None
+
+
+def _set_check_flags(args: argparse.Namespace) -> list[str]:
+    return [FLAG_DEST_TO_CLI[dest] for dest in FLAG_DEST_TO_CLI
+            if _flag_set(args, dest)]
+
+
+def _reject_unusable_flags(args: argparse.Namespace, allowed: frozenset[str],
+                           *, kind: str) -> None:
+    extra = [FLAG_DEST_TO_CLI[dest] for dest in FLAG_DEST_TO_CLI
+             if dest not in allowed and _flag_set(args, dest)]
+    if extra:
+        raise CheckSpecError(f"{kind} does not accept {' '.join(extra)}")
+
+
 def _build_check(args: argparse.Namespace) -> dict | None:
     if args.check_json:
+        extra = _set_check_flags(args)
+        if args.type or extra:
+            bits = (["--type"] if args.type else []) + extra
+            raise CheckSpecError(
+                "--check-json cannot combine with " + " ".join(bits))
         try:
             check = json.loads(args.check_json)
         except json.JSONDecodeError as e:
-            raise SystemExit(f"--check-json is not valid JSON: {e}") from e
+            raise CheckSpecError(f"--check-json is not valid JSON: {e}") from e
         if not isinstance(check, dict):
-            raise SystemExit("--check-json must be a JSON object")
+            raise CheckSpecError("--check-json must be a JSON object")
         return check
     t = args.type
     if not t:
+        extra = _set_check_flags(args)
+        if extra:
+            raise CheckSpecError(
+                f"{' '.join(extra)} needs --type or --check-json")
         return None
+    _reject_unusable_flags(args, TYPE_FLAG_DESTS[t], kind=t)
     if t == "file_exists":
         return {"type": t, "path": _req(args, "path")}
     if t == "file_contains":
@@ -121,14 +190,14 @@ def _build_check(args: argparse.Namespace) -> dict | None:
         if args.commit is not None:
             c["commit"] = args.commit
         return c
-    raise SystemExit(f"unknown check type {t!r}")
+    raise CheckSpecError(f"unknown check type {t!r}")
 
 
 def _req(args: argparse.Namespace, name: str):
     val = getattr(args, name, None)
     if val is None or val == [] or val == "":
         flag = "--" + name.replace("_", "-")
-        raise SystemExit(f"check type {args.type!r} requires {flag}")
+        raise CheckSpecError(f"check type {args.type!r} requires {flag}")
     return val
 
 
@@ -409,13 +478,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "require":
         from .outcomes import record_requirement
-        check = _build_check(args)
-        if check is None:
-            raise SystemExit("require needs --type or --check-json")
         try:
+            check = _build_check(args)
+            if check is None:
+                raise CheckSpecError("require needs --type or --check-json")
             record_requirement(root, args.session, args.id, args.description,
                                args.scope, check)
-        except (ValueError, TypeError) as exc:
+        except (CheckSpecError, ValueError, TypeError) as exc:
             print(f"requirement rejected: {exc}", file=sys.stderr)
             return 2
         print("acceptance requirement recorded")
@@ -451,7 +520,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if identity["consistent"] else 2
 
     if args.cmd == "claim":
-        check = _build_check(args)
+        try:
+            check = _build_check(args)
+        except CheckSpecError as exc:
+            print(f"claim rejected: {exc}", file=sys.stderr)
+            return 2
         if check is not None:
             shape_err = validate_check_shape(check, root)
             if shape_err is not None:

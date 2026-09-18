@@ -13,7 +13,11 @@ Walk: [walks/cursor.md](walks/cursor.md).
 
 If pytest is installed, `pip install showwork` registers a plugin. It is
 silent unless you pass `--showwork-session`. Then a passing run records a
-`file_contains` claim on `.showwork/artifacts/<session>/pytest-last.json`.
+`file_contains` **artifact** claim on
+`.showwork/artifacts/<session>/pytest-last.json`. That claim proves the plugin
+wrote `"passed": true` after pytest exited 0. It does not prove production
+behavior. Declare behavior acceptance with `require --scope behavior` and a
+`command` check of a project test script.
 
 ```bash
 pytest -q --showwork-session cursor-fix-nav
@@ -83,10 +87,11 @@ not a GitHub Project.
 [`js/showwork-audit`](../js/showwork-audit/) is a zero-dependency Node
 implementation of the spec-v0.4 **reading half**: it parses ledgers, verifies
 the integrity chain, and reports verdicts (`node js/showwork-audit/index.mjs
-<root>`, exit 0/3/2). It re-executes no checks — what it does not verify it
-reports, never skips. Both implementations are held to the same frozen
-fixtures (`tests/fixtures/chain/`); if they ever disagree on a verdict, that
-is a conformance bug, not an opinion.
+<root>`, exit 0/3/2). It re-executes no checks. spec-v0.5 outcome fields
+(declared requirements, receipt manifests, finish scope) stay unread. What
+the reader does not verify it reports, never skips. Both implementations are
+held to the same frozen fixtures (`tests/fixtures/chain/`); if they ever
+disagree on a chain verdict, that is a conformance bug, not an opinion.
 
 ## Writing your own adapter
 

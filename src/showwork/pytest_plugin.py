@@ -17,7 +17,7 @@ def pytest_addoption(parser):
         "--showwork-session",
         action="store",
         default="",
-        help="If set, record a file_contains claim for this pytest run.",
+        help="If set, record an artifact file_contains claim for this pytest run.",
     )
     group.addoption(
         "--showwork-root",
