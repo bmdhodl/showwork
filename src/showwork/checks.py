@@ -72,6 +72,19 @@ EXIT_BY_VERDICT = {"GREEN": 0, "YELLOW": 3, "RED": 2}
 
 GLOB_OPS = frozenset({"==", ">=", "<=", ">", "<"})
 
+# Keys a writer may store per type. Extra keys (including file_exists.absent)
+# are rejected before the ledger records them.
+CHECK_FIELDS = {
+    "file_exists": frozenset({"type", "path"}),
+    "file_contains": frozenset({"type", "path", "pattern", "absent"}),
+    "path_moved": frozenset({"type", "from", "to"}),
+    "frontmatter": frozenset({"type", "path", "field", "equals"}),
+    "glob_count": frozenset({"type", "pattern", "op", "n"}),
+    "command": frozenset({"type", "argv", "expect_exit", "stdout_contains"}),
+    "http_probe": frozenset({"type", "url", "expect_status", "body_contains"}),
+    "git_state": frozenset({"type", "clean", "branch", "commit"}),
+}
+
 # Claim-time and verify-time hint when a command check cannot run.
 COMMAND_REMEDIATION = (
     "use: python <script under project root> [args]; "
@@ -475,6 +488,11 @@ def validate_check_shape(check: dict, root: Path) -> str | None:
     ctype = check.get("type")
     if ctype not in CHECKERS:
         return f"unknown check type {ctype!r}"
+    allowed = CHECK_FIELDS[ctype]
+    extra = sorted(key for key in check if key not in allowed)
+    if extra:
+        return (f"{ctype} does not accept {extra}; "
+                f"supported fields are {sorted(allowed)}")
     if ctype == "command":
         return _command_shape_error(check, root, require_script_file=False)
     if ctype == "glob_count":
@@ -512,6 +530,8 @@ def validate_check_shape(check: dict, root: Path) -> str | None:
         pattern = check.get("pattern")
         if not isinstance(pattern, str) or pattern == "":
             return "file_contains.pattern must be a non-empty string"
+        if "absent" in check and not isinstance(check["absent"], bool):
+            return "file_contains.absent must be a boolean"
         return None
     if ctype == "path_moved":
         for key in ("from", "to"):

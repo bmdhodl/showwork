@@ -20,6 +20,7 @@ recovery in an empty directory.
 ## Look up the contract
 
 - [Ledger specification](../SPEC.md): records, check shapes, integrity, and lifecycle.
+- [require and claim flags](cli-check-flags.md): supported combinations and rejected extras.
 - [Source metadata](../pyproject.toml): branch version and Python support.
 - [Public Python API](../src/showwork/__init__.py)
 - [Changelog](../CHANGELOG.md)

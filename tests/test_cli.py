@@ -45,15 +45,12 @@ def test_require_accepts_command_flags_for_behavior(tmp_path):
     assert run(tmp_path, "finish", "--session", "cmd") == 0
 
 
-def test_require_needs_type_or_check_json(tmp_path):
+def test_require_needs_type_or_check_json(tmp_path, capsys):
     run(tmp_path, "start", "--session", "empty-req")
-    try:
-        run(tmp_path, "require", "--session", "empty-req", "--id", "output",
-            "--description", "output.txt exists", "--scope", "artifact")
-    except SystemExit as exc:
-        assert "require needs --type or --check-json" in str(exc)
-    else:
-        raise AssertionError("expected SystemExit when require has no check")
+    code = run(tmp_path, "require", "--session", "empty-req", "--id", "output",
+               "--description", "output.txt exists", "--scope", "artifact")
+    assert code == 2
+    assert "require needs --type or --check-json" in capsys.readouterr().err
 
 
 def test_require_check_json_still_works(tmp_path):
@@ -74,6 +71,98 @@ def test_require_after_claim_is_rejected(tmp_path, capsys):
                "--description", "output.txt exists", "--scope", "artifact",
                "--type", "file_exists", "--path", "output.txt") == 2
     assert "before recording completion claims" in capsys.readouterr().err
+
+
+def test_file_exists_absent_flag_is_rejected(tmp_path, capsys):
+    """REGRESSION: #64 follow-up. --absent on file_exists was recorded and ignored.
+
+    That inverted the verdict: a missing file still failed file_exists, and a
+    present file still passed, so the flag did the opposite of its name.
+    """
+    run(tmp_path, "start", "--session", "gone")
+    code = run(tmp_path, "claim", "--session", "gone", "--claim", "target is gone",
+               "--type", "file_exists", "--path", "target.txt", "--absent")
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "claim rejected" in err
+    assert "--absent" in err
+    from showwork.ledger import claims_for_session
+    assert claims_for_session(tmp_path, "gone") == []
+
+
+def test_file_exists_absent_json_is_rejected(tmp_path, capsys):
+    """REGRESSION: #64 follow-up via --check-json stored absent and ignored it."""
+    run(tmp_path, "start", "--session", "json-gone")
+    code = run(
+        tmp_path, "claim", "--session", "json-gone", "--claim", "target is gone",
+        "--check-json",
+        json.dumps({"type": "file_exists", "path": "target.txt", "absent": True}),
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "claim rejected" in err
+    assert "absent" in err
+    from showwork.ledger import claims_for_session
+    assert claims_for_session(tmp_path, "json-gone") == []
+
+
+def test_file_exists_legal_form_still_matches_disk(tmp_path):
+    """Control for #64 follow-up: file_exists without absent keeps disk truth."""
+    run(tmp_path, "start", "--session", "missing")
+    assert run(tmp_path, "claim", "--session", "missing", "--claim", "missing",
+               "--type", "file_exists", "--path", "target.txt") == 0
+    assert run(tmp_path, "verify", "--session", "missing", "--no-report") == 2
+    (tmp_path / "target.txt").write_text("x", encoding="utf-8")
+    run(tmp_path, "start", "--session", "present")
+    assert run(tmp_path, "claim", "--session", "present", "--claim", "present",
+               "--type", "file_exists", "--path", "target.txt") == 0
+    assert run(tmp_path, "verify", "--session", "present", "--no-report") == 0
+
+
+def test_file_contains_absent_flag_still_records(tmp_path):
+    (tmp_path / "notes.txt").write_text("alpha\n", encoding="utf-8")
+    run(tmp_path, "start", "--session", "contains")
+    assert run(
+        tmp_path, "claim", "--session", "contains", "--claim", "no gamma",
+        "--type", "file_contains", "--path", "notes.txt",
+        "--pattern", "gamma", "--absent",
+    ) == 0
+    assert run(tmp_path, "verify", "--session", "contains", "--no-report") == 0
+
+
+def test_require_rejects_file_exists_absent(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "req-gone")
+    code = run(
+        tmp_path, "require", "--session", "req-gone", "--id", "gone",
+        "--description", "target is gone", "--scope", "artifact",
+        "--type", "file_exists", "--path", "target.txt", "--absent",
+    )
+    assert code == 2
+    assert "requirement rejected" in capsys.readouterr().err
+
+
+def test_check_json_cannot_combine_with_type_flags(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "mix")
+    code = run(
+        tmp_path, "claim", "--session", "mix", "--claim", "mixed",
+        "--type", "file_exists", "--path", "a.txt",
+        "--check-json", json.dumps({"type": "file_exists", "path": "a.txt"}),
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "claim rejected" in err
+    assert "--check-json cannot combine" in err
+
+
+def test_require_malformed_json_exits_2(tmp_path, capsys):
+    run(tmp_path, "start", "--session", "bad-req-json")
+    code = run(
+        tmp_path, "require", "--session", "bad-req-json", "--id", "output",
+        "--description", "output exists", "--scope", "artifact",
+        "--check-json", "{not valid json",
+    )
+    assert code == 2
+    assert "requirement rejected" in capsys.readouterr().err
 
 
 def test_full_green_lifecycle(tmp_path, capsys):
@@ -370,22 +459,18 @@ def test_git_state_claim_flags_are_recorded(tmp_path):
     }
 
 
-def test_invalid_check_json_is_clean_error(tmp_path):
+def test_invalid_check_json_is_clean_error(tmp_path, capsys):
     """Malformed --check-json must not raise an uncaught JSONDecodeError.
 
     Agents and shell wrappers feed --check-json; a traceback is a vacuous
-    failure (exit path unclear, message buried). Match other CLI validation:
-    SystemExit with a clear message naming the flag.
+    failure (exit path unclear, message buried). Rejected checks exit 2.
     """
-    try:
-        run(tmp_path, "claim", "--session", "s-bad-json", "--claim", "x",
-            "--check-json", "{not valid json")
-    except SystemExit as e:
-        msg = str(e)
-        assert "--check-json" in msg
-        assert "valid JSON" in msg or "not valid" in msg.lower()
-    else:
-        raise AssertionError("expected SystemExit for malformed --check-json")
+    code = run(tmp_path, "claim", "--session", "s-bad-json", "--claim", "x",
+               "--check-json", "{not valid json")
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "--check-json" in err
+    assert "valid JSON" in err or "not valid" in err.lower()
 
 def test_invalid_utf8_ledger_verify_is_yellow_not_crash(tmp_path, capsys):
     """Non-UTF-8 ledger bytes must not raise UnicodeDecodeError from verify."""

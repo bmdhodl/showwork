@@ -2,6 +2,14 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- Reject unsupported `require`/`claim` flag combinations before a record is
+  written. `--absent` is valid on `file_contains` only. `--check-json` cannot
+  mix with `--type` or other check flags. Those rejections exit 2.
+- Document the flag table and the split among artifact checks, behavior
+  acceptance, integrity, current reruns, and read-only views.
+
 ## 0.6.3 - 2026-09-17
 
 - `require` accepts the same check flags as `claim` (`--type`, `--path`,

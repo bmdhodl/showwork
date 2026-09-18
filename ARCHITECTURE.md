@@ -318,7 +318,7 @@ subcommand.
 |---|---|---|
 | `start` | Appends `session.start` to `sessions/<id>.jsonl` | 0 |
 | `require` | Builds a check spec from the flags (or takes `--check-json`) and appends `session.requirement` | 0 or 2 |
-| `claim` | Builds a check spec from the flags (or takes `--check-json`) and appends the claim | 0 |
+| `claim` | Builds a check spec from the flags (or takes `--check-json`) and appends the claim | 0, or 2 when the check is rejected |
 | `retract` | Appends a referencing retraction | 0 |
 | `verify` | Verifies a day (`--date`) or a session (`--session`), writes `audit-<label>.md` unless `--no-report` | 0/3/2 |
 | `finish` | The exit gate. See below | 0 or 2 |
@@ -330,8 +330,11 @@ subcommand.
 
 `claim` and `require` build the check dict in `_build_check()`. Each type has
 a required set of flags and `_req()` fails loudly with the missing flag name
-rather than writing a half-formed check. `require` with neither `--type` nor
-`--check-json` exits instead of recording an empty check.
+rather than writing a half-formed check. Unsupported flags, including
+`--absent` on `file_exists`, are rejected before a record is written. Mixing
+`--check-json` with `--type` or other check flags is rejected. `require` with
+neither `--type` nor `--check-json`, and any of those rejections, exit 2.
+The human table is [cli-check-flags.md](docs/cli-check-flags.md).
 
 ## What can refuse, and what cannot
 
@@ -483,8 +486,9 @@ the tool stream alone, before the money is spent rather than after.
 
 `js/showwork-audit/index.mjs` implements the **reading half** of `spec-v0.4`:
 chain verification and verdicts, `node:crypto` and `node:fs` only. It
-re-executes no checks. Per the spec's reader-only conformance clause it reports
-what it does not verify rather than skipping it silently.
+re-executes no checks and does not interpret spec-v0.5 outcome records.
+Per the spec's reader-only conformance clause it reports what it does not
+verify rather than skipping it silently.
 
 `tests/fixtures/chain/` is the contract between them. Fifteen frozen `.jsonl`
 files cover intact chains, tampering, deletion, forks, two genesis roots,

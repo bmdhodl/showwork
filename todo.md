@@ -1,6 +1,13 @@
 # showwork build plan
 
-## v0.6.3 require flags — 2026-09-17  [status: in tree, owner-gated publish]
+## SW-01 CLI contract — 2026-09-18  [status: in tree]
+
+- [x] Reject `--absent` on `file_exists` and extra check keys at record time
+- [x] Flag truth table in `docs/cli-check-flags.md`
+- [x] Qualify pytest plugin, JS reader, and compliance wording
+- [ ] PR + second-model QA for #86
+
+## v0.6.3 require flags — 2026-09-17  [status: published 0.6.3]
 
 - [x] `require` uses the same check flags as `claim`
 - [x] `--check-json` stays optional

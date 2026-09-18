@@ -882,6 +882,16 @@ def test_validate_check_shape_rejects_eq_op(tmp_path):
     assert "eq" in err
 
 
+def test_validate_check_shape_rejects_file_exists_absent(tmp_path):
+    from showwork.checks import CHECKERS, CHECK_FIELDS, validate_check_shape
+    err = validate_check_shape(
+        {"type": "file_exists", "path": "target.txt", "absent": True}, tmp_path
+    )
+    assert err is not None
+    assert "absent" in err
+    assert CHECK_FIELDS.keys() == CHECKERS.keys()
+
+
 def test_validate_check_shape_rejects_file_exists_without_path(tmp_path):
     from showwork.checks import validate_check_shape
     err = validate_check_shape({"type": "file_exists"}, tmp_path)
