@@ -1,0 +1,1 @@
+{"session": "codex-reward-limit-20260918", "ts": "2026-09-18T22:27:44", "claim": "README names reward hacking and activation limits", "severity": "RED", "check": {"type": "file_contains", "path": "README.md", "pattern": "does not detect reward hacking"}, "prev": "32b0ea5c46cf42fcfdd2c9eda69c899a0ec767971c42d219b140b8d3236f5f45"}
