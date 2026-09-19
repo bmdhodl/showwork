@@ -40,6 +40,7 @@ def test_sw02_frozen_cases_are_exactly_eight():
         "cross-client-handoff",
     )
     assert set(bench.EXPECTED) == set(bench.CASES)
+    assert set(bench.EXPECTED_AGENT_VERIFY) == set(bench.CASES)
 
 
 def test_sw02_replay_matches_frozen_verdicts(tmp_path, monkeypatch):
@@ -122,6 +123,45 @@ def test_sw02_report_labels_untested_hosts_and_versions():
     assert "untested" in report
     assert "Agent Receipts" in report
     assert "No PyPI tag is authorized" in report
+
+
+def test_sw02_report_fixture_link_resolves():
+    target = (REPORT.parent / "../../../examples/sw-02-bench").resolve()
+    assert target == (ROOT / "examples" / "sw-02-bench").resolve()
+    assert target.is_dir()
+    assert "../../../examples/sw-02-bench" in REPORT.read_text(encoding="utf-8")
+
+
+def test_sw02_committed_agent_verify_exits_match_frozen_table():
+    payload = _results()
+    for name, want in bench.EXPECTED_AGENT_VERIFY.items():
+        av = payload["cases"][name]["agent_verify"]
+        if av["status"] == "ran":
+            assert av["exit"] == want
+
+
+def test_sw02_agent_verify_checkout_is_absolute_and_reads_package(tmp_path, monkeypatch):
+    checkout = tmp_path / "av"
+    (checkout / "src").mkdir(parents=True)
+    (checkout / "src" / "cli.mjs").write_text("// stub\n", encoding="utf-8")
+    (checkout / "package.json").write_text('{"version": "1.2.0"}\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SW02_AGENT_VERIFY", "av")
+    resolved = bench._agent_verify_checkout()
+    assert resolved == checkout.resolve()
+    assert (resolved / "src" / "cli.mjs").is_file()
+    assert bench._agent_verify_package(resolved) == "1.2.0"
+
+
+def test_sw02_main_fails_when_agent_verify_is_set_but_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("SW02_AGENT_VERIFY", str(tmp_path / "missing-av"))
+    out = tmp_path / "results.json"
+    assert bench.main(["--out", str(out)]) == 2
+
+
+def test_sw02_agent_verify_subprocess_uses_isolated_env():
+    text = (ROOT / "examples" / "sw-02-bench" / "run.py").read_text(encoding="utf-8")
+    assert "env=_env(root)," in text
 
 
 def test_sw02_results_are_not_a_live_native_hook_run():

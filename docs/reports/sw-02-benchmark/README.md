@@ -4,7 +4,7 @@ Dated comparison for [issue #87](https://github.com/bmdhodl/showwork/issues/87).
 This is a measurement, not a release. No PyPI tag is authorized.
 
 Machine-readable snapshot: [results.json](results.json).
-Fixture: [examples/sw-02-bench](../../examples/sw-02-bench).
+Fixture: [examples/sw-02-bench](../../../examples/sw-02-bench).
 
 Recorded at 2026-09-19T04:49:19Z on Windows 11, Python 3.13.2, pytest 8.4.2,
 showwork 0.6.3, Node v22.14.0. Agent Verify 1.2.0 at commit

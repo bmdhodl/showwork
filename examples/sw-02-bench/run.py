@@ -59,6 +59,17 @@ EXPECTED = {
     },
 }
 
+EXPECTED_AGENT_VERIFY = {
+    "honest-pass": 0,
+    "honest-fail": 1,
+    "never-run-test": 1,
+    "weak-fixture": 0,
+    "undeclared-deletion": 0,
+    "stale-revision": 0,
+    "missing-receipt": 0,
+    "cross-client-handoff": 0,
+}
+
 ADVANTAGE = {
     "id": "undeclared-deletion",
     "statement": (
@@ -94,7 +105,7 @@ def _run(argv, *, cwd: Path, env=None, timeout=90):
         code = proc.returncode
         stdout = proc.stdout[-2000:]
         stderr = proc.stderr[-2000:]
-    except FileNotFoundError as exc:
+    except OSError as exc:
         code = 127
         stdout = ""
         stderr = str(exc)
@@ -144,20 +155,46 @@ def _write_verify_config(root: Path) -> None:
     )
 
 
+def _agent_verify_checkout() -> Path | None:
+    raw = os.environ.get("SW02_AGENT_VERIFY", "").strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (Path.cwd() / path)
+    return path.resolve()
+
+
+def _agent_verify_package(checkout: Path) -> str | None:
+    pkg = checkout / "package.json"
+    if not pkg.is_file():
+        return None
+    try:
+        data = json.loads(pkg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    version = data.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version.strip()
+
+
 def _agent_verify(root: Path, message: str) -> dict:
-    checkout = os.environ.get("SW02_AGENT_VERIFY", "").strip()
-    if not checkout:
+    checkout = _agent_verify_checkout()
+    if checkout is None:
         return {"status": "untested", "reason": "SW02_AGENT_VERIFY is unset"}
-    cli = Path(checkout) / "src" / "cli.mjs"
+    cli = checkout / "src" / "cli.mjs"
     if not cli.is_file():
         return {"status": "untested", "reason": f"missing {cli.as_posix()}"}
     _write_verify_config(root)
     result = _run(
         ["node", str(cli), "--message", message, "--cwd", str(root)],
         cwd=root,
+        env=_env(root),
         timeout=90,
     )
     result["tool"] = "agent-verify"
+    result["cli"] = str(cli)
     result["status"] = "ran" if result["exit"] != 127 else "untested"
     if result["exit"] == 127:
         result["reason"] = result["stderr"] or "node is missing"
@@ -518,11 +555,13 @@ def run_cases(base: Path) -> dict:
 def results_payload(cases: dict, *, setup_ms: int, total_ms: int) -> dict:
     import showwork
 
-    av = os.environ.get("SW02_AGENT_VERIFY", "").strip()
+    checkout = _agent_verify_checkout()
     av_head = None
-    if av:
-        head = _run(["git", "-C", av, "rev-parse", "HEAD"], cwd=Path(av))
+    av_pkg = None
+    if checkout is not None and checkout.is_dir():
+        head = _run(["git", "-C", str(checkout), "rev-parse", "HEAD"], cwd=checkout)
         av_head = (head["stdout"] or "").strip() or None
+        av_pkg = _agent_verify_package(checkout)
     node = _probe_binary(["node", "--version"])
     pytest_ver = _run(
         [sys.executable, "-m", "pytest", "--version"], cwd=REPO_ROOT
@@ -550,7 +589,7 @@ def results_payload(cases: dict, *, setup_ms: int, total_ms: int) -> dict:
             "showwork": showwork.__version__,
             "pytest": (pytest_ver["stdout"] or "").strip(),
             "agent_verify_commit": av_head,
-            "agent_verify_package": "1.2.0" if av_head else None,
+            "agent_verify_package": av_pkg,
         },
         "timing_ms": {
             "setup": setup_ms,
@@ -619,6 +658,12 @@ def main(argv: list[str] | None = None) -> int:
         payload["denominator"]["cases_ran"]
         - payload["denominator"]["cases_matching_expected"]
     )
+    if os.environ.get("SW02_AGENT_VERIFY", "").strip():
+        for name, row in payload["cases"].items():
+            av = row["agent_verify"]
+            want = EXPECTED_AGENT_VERIFY[name]
+            if av.get("status") != "ran" or av.get("exit") != want:
+                failed += 1
     return 0 if failed == 0 else 2
 
 
