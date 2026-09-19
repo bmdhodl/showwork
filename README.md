@@ -132,6 +132,14 @@ The [specification](SPEC.md) defines check shapes and records;
 
 ## Limits and trust
 
+### What this is not
+
+Outcome verification does not detect reward hacking or read model activations.
+An agent can pass every declared check while gaming an evaluation.
+Chain-of-thought (CoT) self-report is not a substitute for independent checks
+of the actual outcome.
+
+
 - Showwork verifies declared checks, not whether the work satisfies every
   part of the user's request. Requirements and tests still need review.
 - A passing command can contain a weak test. A text match cannot prove
