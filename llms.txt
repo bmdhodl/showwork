@@ -11,6 +11,7 @@
 - [Specification](https://github.com/bmdhodl/showwork/blob/main/SPEC.md): Ledger records and check contracts.
 - [CI guide](https://github.com/bmdhodl/showwork/blob/main/docs/ci.md): Committed receipt gates and permissions.
 - [Evidence scope](https://github.com/bmdhodl/showwork/blob/main/docs/evidence-scope.md): What a passing check does and does not establish.
+- [SW-02 benchmark](https://github.com/bmdhodl/showwork/blob/main/docs/reports/sw-02-benchmark/README.md): Dated pytest and Agent Verify comparison. Untested hosts are labeled.
 - [Contributing](https://github.com/bmdhodl/showwork/blob/main/CONTRIBUTING.md): Tests and required receipts.
 - [Agent instructions](https://github.com/bmdhodl/showwork/blob/main/AGENTS.md): Repository contribution rules.
 - [Package metadata](https://github.com/bmdhodl/showwork/blob/main/pyproject.toml): Branch version and Python floor.

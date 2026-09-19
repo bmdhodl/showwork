@@ -32,6 +32,7 @@ recovery in an empty directory.
 - [Case study](case-study.md)
 - [False Done Rate method](false-done-rate.md)
 - [Evidence packs and their limits](compliance.md)
+- [SW-02 benchmark vs pytest and Agent Verify](reports/sw-02-benchmark/README.md)
 
 ## Keep documentation current
 
