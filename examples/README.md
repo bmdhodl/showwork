@@ -15,3 +15,6 @@ The empty-directory refusal walk is the README Quickstart. The Cursor walk is do
 
 BMD desktop (read-only supervisor) is examples/bmd/. The sidecar reads
 `.showwork/` in the user workspace and never appends.
+
+The SW-02 eight-case fixture is examples/sw-02-bench/. The dated readout
+is docs/reports/sw-02-benchmark/.

@@ -1,11 +1,19 @@
 # showwork build plan
 
-## SW-01 CLI contract — 2026-09-18  [status: in tree]
+## SW-02 benchmark — 2026-09-18  [status: in progress]
+
+- [x] Freeze eight cases in `examples/sw-02-bench/`
+- [x] Measure pytest, showwork, and Agent Verify 1.2.0
+- [x] Label Agent Receipts and native hooks untested
+- [x] Choose undeclared deletion as the measured advantage
+- [ ] PR + second-model QA for #87 (no PyPI tag)
+
+## SW-01 CLI contract — 2026-09-18  [status: merged]
 
 - [x] Reject `--absent` on `file_exists` and extra check keys at record time
 - [x] Flag truth table in `docs/cli-check-flags.md`
 - [x] Qualify pytest plugin, JS reader, and compliance wording
-- [ ] PR + second-model QA for #86
+- [x] PR + second-model QA for #86
 
 ## v0.6.3 require flags — 2026-09-17  [status: published 0.6.3]
 
