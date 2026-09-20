@@ -199,9 +199,28 @@ def test_behavior_walk_on_installed_package(tmp_path):
     py = venv / ("Scripts" if sys.platform == "win32" else "bin") / (
         "python.exe" if sys.platform == "win32" else "python"
     )
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    pip_env = os.environ.copy()
+    pip_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    pip_env.pop("PYTHONPATH", None)
+    pip_env.pop("PYTHONHOME", None)
+    built = subprocess.run(
+        [
+            sys.executable, "-m", "pip", "wheel", "--no-deps",
+            "--no-build-isolation", "--no-index",
+            "--wheel-dir", str(wheels), str(ROOT),
+        ],
+        capture_output=True, text=True, timeout=120, env=pip_env,
+    )
+    assert built.returncode == 0, built.stdout + built.stderr
+    wheel = next(wheels.glob("showwork-*.whl"))
     install = subprocess.run(
-        [str(py), "-m", "pip", "install", "--quiet", str(ROOT)],
-        capture_output=True, text=True, timeout=180,
+        [
+            str(py), "-m", "pip", "install", "--quiet", "--no-deps",
+            "--no-index", "--force-reinstall", str(wheel),
+        ],
+        capture_output=True, text=True, timeout=60, env=pip_env,
     )
     assert install.returncode == 0, install.stdout + install.stderr
     work = tmp_path / "work"
