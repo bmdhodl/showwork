@@ -45,6 +45,18 @@ def test_init_skips_existing_cursor_rule_without_force(tmp_path):
     assert "keep me" not in dest.read_text(encoding="utf-8")
 
 
+def test_init_second_run_preserves_host_config(tmp_path):
+    init_project(tmp_path)
+    rule = tmp_path / ".cursor" / "rules" / "showwork.mdc"
+    rule.write_text(rule.read_text(encoding="utf-8") + "\n# local note\n", encoding="utf-8")
+    notes = init_project(tmp_path)
+    assert any(n.startswith("skip ") for n in notes)
+    assert any(n.startswith("merge ") for n in notes)
+    assert "# local note" in rule.read_text(encoding="utf-8")
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    assert "Stop" in settings["hooks"]
+
+
 def test_cli_init(tmp_path):
     code = main(["--root", str(tmp_path), "init", "--cursor"])
     assert code == 0

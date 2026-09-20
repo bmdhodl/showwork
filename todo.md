@@ -1,12 +1,18 @@
 # showwork build plan
 
-## SW-02 benchmark — 2026-09-18  [status: in progress]
+## SW-03 behavior quickstart — 2026-09-20  [status: in progress]
+
+- [x] Document fail / repair / rerun on Windows and Linux
+- [x] Tests for refusal, recovery, and a fresh checkout
+- [ ] PR + second-model QA for #88 (no PyPI tag)
+
+## SW-02 benchmark — 2026-09-18  [status: merged]
 
 - [x] Freeze eight cases in `examples/sw-02-bench/`
 - [x] Measure pytest, showwork, and Agent Verify 1.2.0
 - [x] Label Agent Receipts and native hooks untested
 - [x] Choose undeclared deletion as the measured advantage
-- [ ] PR + second-model QA for #87 (no PyPI tag)
+- [x] PR + second-model QA for #87 (no PyPI tag)
 
 ## SW-01 CLI contract — 2026-09-18  [status: merged]
 

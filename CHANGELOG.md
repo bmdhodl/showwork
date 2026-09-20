@@ -11,6 +11,9 @@ All notable changes to showwork are recorded here.
   acceptance, integrity, current reruns, and read-only views.
 - Publish the SW-02 eight-case fixture and a dated readout versus pytest and
   Agent Verify. The measured gap is undeclared deletion. No PyPI tag.
+- Add a behavior quickstart: a broken `add` function, a standard-library test,
+  a refused close, a repair, and a fresh-directory rerun. Ten minutes is a
+  target, not a measured time. No PyPI tag.
 
 ## 0.6.3 - 2026-09-17
 

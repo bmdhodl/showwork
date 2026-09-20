@@ -8,6 +8,7 @@
 - [README](https://github.com/bmdhodl/showwork/blob/main/README.md): Installation, failed-close example, and trust limits.
 - [Documentation index](https://github.com/bmdhodl/showwork/blob/main/docs/README.md): Guides by task.
 - [Python quickstart](https://github.com/bmdhodl/showwork/blob/main/docs/quickstart-python.md): Shell-independent example.
+- [Behavior quickstart](https://github.com/bmdhodl/showwork/blob/main/docs/quickstart-behavior.md): Broken function, refused close, repair, and a fresh rerun.
 - [Specification](https://github.com/bmdhodl/showwork/blob/main/SPEC.md): Ledger records and check contracts.
 - [CI guide](https://github.com/bmdhodl/showwork/blob/main/docs/ci.md): Committed receipt gates and permissions.
 - [Evidence scope](https://github.com/bmdhodl/showwork/blob/main/docs/evidence-scope.md): What a passing check does and does not establish.
