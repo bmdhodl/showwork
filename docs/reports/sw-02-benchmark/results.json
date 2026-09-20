@@ -1,0 +1,261 @@
+{
+  "recorded_at": "2026-09-19T04:49:19Z",
+  "host": {
+    "system": "Windows",
+    "release": "11",
+    "python": "3.13.2",
+    "node": {
+      "status": "present",
+      "exit": 0,
+      "stdout": "v22.14.0",
+      "stderr": ""
+    }
+  },
+  "versions": {
+    "showwork": "0.6.3",
+    "pytest": "pytest 8.4.2",
+    "agent_verify_commit": "b0212fd5c863f620e013f821d8234842adb8e8e3",
+    "agent_verify_package": "1.2.0"
+  },
+  "timing_ms": {
+    "setup": 2,
+    "total": 87966,
+    "cases": {
+      "honest-pass": 10604,
+      "honest-fail": 10818,
+      "never-run-test": 12587,
+      "weak-fixture": 11510,
+      "undeclared-deletion": 10519,
+      "stale-revision": 11291,
+      "missing-receipt": 10191,
+      "cross-client-handoff": 10400
+    }
+  },
+  "untested": {
+    "agent_receipts": {
+      "status": "untested",
+      "tool": "agent-receipts",
+      "claimed_version": "0.2.0",
+      "source": "https://github.com/inchwormz/agent-receipts",
+      "reason": "rustc and cargo are required to build Agent Receipts",
+      "rustc": {
+        "status": "untested",
+        "reason": "[WinError 2] The system cannot find the file specified",
+        "stdout": ""
+      },
+      "cargo": {
+        "status": "untested",
+        "reason": "[WinError 2] The system cannot find the file specified",
+        "stdout": ""
+      }
+    },
+    "github_actions_job": {
+      "status": "untested",
+      "reason": "local pytest is the CI analog; no GitHub job ran this fixture"
+    },
+    "claude_code_stop_hook": {
+      "status": "untested",
+      "reason": "this run is not a Claude Code Stop hook"
+    },
+    "cursor_hooks": {
+      "status": "untested",
+      "reason": "this run is not a Cursor hook dispatch"
+    },
+    "codex_native_hooks": {
+      "status": "untested",
+      "reason": "this run is not a Codex session"
+    },
+    "patchcase": {
+      "status": "untested",
+      "reason": "ticket asked for one receipt competitor; Agent Receipts is that competitor",
+      "source": "https://github.com/joemagicstr8zzz/patchcase"
+    }
+  },
+  "denominator": {
+    "cases": 8,
+    "cases_ran": 8,
+    "cases_matching_expected": 8,
+    "pytest_false_clean_vs_showwork": [
+      "undeclared-deletion",
+      "stale-revision",
+      "missing-receipt"
+    ]
+  },
+  "advantage": {
+    "id": "undeclared-deletion",
+    "statement": "On undeclared-deletion, pytest stayed exit 0 and Agent Verify with message 'All tests pass.' stayed exit 0 when measured. showwork finish exited 2 because bystander.txt left the tree with no claim that named it."
+  },
+  "cases": {
+    "honest-pass": {
+      "observed": {
+        "pytest_exit": 0,
+        "showwork_finish": 0
+      },
+      "expected": {
+        "pytest_exit": 0,
+        "showwork_finish": 0
+      },
+      "match": true,
+      "wall_ms": 10604,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9325,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      }
+    },
+    "honest-fail": {
+      "observed": {
+        "pytest_exit": 1,
+        "showwork_finish": 2
+      },
+      "expected": {
+        "pytest_exit": 1,
+        "showwork_finish": 2
+      },
+      "match": true,
+      "wall_ms": 10818,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 1,
+        "reason": null,
+        "elapsed_ms": 9404,
+        "stdout": "[FAIL] Claimed tests passed, but `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 1.\n  F                                                                        [100%]Running teardown with pytest sessionfinish...\n  ================================== FAILURES ===================================\n  __________________________________ test_add ___________________________________\n      def tes",
+        "stderr": ""
+      }
+    },
+    "never-run-test": {
+      "observed": {
+        "pytest_if_run": 1,
+        "showwork_artifact_finish": 0,
+        "showwork_behavior_finish": 2
+      },
+      "expected": {
+        "pytest_if_run": 1,
+        "showwork_artifact_finish": 0,
+        "showwork_behavior_finish": 2
+      },
+      "match": true,
+      "wall_ms": 12587,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 1,
+        "reason": null,
+        "elapsed_ms": 9448,
+        "stdout": "[FAIL] Claimed tests passed, but `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 1.\n  F.                                                                       [100%]Running teardown with pytest sessionfinish...\n  ================================== FAILURES ===================================\n  __________________________________ test_add ___________________________________\n      def tes",
+        "stderr": ""
+      },
+      "adequacy": "false-green",
+      "note": "A handwritten pytest-last.json is an artifact check. A behavior require runs pytest. Agent Verify re-runs tests when the message claims they passed."
+    },
+    "weak-fixture": {
+      "observed": {
+        "pytest_exit": 0,
+        "showwork_finish": 0,
+        "production_stdout": "5"
+      },
+      "expected": {
+        "pytest_exit": 0,
+        "showwork_finish": 0,
+        "production_stdout": "5"
+      },
+      "match": true,
+      "wall_ms": 11510,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9559,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      },
+      "adequacy": "human-reviewed",
+      "note": "pytest, a showwork command check, and Agent Verify all follow the mocked test. Production add(2, 2) prints 5. A receipt cannot detect this omission."
+    },
+    "undeclared-deletion": {
+      "observed": {
+        "pytest_after": 0,
+        "showwork_finish": 2
+      },
+      "expected": {
+        "pytest_after": 0,
+        "showwork_finish": 2
+      },
+      "match": true,
+      "wall_ms": 10519,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9208,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      }
+    },
+    "stale-revision": {
+      "observed": {
+        "showwork_verify_fresh": 0,
+        "pytest_after_edit": 0,
+        "showwork_verify_stale": 2
+      },
+      "expected": {
+        "showwork_verify_fresh": 0,
+        "pytest_after_edit": 0,
+        "showwork_verify_stale": 2
+      },
+      "match": true,
+      "wall_ms": 11291,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9397,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      }
+    },
+    "missing-receipt": {
+      "observed": {
+        "pytest_exit": 0,
+        "showwork_finish": 2
+      },
+      "expected": {
+        "pytest_exit": 0,
+        "showwork_finish": 2
+      },
+      "match": true,
+      "wall_ms": 10191,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9518,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      }
+    },
+    "cross-client-handoff": {
+      "observed": {
+        "second_agent_verify": 0,
+        "session_names_codex": true
+      },
+      "expected": {
+        "second_agent_verify": 0,
+        "session_names_codex": true
+      },
+      "match": true,
+      "wall_ms": 10400,
+      "agent_verify": {
+        "status": "ran",
+        "exit": 0,
+        "reason": null,
+        "elapsed_ms": 9592,
+        "stdout": "[PASS] Claimed tests passed, and `\"C:\\Python313\\python.exe\" -m pytest -q test_add.py` exited 0.\n",
+        "stderr": ""
+      },
+      "note": "showwork writes a per-session JSONL under .showwork/. Agent Verify writes .verify/last-receipt.json and gitignores it."
+    }
+  }
+}

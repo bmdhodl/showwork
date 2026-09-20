@@ -9,6 +9,8 @@ All notable changes to showwork are recorded here.
   mix with `--type` or other check flags. Those rejections exit 2.
 - Document the flag table and the split among artifact checks, behavior
   acceptance, integrity, current reruns, and read-only views.
+- Publish the SW-02 eight-case fixture and a dated readout versus pytest and
+  Agent Verify. The measured gap is undeclared deletion. No PyPI tag.
 
 ## 0.6.3 - 2026-09-17
 
