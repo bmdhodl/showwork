@@ -189,6 +189,37 @@ def test_behavior_powershell_flags_match_bash():
     assert "cp -a" in BEHAVIOR
 
 
+def _host_wheel(dest: Path) -> Path:
+    """Build a local wheel without an isolated setuptools download when possible.
+
+    CI's test venv has `build` but often no importable setuptools. A host with
+    setuptools can stay offline (`pip wheel --no-build-isolation --no-index`).
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    pip_env = os.environ.copy()
+    pip_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    pip_env.pop("PYTHONPATH", None)
+    pip_env.pop("PYTHONHOME", None)
+    try:
+        import setuptools  # noqa: F401
+    except ImportError:
+        built = subprocess.run(
+            [sys.executable, "-m", "build", "--wheel", "--outdir", str(dest)],
+            cwd=ROOT, capture_output=True, text=True, timeout=120, env=pip_env,
+        )
+    else:
+        built = subprocess.run(
+            [
+                sys.executable, "-m", "pip", "wheel", "--no-deps",
+                "--no-build-isolation", "--no-index",
+                "--wheel-dir", str(dest), str(ROOT),
+            ],
+            capture_output=True, text=True, timeout=120, env=pip_env,
+        )
+    assert built.returncode == 0, built.stdout + built.stderr
+    return next(dest.glob("showwork-*.whl"))
+
+
 def test_behavior_walk_on_installed_package(tmp_path):
     venv = tmp_path / "venv"
     created = subprocess.run(
@@ -199,22 +230,11 @@ def test_behavior_walk_on_installed_package(tmp_path):
     py = venv / ("Scripts" if sys.platform == "win32" else "bin") / (
         "python.exe" if sys.platform == "win32" else "python"
     )
-    wheels = tmp_path / "wheels"
-    wheels.mkdir()
     pip_env = os.environ.copy()
     pip_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     pip_env.pop("PYTHONPATH", None)
     pip_env.pop("PYTHONHOME", None)
-    built = subprocess.run(
-        [
-            sys.executable, "-m", "pip", "wheel", "--no-deps",
-            "--no-build-isolation", "--no-index",
-            "--wheel-dir", str(wheels), str(ROOT),
-        ],
-        capture_output=True, text=True, timeout=120, env=pip_env,
-    )
-    assert built.returncode == 0, built.stdout + built.stderr
-    wheel = next(wheels.glob("showwork-*.whl"))
+    wheel = _host_wheel(tmp_path / "wheels")
     install = subprocess.run(
         [
             str(py), "-m", "pip", "install", "--quiet", "--no-deps",
