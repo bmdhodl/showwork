@@ -14,6 +14,7 @@ from showwork.cli import main
 from showwork.ledger import sessions_path
 from showwork.ledger import record_claim, start_session, session_claims_path
 from showwork.outcomes import record_requirement
+from showwork.explain import render_explanation
 from showwork.receipts import (
     agent_environ,
     agent_prompt_block,
@@ -104,6 +105,19 @@ def test_green_session_is_verified(tmp_path):
     evidence = evidence_for_session(tmp_path, "bmd-green")
     assert evidence["state"] == "verified"
     assert evidence["claim"] == "wrote out.md"
+    explanation = evidence["explanation"]
+    text = render_explanation(explanation)
+    blob = json.dumps(explanation)
+    assert explanation["historical_outcome"] == "VERIFIED"
+    assert explanation["observation"] == "current_rerun"
+    assert explanation["outcome_verdict"] == "VERIFIED"
+    assert "Historical finish: VERIFIED" in text
+    assert "evidence:requirement:file" in text
+    assert any(row["evidence_ref"] == "requirement:file" for row in explanation["rows"])
+    assert '"evidence_ref": "requirement:file"' in blob
+    html = render_badges_html([{"verification": evidence, "title": "green"}])
+    assert "evidence:requirement:file" in html
+    assert "result:pass" in html
 
 
 def test_red_session_is_failed(tmp_path):
@@ -117,6 +131,13 @@ def test_red_session_is_failed(tmp_path):
     evidence = evidence_for_session(tmp_path, "bmd-red")
     assert evidence["state"] == "failed"
     assert evidence["claim"] == "made a file"
+    explanation = evidence["explanation"]
+    text = render_explanation(explanation)
+    assert explanation["historical_outcome"] == "refused"
+    assert explanation["outcome_verdict"] == "UNVERIFIED"
+    assert "Historical finish: refused" in text
+    assert "result:fail" in text
+    assert any(row["result"] == "fail" for row in explanation["rows"])
 
 
 def test_prose_only_session_is_claimed(tmp_path):
@@ -125,6 +146,13 @@ def test_prose_only_session_is_claimed(tmp_path):
     assert _run(tmp_path, "finish", "--session", "bmd-prose") == 2
     evidence = evidence_for_session(tmp_path, "bmd-prose")
     assert evidence["state"] == "claimed"
+    explanation = evidence["explanation"]
+    text = render_explanation(explanation)
+    assert explanation["historical_outcome"] == "refused"
+    assert explanation["outcome_verdict"] == "UNVERIFIED"
+    assert any(row["result"] == "unknown" for row in explanation["rows"])
+    assert "result:unknown" in text
+    assert any(row["result"] == "unknown" for row in explanation["rows"])
 
 
 def test_broken_jsonl_is_unknown(tmp_path):
@@ -135,6 +163,8 @@ def test_broken_jsonl_is_unknown(tmp_path):
     evidence = evidence_for_session(tmp_path, session)
     assert evidence["state"] == "unknown"
     assert "unreadable" in evidence["reason"]
+    assert evidence["explanation"]["outcome_verdict"] == "UNVERIFIED"
+    assert "UNVERIFIED" in render_explanation(evidence["explanation"])
 
 
 def test_overlay_joins_task_id(tmp_path):

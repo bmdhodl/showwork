@@ -159,6 +159,25 @@ def _session_from_record(record: Mapping[str, Any] | None) -> str | None:
         return None
 
 
+def _historical_outcome(events: list[dict]) -> str:
+    """Last close, separate from the live rerun. A refusal stays a refusal."""
+    last = None
+    for event in events:
+        if event.get("event") in {"session.finish", "session.finish.refused"}:
+            last = event
+    if not isinstance(last, dict):
+        return "absent"
+    if last.get("event") == "session.finish.refused":
+        return "refused"
+    outcome = last.get("outcome")
+    if isinstance(outcome, dict) and outcome.get("verdict") in {"VERIFIED", "UNVERIFIED"}:
+        return str(outcome["verdict"])
+    verdict = last.get("claims_verdict")
+    if isinstance(verdict, str) and verdict:
+        return verdict
+    return "absent"
+
+
 def _payload(state: str, details: dict[str, Any]) -> dict[str, Any]:
     if state not in EVIDENCE_STATES:
         state = "unknown"
@@ -246,8 +265,11 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
                 "integrity": integrity["verdict"],
             })
         state = verify_session(workspace, session, allowed_check_types=READ_ONLY_CHECKS)
+        historical = _historical_outcome(events)
         details["integrity"] = "GREEN"
-        details["explanation"] = explain_state(state, integrity="GREEN")
+        details["explanation"] = explain_state(
+            state, integrity="GREEN", historical_outcome=historical,
+        )
         open_session = False
         last_status = None
         for event in events:
@@ -375,6 +397,21 @@ def render_badges_html(
         recovery = _esc(redact(explanation.get("recovery") or ""))
         integrity = _esc(redact(explanation.get("integrity") or verification.get("integrity") or "unknown"))
         session = _esc(verification.get("session") or "")
+        row_lines = []
+        for item in explanation.get("rows") or []:
+            if not isinstance(item, dict):
+                continue
+            row_lines.append(
+                "<p class=\"row\">"
+                f"requirement:{_esc(redact(item.get('requirement')))} "
+                f"check:{_esc(redact(item.get('check')))} "
+                f"scope:{_esc(item.get('scope'))} "
+                f"result:{_esc(item.get('result'))} "
+                f"evidence:{_esc(item.get('evidence_ref'))} "
+                f"revision:{_esc(item.get('revision'))}"
+                "</p>"
+            )
+        rows_html = "".join(row_lines)
         cards[surface].append(
             "<article class=\"card\" data-surface=\""
             f"{surface}\" data-state=\"{state}\">"
@@ -389,6 +426,7 @@ def render_badges_html(
             f"<p class=\"integrity\">Integrity: {integrity}</p>"
             f"<p class=\"limits\">{limits}</p>"
             f"<p class=\"recovery\">{recovery}</p>"
+            f"{rows_html}"
             "</div></details></article>"
         )
     home = "".join(cards["home"])

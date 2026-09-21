@@ -128,7 +128,7 @@ def render_explanation(explanation: dict) -> str:
         f"Recovery: {explanation['recovery']}",
     ]
     if explanation.get("truncated"):
-        lines.append("Rows truncated. The verdict still uses every row.")
+        lines.append("Displayed rows stop at 40. The verdict still uses every row.")
     for row in explanation["rows"]:
         lines.append(
             f"  requirement:{row['requirement']} check:{row['check']} "
