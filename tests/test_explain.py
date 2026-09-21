@@ -142,6 +142,20 @@ def test_status_separates_historical_finish_from_current_rerun():
     assert "current_rerun=RED" in text
 
 
+def test_display_stops_at_40_rows():
+    results = [
+        {"claim": f"c{i}", "type": "file_exists", "status": "pass", "detail": "ok"}
+        for i in range(41)
+    ]
+    explanation = explain_state(_state(results))
+    text = render_explanation(explanation)
+    assert explanation["truncated"] is True
+    assert len(explanation["rows"]) == 40
+    assert "Displayed rows stop at 40" in text
+    assert explanation["outcome_verdict"] == "UNVERIFIED"
+    assert '"truncated": true' in json.dumps(explanation)
+
+
 def test_live_file_check_explanation_matches_renderer(tmp_path):
     (tmp_path / "there.txt").write_text("x", encoding="utf-8")
     state = evaluate_records([{

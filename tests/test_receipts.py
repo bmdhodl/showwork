@@ -118,6 +118,8 @@ def test_green_session_is_verified(tmp_path):
     html = render_badges_html([{"verification": evidence, "title": "green"}])
     assert "evidence:requirement:file" in html
     assert "result:pass" in html
+    assert "Historical finish: VERIFIED" in html
+    assert "Observation: current_rerun" in html
 
 
 def test_red_session_is_failed(tmp_path):

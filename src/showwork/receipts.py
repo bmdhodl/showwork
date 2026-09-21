@@ -396,6 +396,10 @@ def render_badges_html(
         limits = _esc(redact("; ".join(explanation.get("limitations") or [])))
         recovery = _esc(redact(explanation.get("recovery") or ""))
         integrity = _esc(redact(explanation.get("integrity") or verification.get("integrity") or "unknown"))
+        observation = _esc(redact(explanation.get("observation") or "absent"))
+        historical = _esc(redact(explanation.get("historical_outcome") or "absent"))
+        outcome_verdict = _esc(redact(explanation.get("outcome_verdict") or "UNVERIFIED"))
+        check_verdict = _esc(redact(explanation.get("check_verdict") or "unknown"))
         session = _esc(verification.get("session") or "")
         row_lines = []
         for item in explanation.get("rows") or []:
@@ -408,7 +412,8 @@ def render_badges_html(
                 f"scope:{_esc(item.get('scope'))} "
                 f"result:{_esc(item.get('result'))} "
                 f"evidence:{_esc(item.get('evidence_ref'))} "
-                f"revision:{_esc(item.get('revision'))}"
+                f"revision:{_esc(item.get('revision'))} "
+                f"observed:{_esc(redact(item.get('observed')))}"
                 "</p>"
             )
         rows_html = "".join(row_lines)
@@ -424,6 +429,8 @@ def render_badges_html(
             f"<p class=\"detail\">{detail}</p>"
             f"<p class=\"scope\">{scope}</p>"
             f"<p class=\"integrity\">Integrity: {integrity}</p>"
+            f"<p class=\"observation\">Observation: {observation}. Historical finish: {historical}.</p>"
+            f"<p class=\"outcome\">Check verdict: {check_verdict}. Outcome: {outcome_verdict}.</p>"
             f"<p class=\"limits\">{limits}</p>"
             f"<p class=\"recovery\">{recovery}</p>"
             f"{rows_html}"
