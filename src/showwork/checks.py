@@ -1015,4 +1015,6 @@ def render_report(state: dict) -> str:
         for g in state["gaps"]:
             lines.append(f"- [{g['severity']}/{g['status']}] {g['claim']} - {g['detail']}")
         lines.append("")
+    from .explain import explain_state, render_explanation
+    lines += ["## Explanation", "", render_explanation(explain_state(state)), ""]
     return "\n".join(lines)

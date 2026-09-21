@@ -295,6 +295,10 @@ def render_status(status: dict) -> str:
             f"({row['live_passed']}/{row['live_total']})"
             + (f" agent={row['agent']}" if row.get("agent") else "")
         )
+        historical = row.get("last_claims_verdict") or "absent"
+        lines.append(
+            f"    historical_finish={historical} current_rerun={row['live_verdict']}"
+        )
         if row["gaps"]:
             for g in row["gaps"][:5]:
                 lines.append(f"    gap: {g['claim']} — {g['detail']}")
