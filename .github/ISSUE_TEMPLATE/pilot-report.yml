@@ -1,0 +1,62 @@
+name: Pilot report
+description: Opt-in report after a real task receipt and a refused close.
+title: "Pilot: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open this form only after you finish a real task.
+        Owner accounts, bots, and staged demos do not count.
+        Do not paste secrets.
+  - type: checkboxes
+    id: eligible
+    attributes:
+      label: Eligibility
+      options:
+        - label: I am not the showwork owner, a bot, or a staged demo.
+          required: true
+        - label: You may cite the repository, or I give permission for redacted proof.
+          required: true
+  - type: input
+    id: repo
+    attributes:
+      label: Repository or redacted label
+      description: A public URL, or the word redacted with permission above.
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: Real task
+      description: What the receipt closed.
+    validations:
+      required: true
+  - type: textarea
+    id: refusal
+    attributes:
+      label: Intentional failure
+      description: Paste the refused finish. It must show REFUSED or exit code 2.
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: Date of the receipt (YYYY-MM-DD)
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Observation kind
+      options:
+        - First activation
+        - Repeat use, same project, at least 7 days later
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: Friction
+      description: First-value time, manual steps, false refusals, where you stopped, and why plain CI was not enough.
+    validations:
+      required: true

@@ -14,6 +14,9 @@ All notable changes to showwork are recorded here.
 - Add a behavior quickstart: a broken `add` function, a standard-library test,
   a refused close, a repair, and a fresh-directory rerun. Ten minutes is a
   target, not a measured time. No PyPI tag.
+- Add an opt-in pilot page, a public report form, and an SW-04 count of
+  0/3 activations and 0/2 repeat users. Issue #64 is not an activation.
+  No cold outreach. No PyPI tag.
 
 ## 0.6.3 - 2026-09-17
 
