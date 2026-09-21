@@ -17,6 +17,10 @@ All notable changes to showwork are recorded here.
 - Add an opt-in pilot page, a public report form, and an SW-04 count of
   0/3 activations and 0/2 repeat users. Issue #64 is not an activation.
   No cold outreach. No PyPI tag.
+- Show the same receipt explanation in text and JSON: requirement, check,
+  scope, result, evidence reference, revision, and unassessed limits.
+  A disabled or unsupported check is not labeled as a failure. Share text
+  redacts secrets and local paths. No PyPI tag.
 
 ## 0.6.3 - 2026-09-17
 

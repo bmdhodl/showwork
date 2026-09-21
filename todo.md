@@ -1,11 +1,18 @@
 # showwork build plan
 
-## SW-04 opt-in pilot — 2026-09-21  [status: in progress]
+## SW-05 receipt explanations — 2026-09-21  [status: in progress]
+
+- [x] Text and JSON share requirement, check, scope, result, evidence, revision
+- [x] Separate rerun, integrity, disabled checks, and unknown evidence
+- [x] Incomplete receipts stay unverified; share text redacts paths and secrets
+- [ ] PR + second-model QA for #90 (no PyPI tag)
+
+## SW-04 opt-in pilot — 2026-09-21  [status: merged]
 
 - [x] Public pilot report form
 - [x] Opt-in page; no cold outreach
 - [x] Readout publishes 0/3 and 0/2; issue #64 is not an activation
-- [ ] PR + second-model QA for #89 (no PyPI tag)
+- [x] PR + second-model QA for #89 (no PyPI tag)
 
 ## SW-03 behavior quickstart — 2026-09-20  [status: merged]
 

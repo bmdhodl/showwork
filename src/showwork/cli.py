@@ -250,8 +250,10 @@ def _audit_report_path(ledger: Path, label: str) -> Path:
 
 
 def _print_state(state: dict, as_json: bool) -> None:
+    from .explain import explain_state, render_explanation
+    explanation = explain_state(state)
     if as_json:
-        print(json.dumps(state, indent=2))
+        print(json.dumps({**state, "explanation": explanation}, indent=2))
         return
     print(f"showwork verify - {state['label']}  =>  {state['verdict']}  "
           f"({state['passed']}/{state['total']} checks passed)")
@@ -265,6 +267,7 @@ def _print_state(state: dict, as_json: bool) -> None:
         print(f"       {r['detail']}")
     if state["gaps"]:
         print(f"\n{len(state['gaps'])} gap(s): a claimed 'done' is not backed by reality.")
+    print(render_explanation(explanation))
 
 
 def _decode(raw: object) -> str:

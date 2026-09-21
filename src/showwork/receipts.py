@@ -28,6 +28,7 @@ from .ledger import (
     verify_session,
 )
 from .audit import audit_root
+from .explain import explain_state, redact
 
 READ_ONLY_CHECKS = frozenset({"file_exists", "file_contains", "path_moved", "frontmatter", "glob_count"})
 
@@ -158,11 +159,39 @@ def _session_from_record(record: Mapping[str, Any] | None) -> str | None:
         return None
 
 
+def _historical_outcome(events: list[dict]) -> str:
+    """Last close, separate from the live rerun. A refusal stays a refusal."""
+    last = None
+    for event in events:
+        if event.get("event") in {"session.finish", "session.finish.refused"}:
+            last = event
+    if not isinstance(last, dict):
+        return "absent"
+    if last.get("event") == "session.finish.refused":
+        return "refused"
+    outcome = last.get("outcome")
+    if isinstance(outcome, dict) and outcome.get("verdict") in {"VERIFIED", "UNVERIFIED"}:
+        return str(outcome["verdict"])
+    verdict = last.get("claims_verdict")
+    if isinstance(verdict, str) and verdict:
+        return verdict
+    return "absent"
+
+
 def _payload(state: str, details: dict[str, Any]) -> dict[str, Any]:
     if state not in EVIDENCE_STATES:
         state = "unknown"
+    explanation = details.get("explanation")
+    if not isinstance(explanation, dict):
+        explanation = explain_state(
+            {"verdict": "unknown", "results": [], "outcome": {"verdict": "UNVERIFIED"}},
+            integrity=str(details.get("integrity") or "unknown"),
+        )
+    elif state != "verified" and explanation.get("outcome_verdict") == "VERIFIED":
+        explanation = {**explanation, "outcome_verdict": "UNVERIFIED"}
     out = {"state": state, "label": LABELS[state]}
     out.update(details)
+    out["explanation"] = explanation
     return out
 
 
@@ -230,8 +259,17 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
             )
         integrity = audit_root(workspace)
         if integrity["verdict"] != "GREEN":
-            return _payload("unknown", {**details, "reason": "ledger integrity is not verified"})
+            return _payload("unknown", {
+                **details,
+                "reason": "ledger integrity is not verified",
+                "integrity": integrity["verdict"],
+            })
         state = verify_session(workspace, session, allowed_check_types=READ_ONLY_CHECKS)
+        historical = _historical_outcome(events)
+        details["integrity"] = "GREEN"
+        details["explanation"] = explain_state(
+            state, integrity="GREEN", historical_outcome=historical,
+        )
         open_session = False
         last_status = None
         for event in events:
@@ -348,13 +386,37 @@ def render_badges_html(
         label = LABELS[state]
         heading = _esc(row.get("title") or verification.get("session") or "session")
         surface = row.get("surface") if row.get("surface") in cards else "home"
-        claim = _esc(verification.get("claim") or verification.get("reason") or "No receipts yet.")
-        check = _esc(verification.get("check") or "")
-        detail = _esc(verification.get("detail") or verification.get("verdict") or "")
+        claim = _esc(redact(verification.get("claim") or verification.get("reason") or "No receipts yet."))
+        check = _esc(redact(verification.get("check") or ""))
+        detail = _esc(redact(verification.get("detail") or verification.get("verdict") or ""))
         outcome = verification.get("outcome") or {}
+        explanation = verification.get("explanation") if isinstance(verification.get("explanation"), dict) else {}
         scope = _esc(f"Declared checks only: {outcome.get('behavior_checks', 0)} behavior, "
                      f"{outcome.get('artifact_checks', 0)} artifact. Unlisted requirements: unknown.")
+        limits = _esc(redact("; ".join(explanation.get("limitations") or [])))
+        recovery = _esc(redact(explanation.get("recovery") or ""))
+        integrity = _esc(redact(explanation.get("integrity") or verification.get("integrity") or "unknown"))
+        observation = _esc(redact(explanation.get("observation") or "absent"))
+        historical = _esc(redact(explanation.get("historical_outcome") or "absent"))
+        outcome_verdict = _esc(redact(explanation.get("outcome_verdict") or "UNVERIFIED"))
+        check_verdict = _esc(redact(explanation.get("check_verdict") or "unknown"))
         session = _esc(verification.get("session") or "")
+        row_lines = []
+        for item in explanation.get("rows") or []:
+            if not isinstance(item, dict):
+                continue
+            row_lines.append(
+                "<p class=\"row\">"
+                f"requirement:{_esc(redact(item.get('requirement')))} "
+                f"check:{_esc(redact(item.get('check')))} "
+                f"scope:{_esc(item.get('scope'))} "
+                f"result:{_esc(item.get('result'))} "
+                f"evidence:{_esc(item.get('evidence_ref'))} "
+                f"revision:{_esc(item.get('revision'))} "
+                f"observed:{_esc(redact(item.get('observed')))}"
+                "</p>"
+            )
+        rows_html = "".join(row_lines)
         cards[surface].append(
             "<article class=\"card\" data-surface=\""
             f"{surface}\" data-state=\"{state}\">"
@@ -366,6 +428,12 @@ def render_badges_html(
             f"<p class=\"check\">{check}</p>"
             f"<p class=\"detail\">{detail}</p>"
             f"<p class=\"scope\">{scope}</p>"
+            f"<p class=\"integrity\">Integrity: {integrity}</p>"
+            f"<p class=\"observation\">Observation: {observation}. Historical finish: {historical}.</p>"
+            f"<p class=\"outcome\">Check verdict: {check_verdict}. Outcome: {outcome_verdict}.</p>"
+            f"<p class=\"limits\">{limits}</p>"
+            f"<p class=\"recovery\">{recovery}</p>"
+            f"{rows_html}"
             "</div></details></article>"
         )
     home = "".join(cards["home"])
