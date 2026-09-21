@@ -57,6 +57,8 @@ showwork finish --session first-look --status ok
 
 Expected: exit code `0` and `Outcome: VERIFIED`.
 This proves one artifact requirement. It proves no application behavior.
+For a broken function that a test catches, see the
+[behavior quickstart](docs/quickstart-behavior.md).
 
 Inspect the session:
 
@@ -164,7 +166,7 @@ See [evidence scope](docs/evidence-scope.md),
 | You want to | Start here |
 | --- | --- |
 | Find guides and references | [Documentation index](docs/README.md) |
-| Run a quickstart on Windows or another shell | [Python quickstart](docs/quickstart-python.md) |
+| Run a quickstart on Windows or another shell | [Python quickstart](docs/quickstart-python.md) and [behavior quickstart](docs/quickstart-behavior.md) |
 | Gate CI on committed receipts | [CI guide](docs/ci.md) |
 | Wrap an agent command | [Adapters](docs/adapters.md) |
 | Read or implement the ledger format | [Specification](SPEC.md) |
