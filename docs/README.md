@@ -34,6 +34,7 @@ recovery in an empty directory.
 - [False Done Rate method](false-done-rate.md)
 - [Evidence packs and their limits](compliance.md)
 - [SW-02 benchmark vs pytest and Agent Verify](reports/sw-02-benchmark/README.md)
+- [Opt-in pilot](pilot.md) and the [SW-04 count](reports/sw-04-pilot/README.md)
 
 ## Keep documentation current
 

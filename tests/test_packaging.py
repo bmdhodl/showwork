@@ -37,6 +37,8 @@ def test_sdist_contains_readme_targets(tmp_path):
         "docs/README.md",
         "docs/quickstart-python.md",
         "docs/quickstart-behavior.md",
+        "docs/pilot.md",
+        "docs/reports/sw-04-pilot/README.md",
         "CONTRIBUTING.md",
         "SPEC.md",
         "docs/claude-code.md",

@@ -13,6 +13,7 @@
 - [CI guide](https://github.com/bmdhodl/showwork/blob/main/docs/ci.md): Committed receipt gates and permissions.
 - [Evidence scope](https://github.com/bmdhodl/showwork/blob/main/docs/evidence-scope.md): What a passing check does and does not establish.
 - [SW-02 benchmark](https://github.com/bmdhodl/showwork/blob/main/docs/reports/sw-02-benchmark/README.md): Dated pytest and Agent Verify comparison. Untested hosts are labeled.
+- [Opt-in pilot](https://github.com/bmdhodl/showwork/blob/main/docs/pilot.md): How an independent maintainer reports a real task. The [SW-04 count](https://github.com/bmdhodl/showwork/blob/main/docs/reports/sw-04-pilot/README.md) starts at zero.
 - [Contributing](https://github.com/bmdhodl/showwork/blob/main/CONTRIBUTING.md): Tests and required receipts.
 - [Agent instructions](https://github.com/bmdhodl/showwork/blob/main/AGENTS.md): Repository contribution rules.
 - [Package metadata](https://github.com/bmdhodl/showwork/blob/main/pyproject.toml): Branch version and Python floor.

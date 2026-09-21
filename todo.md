@@ -1,10 +1,17 @@
 # showwork build plan
 
-## SW-03 behavior quickstart — 2026-09-20  [status: in progress]
+## SW-04 opt-in pilot — 2026-09-21  [status: in progress]
+
+- [x] Public pilot report form
+- [x] Opt-in page; no cold outreach
+- [x] Readout publishes 0/3 and 0/2; issue #64 is not an activation
+- [ ] PR + second-model QA for #89 (no PyPI tag)
+
+## SW-03 behavior quickstart — 2026-09-20  [status: merged]
 
 - [x] Document fail / repair / rerun on Windows and Linux
 - [x] Tests for refusal, recovery, and a fresh checkout
-- [ ] PR + second-model QA for #88 (no PyPI tag)
+- [x] PR + second-model QA for #88 (no PyPI tag)
 
 ## SW-02 benchmark — 2026-09-18  [status: merged]
 
