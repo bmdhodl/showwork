@@ -60,7 +60,7 @@ Three rules drive every design decision below:
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 
 `src/showwork/__init__.py` re-exports the public Python API and pins
-`__version__ = "0.6.3"`, matching `pyproject.toml`.
+`__version__ = "0.6.4"`, matching `pyproject.toml`.
 
 ## Data model
 

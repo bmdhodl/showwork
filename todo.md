@@ -1,6 +1,12 @@
 # showwork build plan
 
-## SW-06 Codex-to-Claude handoff — 2026-09-21  [status: in progress]
+## v0.6.4 release — 2026-09-22  [status: in progress]
+
+- [x] Slop scan passed at 0.0 for notes, X, LinkedIn, video lines, and the README line
+- [x] HDR demo encoded with hevc_nvenc on the 5090
+- [ ] Tag v0.6.4, PyPI, GitHub release, posts
+
+## SW-06 Codex-to-Claude handoff — 2026-09-21  [status: merged]
 
 - [x] Example: Codex records a check and its limit; a second process reads it
 - [x] Changed code, missing evidence, a superseded decision, and a bad session stay unapproved

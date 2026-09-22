@@ -10,8 +10,7 @@ Check what an AI agent says it completed.
 showwork records an agent's claims and runs deterministic checks. Its exit gate
 refuses a clean outcome close when declared acceptance checks fail.
 Each session keeps its own append-only, hash-chained receipt.
-Version 0.6.3 gives `require` the same check flags as `claim`. Declare that
-check before the first claim.
+Version 0.6.4 refuses the close when add(2, 2) returns 5, then passes the same check after the repair. Declare the check before the first claim.
 
 Python 3.10 or newer. No runtime dependencies. MIT licensed.
 

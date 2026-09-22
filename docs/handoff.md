@@ -3,7 +3,7 @@
 A later session can read a receipt. It cannot inherit a close. The writer
 and the reader are two processes. They share files, not memory.
 
-This walk uses showwork 0.6.3. Check that pin before you trust a checkout:
+This walk uses showwork 0.6.4. Check that pin before you trust a checkout:
 
 ```bash
 python -m showwork doctor
