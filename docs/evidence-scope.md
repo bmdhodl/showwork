@@ -71,7 +71,7 @@ Moving an old receipt out of its directory cannot hide its deletion.
 The GitHub action can select every receipt changed by a PR:
 
 ```yaml
-- uses: bmdhodl/showwork/actions/verify@v0.6.3
+- uses: bmdhodl/showwork/actions/verify@v0.6.4
   with:
     changed-since: ${{ github.event.pull_request.base.sha }}
     require-tracked: 'true'

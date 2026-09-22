@@ -2,28 +2,33 @@
 
 All notable changes to showwork are recorded here.
 
-## Unreleased
+## 0.6.4 - 2026-09-22
 
+- add(2, 2) returned 5. The test expected 4. finish exited 2 and refused the close. The repair returned a + b. The same check then passed 3 of 3.
+- require and claim now reject a bad flag before they write a record. --absent is valid on file_contains only.
+- A receipt shows the requirement, the check, the result, and the old finish. The text and the JSON match. A bad receipt stays unverified.
+- A second process can read that receipt. It does not run the recorded command. It does not inherit the close.
+- The opt-in pilot count is 0 activations and 0 repeat users.
 - Reject unsupported `require`/`claim` flag combinations before a record is
   written. `--absent` is valid on `file_contains` only. `--check-json` cannot
   mix with `--type` or other check flags. Those rejections exit 2.
 - Document the flag table and the split among artifact checks, behavior
   acceptance, integrity, current reruns, and read-only views.
 - Publish the SW-02 eight-case fixture and a dated readout versus pytest and
-  Agent Verify. The measured gap is undeclared deletion. No PyPI tag.
+  Agent Verify. The measured gap is undeclared deletion.
 - Add a behavior quickstart: a broken `add` function, a standard-library test,
   a refused close, a repair, and a fresh-directory rerun. Ten minutes is a
-  target, not a measured time. No PyPI tag.
+  target, not a measured time.
 - Add an opt-in pilot page, a public report form, and an SW-04 count of
   0/3 activations and 0/2 repeat users. Issue #64 is not an activation.
-  No cold outreach. No PyPI tag.
+  No cold outreach.
 - Add a Codex-to-Claude handoff example. A second process reads the
   receipt, the local decision, and the recorded command limit. It does not
-  run the command, and it does not inherit a close. No PyPI tag.
+  run the command, and it does not inherit a close.
 - Show the same receipt explanation in text and JSON: requirement, check,
   scope, result, evidence reference, revision, and unassessed limits.
   A disabled or unsupported check is not labeled as a failure. Share text
-  redacts secrets and local paths. No PyPI tag.
+  redacts secrets and local paths.
 
 ## 0.6.3 - 2026-09-17
 
