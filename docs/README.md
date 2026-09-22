@@ -7,6 +7,7 @@ recovery in an empty directory.
 
 - [Python quickstart](quickstart-python.md): an example that works across shells.
 - [Behavior quickstart](quickstart-behavior.md): a broken function, a refused close, repair, and a fresh rerun.
+- [Codex to Claude handoff](handoff.md): a later process reads the receipt and does not inherit the close.
 - [Cursor walkthrough](walks/cursor.md): integrate receipts into a coding session.
 - [Claude Code adapter](claude-code.md): hook setup and its limits.
 

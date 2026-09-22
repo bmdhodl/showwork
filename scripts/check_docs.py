@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ("README.md", "docs/README.md", "llms.txt", "docs/quickstart-python.md",
-        "docs/quickstart-behavior.md", "docs/pilot.md")
+        "docs/quickstart-behavior.md", "docs/pilot.md", "docs/handoff.md")
 LINK = re.compile(r"""(!?)\[([^\]\n]*)\]\(([^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)""")
 
 

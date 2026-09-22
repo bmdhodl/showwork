@@ -1,11 +1,17 @@
 # showwork build plan
 
-## SW-05 receipt explanations — 2026-09-21  [status: in progress]
+## SW-06 Codex-to-Claude handoff — 2026-09-21  [status: in progress]
+
+- [x] Example: Codex records a check and its limit; a second process reads it
+- [x] Changed code, missing evidence, a superseded decision, and a bad session stay unapproved
+- [ ] PR + second-model QA for #91 (no PyPI tag)
+
+## SW-05 receipt explanations — 2026-09-21  [status: merged]
 
 - [x] Text and JSON share requirement, check, scope, result, evidence, revision
 - [x] Separate rerun, integrity, disabled checks, and unknown evidence
 - [x] Incomplete receipts stay unverified; share text redacts paths and secrets
-- [ ] PR + second-model QA for #90 (no PyPI tag)
+- [x] PR + second-model QA for #90 (no PyPI tag)
 
 ## SW-04 opt-in pilot — 2026-09-21  [status: merged]
 
