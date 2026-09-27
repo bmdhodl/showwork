@@ -16,9 +16,8 @@ receipt job explicitly uses `mode: advisory`. `finish` and the CLI `gate` remain
 strict in either case. Advisory mode does not create or repair a receipt and
 never converts an UNVERIFIED outcome to VERIFIED.
 
-**Availability:** `mode` and the action outputs below are unreleased. Pin a
-reviewed commit containing these changes before using them. Existing `v0.6.4`
-workflows do not gain these options automatically.
+**Availability:** `mode` and the action outputs below ship in v0.6.5.
+Workflows pinned to `v0.6.4` or earlier do not gain these options.
 
 ## Checkout matters
 
