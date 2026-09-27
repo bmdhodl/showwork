@@ -719,7 +719,7 @@ def _latest_session_start(root: Path, session: str) -> dict | None:
 
 
 def start_session(root: Path, session: str, agent: str | None = None,
-                  note: str | None = None) -> dict:
+                  note: str | None = None, host_session: str | None = None) -> dict:
     snap_path = snapshot_file(ledger_dir(root), session_file_stem(session))
     previous = _latest_session_start(root, session)
     if previous and isinstance(previous.get("tree_snapshot"), dict):
@@ -730,7 +730,8 @@ def start_session(root: Path, session: str, agent: str | None = None,
     from . import __version__
     return record_event(
         root, "session.start", session, agent=agent, note=note,
-        tree_snapshot=tree_snapshot, verifier_version=__version__,
+        host_session=host_session, tree_snapshot=tree_snapshot,
+        verifier_version=__version__,
     )
 
 

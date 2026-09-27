@@ -46,7 +46,7 @@ from .control import (
     render_pre_tool_use,
 )
 from .guards import StuckDetector, ToolCall
-from .hooks import observe_stop, read_stop_payload
+from .hooks import HOST_SESSION_ENV, observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
     finish_session,
@@ -321,6 +321,11 @@ def _write_kept(keep_path: Path, kept: list[str], root: Path) -> None:
           f"{keep_path.relative_to(root).as_posix()}")
 
 
+
+def _host_session() -> str | None:
+    """Host session id for agent-started sessions, so the Stop hook can bind."""
+    return os.environ.get(HOST_SESSION_ENV, "").strip() or None
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog="showwork",
@@ -475,7 +480,8 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(str(exc)) from exc
 
     if args.cmd == "start":
-        start_session(root, args.session, agent=args.agent, note=args.note)
+        start_session(root, args.session, agent=args.agent, note=args.note,
+                      host_session=_host_session())
         print(f"session.start recorded: {args.session}")
         return 0
 
@@ -652,7 +658,8 @@ def main(argv: list[str] | None = None) -> int:
         budget.start()
         start_session(root, args.session, agent=args.agent,
                       note="wrapped: " + " ".join(cmd) +
-                           (f"; max_seconds={args.max_seconds:g}" if args.max_seconds else ""))
+                           (f"; max_seconds={args.max_seconds:g}" if args.max_seconds else ""),
+                      host_session=_host_session())
         # The wrapped process inherits the session and root, so anything it
         # runs can record claims without extra plumbing.
         env = {**os.environ, SESSION_ENV: args.session, ROOT_ENV: str(root)}

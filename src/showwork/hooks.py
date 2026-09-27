@@ -13,9 +13,13 @@ from pathlib import Path
 from typing import TextIO
 
 from .checks import gaps_payload
-from .ledger import _read_jsonl, record_event, session_events_path, verify_session
+from .ledger import (_read_jsonl, load_all_events, record_event, session_events_path,
+                     verify_session)
 
 SESSION_ENV = "SHOWWORK_SESSION"
+# Claude Code exports its session id to tool shells; Stop payloads carry it.
+HOST_SESSION_ENV = "CLAUDE_CODE_SESSION_ID"
+HOST_SESSION = "host_session"
 
 
 def read_stop_payload(stream: TextIO) -> dict:
@@ -45,18 +49,53 @@ def payload_session_id(payload: dict) -> str:
     return "unknown-session"
 
 
-def resolve_stop_session(payload: dict) -> tuple[str, bool]:
-    """Prefer SHOWWORK_SESSION so Stop binds to the agent task slug.
+def resolve_stop_session(root: Path, payload: dict) -> tuple[str, str | None]:
+    """Bind Stop to the agent task slug.
 
-    Returns (session_id, bound_from_env). When the env var is unset, the hook
-    falls back to the payload id. ``observe_stop`` then stamps
-    ``session_unbound`` on that observed finish. The stamp does not depend on
-    UUID shape or a matching ``session.start``.
+    Returns (session_id, bound_from). SHOWWORK_SESSION wins. Otherwise the
+    hook binds to the open session that ``showwork start`` recorded from this
+    host session: a host hook runs with the host's environment, so an agent
+    cannot export the variable to it mid-session. With neither, it falls back
+    to the payload id and ``observe_stop`` stamps ``session_unbound``.
     """
     env = os.environ.get(SESSION_ENV, "").strip()
     if env:
-        return env, True
-    return payload_session_id(payload), False
+        return env, SESSION_ENV
+    payload_id = payload_session_id(payload)
+    active = open_session_for_host(root, payload_id)
+    if active:
+        return active, HOST_SESSION
+    return payload_id, None
+
+
+def open_session_for_host(root: Path, host: str) -> str | None:
+    """The latest session started from ``host``, if no explicit close followed.
+
+    Stop-hook observations do not close a session; a refused finish leaves it
+    open. Two sessions tied on the latest start time bind nothing.
+    """
+    if host == "unknown-session":
+        return None
+    events = load_all_events(root)
+    starts = [e for e in events if e.get("event") == "session.start"
+              and e.get("host_session") == host and isinstance(e.get("session"), str)]
+    if not starts:
+        return None
+    latest = max(str(e.get("ts", "")) for e in starts)
+    sessions = {e["session"] for e in starts if str(e.get("ts", "")) == latest}
+    if len(sessions) != 1:
+        # ts has one-second precision; a tie cannot say which start was last.
+        return None
+    session = sessions.pop()
+    lifecycle = [e for e in events if e.get("session") == session
+                 and e.get("event") in _LIFECYCLE
+                 and e.get("observed_by") != "stop-hook"]
+    if lifecycle[-1].get("event") == "session.finish":
+        return None
+    return session
+
+
+_LIFECYCLE = frozenset({"session.start", "session.finish", "session.finish.refused"})
 
 
 def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, dict]:
@@ -66,7 +105,7 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
     it is RED because a Stop hook observes a completed stop; it is not the
     explicit exit gate.
     """
-    session, bound = resolve_stop_session(payload)
+    session, bound_from = resolve_stop_session(root, payload)
     payload_id = payload_session_id(payload)
     state = verify_session(root, session)
     unverified = gaps_payload(state)
@@ -76,12 +115,12 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
         "claims_verdict": state["verdict"],
         "claims_unverified": unverified,
     }
-    if bound:
-        fields["session_bound_from"] = SESSION_ENV
+    if bound_from:
+        fields["session_bound_from"] = bound_from
         if payload_id not in ("unknown-session", session):
             fields["hook_payload_session"] = payload_id
     else:
-        # Explicit: this finish used the host id, not SHOWWORK_SESSION.
+        # Explicit: this finish used the host id, not a task session.
         fields["session_unbound"] = True
         if payload_id != session:
             fields["hook_payload_session"] = payload_id
