@@ -4,6 +4,9 @@ branding:
   icon: check-circle
   color: green
 inputs:
+  mode:
+    description: "enforce fails on unverified receipts; advisory reports them without blocking the job"
+    default: "enforce"
   root:
     description: "Project root containing .showwork"
     default: "."
@@ -11,7 +14,7 @@ inputs:
     description: "One session to verify; mutually exclusive with changed-since"
     default: ""
   changed-since:
-    description: "Git base revision; verify all receipts changed by this PR"
+    description: "Git base revision; verify receipts changed since its merge base with HEAD"
     default: ""
   require-tracked:
     description: "Require receipt files to match committed HEAD"
@@ -31,6 +34,13 @@ inputs:
   allow-network:
     description: "Permit HTTP checks only in a trusted context"
     default: "false"
+outputs:
+  result:
+    description: "verified, unverified, or error; advisory success is not proof"
+    value: ${{ steps.verify.outputs.result }}
+  exit-code:
+    description: "Original verifier exit code, before applying the advisory policy"
+    value: ${{ steps.verify.outputs.exit-code }}
 runs:
   using: composite
   steps:
@@ -49,8 +59,10 @@ runs:
         "$PY" -I -m showwork doctor
         echo "SHOWWORK_ACTION_PY=$PY" >> "$GITHUB_ENV"
     - name: Verify the outcome receipt
+      id: verify
       shell: bash
       env:
+        SW_MODE: ${{ inputs.mode }}
         SW_ROOT: ${{ inputs.root }}
         SW_SESSION: ${{ inputs.session }}
         SW_BASE: ${{ inputs.changed-since }}
@@ -60,6 +72,10 @@ runs:
         SW_ALLOW_NETWORK: ${{ inputs.allow-network }}
       run: |
         set -euo pipefail
+        if [ "$SW_MODE" != "enforce" ] && [ "$SW_MODE" != "advisory" ]; then
+          echo "mode must be enforce or advisory" >&2
+          exit 2
+        fi
         if [ "$SW_ALLOW_COMMANDS" != "true" ]; then export SHOWWORK_NO_COMMANDS=1; fi
         if [ "$SW_ALLOW_NETWORK" != "true" ]; then export SHOWWORK_NO_NETWORK=1; fi
         args=(--root "$SW_ROOT" gate)
@@ -74,10 +90,20 @@ runs:
         if [ "$SW_TRACKED" = "true" ]; then args+=(--require-tracked); fi
         if [ -n "$SW_LEGACY_BASELINE" ]; then args+=(--legacy-integrity-baseline "$SW_LEGACY_BASELINE"); fi
         echo '## showwork declared acceptance checks' >> "$GITHUB_STEP_SUMMARY"
+        printf 'Mode: %s\n\n' "$SW_MODE" >> "$GITHUB_STEP_SUMMARY"
         set +e
         output=$("$SHOWWORK_ACTION_PY" -I -m showwork "${args[@]}" 2>&1)
         code=$?
         set -e
         printf '%s\n' "$output"
         printf '```text\n%s\n```\n' "$output" >> "$GITHUB_STEP_SUMMARY"
+        result=error
+        if [ "$code" -eq 0 ]; then result=verified; fi
+        if [ "$code" -eq 2 ]; then result=unverified; fi
+        printf 'result=%s\nexit-code=%s\n' "$result" "$code" >> "$GITHUB_OUTPUT"
+        if [ "$SW_MODE" = "advisory" ] && [ "$code" -eq 2 ]; then
+          echo '::warning::showwork receipt is not verified. Advisory mode does not block this PR; review the step summary.'
+          echo 'Receipt is not verified. Advisory mode allows the job to continue; this is not an accepted outcome.' >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
         exit "$code"

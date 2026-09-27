@@ -1,145 +1,120 @@
-# CI migration for 0.6.1
+# Receipts in pull requests
 
-The action now requires an outcome receipt. Declare acceptance requirements,
-finish successfully, and commit every receipt file. `require-tracked` defaults
-to true. Set `changed-since` to the PR base SHA to check the current change's
-receipts. The old `strict: false` setting cannot accept incomplete outcomes.
+Receipt verification and merge policy are separate choices. Showwork always
+reports the actual verification result. A repository decides whether an
+unverified receipt should block merging.
 
-Command checks stay disabled by default. Enable them only for trusted branches.
-Prepare the Python dependencies required by your acceptance tests, and pass
-`python-path` if they are installed in a job-specific environment. The action
-installs showwork from its own pinned ref into that interpreter.
+## Choose a policy
 
-A hook is only an observer. Configure the receipt job as a required branch check.
-No receipt can establish the adequacy of its tests or the completeness of its
-requirements. Review those before merge.
+- **Advisory:** run the checks, show failures in the job summary, and warn on an
+  unverified receipt without blocking the PR. Ordinary tests still gate the work.
+- **Enforce:** fail the job when the receipt is unverified. Use this for workflows
+  that require a complete outcome receipt, such as release approval.
 
-See [the evidence-scope guide](evidence-scope.md) for the incident and commands.
+The action defaults to `mode: enforce` for compatibility. This repository's
+receipt job explicitly uses `mode: advisory`. `finish` and the CLI `gate` remain
+strict in either case. Advisory mode does not create or repair a receipt and
+never converts an UNVERIFIED outcome to VERIFIED.
 
-Version 0.6.1 audits integrity after the acceptance commands have finished. It
-also offers an optional `legacy-integrity-baseline` input: a reviewed full Git
-commit ID, fixed in CI, can acknowledge damaged shared history while leaving
-its audit RED. The pinned files remain immutable, and the current session is
-never exempt. See [the adoption policy and limits](legacy-baseline.md). Omit
-this input when the requirement is intact integrity across all history.
+**Availability:** `mode` and the action outputs below are unreleased. Pin a
+reviewed commit containing these changes before using them. Existing `v0.6.4`
+workflows do not gain these options automatically.
 
-## Historical action notes (through 0.5.0)
+## Checkout matters
 
-The following describes the previous check-only action, retained for migration.
+Use `fetch-depth: 0` and check out `github.event.pull_request.head.sha` for the
+receipt job. A receipt describes the branch's work. GitHub's default synthetic
+merge checkout can include unrelated main-branch edits and make those edits look
+like undeclared changes. Keep ordinary build and test jobs on the merge checkout
+if you want to test integration with main.
 
-# Gating CI on receipts
-
-The `showwork verify` GitHub Action turns receipts from artifacts into
-enforced contracts: a job fails when the ledger's integrity chain is broken,
-when a session's claims do not verify, or when the session was closed with a
-`--no-verify` bypass (the bypass is stamped on the record; CI reads it).
-
-A full drop-in workflow lives at [verify.yml](ci/verify.yml). Copy it to
-`.github/workflows/showwork.yml`. `showwork init --ci` writes the same file
-to `docs/ci/showwork-verify.yml` so this repository's `.github/workflows/`
-stays owner-gated.
-
-## Usage
+Pass `github.event.pull_request.base.sha` as `changed-since`. Current source
+selects receipts from that revision's **merge base with HEAD**, matching a PR's
+Files changed view. Receipts added only on main are excluded. Receipts deleted
+or moved by the PR still get checked. No changed receipts remains UNVERIFIED.
 
 ```yaml
 jobs:
   receipts:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: bmdhodl/showwork/actions/verify@v0.3.0
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          session: my-agent-session     # omit to audit the chain only
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      # Install your acceptance commands' dependencies before this step.
+      # Pin uses: to a reviewed showwork commit that includes advisory mode.
+      - uses: ./actions/verify  # works inside a checkout of showwork itself
+        id: receipts
+        with:
+          mode: advisory
+          changed-since: ${{ github.event.pull_request.base.sha }}
+          allow-commands: "true"
+          require-tracked: "true"
 ```
 
-The action installs showwork from its own ref â€” no PyPI dependency, and the
-verifier version always matches the action version you pinned.
+For another repository use `bmdhodl/showwork/actions/verify@<reviewed-commit>`.
+Do not run `@main` in a gate you trust. The action installs its own pinned source,
+not the latest PyPI package. Upgrade deliberately; no release is required when
+pinning a reviewed commit.
 
-## Pinning the version
+## Inputs and outputs
 
-The install step reads `${GITHUB_ACTION_PATH}/../..`, so the ref is the only
-version knob.
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `enforce` | `advisory` reports refusal without failing the job |
+| `root` | `.` | Project root containing `.showwork/` |
+| `session` | empty | One session; mutually exclusive with `changed-since` |
+| `changed-since` | empty | Compare HEAD against the merge base with this revision |
+| `require-tracked` | `true` | Receipt files must match committed HEAD |
+| `python-path` | empty | Prepared interpreter with test dependencies; otherwise an isolated venv |
+| `allow-commands` | `false` | Execute repository Python checks in a trusted context |
+| `allow-network` | `false` | Permit HTTP checks in a trusted context |
+| `legacy-integrity-baseline` | empty | Reviewed immutable commit acknowledging unchanged shared legacy files |
+| `strict` | `true` | Deprecated; does not weaken the verifier |
 
-| ref | when to use it |
-|---|---|
-| `@v0.3.0` | Default. A release tag, readable in the diff, upgraded on purpose. |
-| `@ba862dcc115fdb9c4a88b5778227c4717cdacbb2` | Highest assurance. The full SHA behind `v0.3.0`. Tags move; SHAs do not. |
-| `@main` | Testing unreleased changes. |
+Supply exactly one of `session` and `changed-since`. The action exposes `result`
+(`verified`, `unverified`, or `error`) and the original `exit-code`. A successful
+advisory job is not evidence that the receipt passed: inspect `result` and the
+summary. Installation failures, invalid mode/selection, and unexpected verifier
+exit codes still fail the job. A gate refusal (exit 2), including a missing
+receipt or unresolved revision, is reported as unverified in advisory mode.
 
-Do not run `@main` in a gate you trust. With a floating ref the verifier can
-change between two runs of the same workflow, and no diff shows it. A
-verification gate is the worst place to break the supply-chain rule for
-third-party actions.
+Command and network checks remain disabled unless explicitly enabled. Disabled
+checks do not certify behavior. Never enable repository commands in a privileged
+workflow running untrusted fork code. The example skips forks; use a separate
+isolated test workflow for them.
 
-To upgrade, bump the ref in one place and read the [CHANGELOG](../CHANGELOG.md)
-for verdict-affecting changes. A stricter verifier can turn a GREEN repo RED,
-which is the gate working, so upgrade deliberately rather than continuously.
+## Existing installations
 
-Fleets running the gate across several repos should pin every repo to the same
-ref. Mixed refs produce verdicts you cannot compare across repos.
+The [drop-in workflow](ci/verify.yml) and `showwork init --ci` template use the
+reviewed commit containing the merge-base selector. They select the PR head with full history.
+For workflows still pinned to v0.6.4 or earlier, to stop that
+older action from blocking while retaining its visible failure, set
+`continue-on-error: true` on the **receipt action step** and inspect its
+`steps.<id>.outcome` in a following warning step. Do not apply it to the build or
+test jobs. Unlike the new advisory mode, this older fallback also tolerates action
+setup failures. Upgrade the pinned action to use the narrower advisory policy.
 
-## Inputs
+Changing this repository does not update consumer workflows or existing PRs.
+Each consumer must update its action pin and policy. No branch protection
+change is needed when the required receipt job itself uses advisory mode.
 
-| input | default | meaning |
-|---|---|---|
-| `root` | `.` | project root containing `.showwork/` |
-| `session` | *(empty)* | session id to verify; empty audits the chain only |
-| `strict` | `false` | fail on YELLOW too (unprovable/partially verified) |
-| `allow-commands` | `false` | execute locked `command` checks |
-| `allow-network` | `false` | execute bounded `http_probe` checks |
+## Diagnose a refusal
 
-## What fails the job
+- **Unrelated paths changed:** check out the PR head, not `refs/pull/*/merge`.
+  If the branch itself was rebased after recording the snapshot, review the
+  changed paths and record a new session against that tree; do not edit history.
+- **Unrelated session selected:** upgrade to the merge-base selector above.
+- **Cannot resolve a common receipt base:** fetch both revisions with full Git
+  history. A shallow checkout cannot reliably identify the PR's changes.
+- **No successful outcome close:** declare requirements before claims, run the
+  checks, finish successfully, and commit the session, claims, and snapshot.
+- **Command unavailable:** prepare test dependencies and pass `python-path` if
+  they live in a job-specific Python environment.
+- **Historical integrity RED:** review [legacy adoption](legacy-baseline.md).
+  A baseline acknowledges immutable shared history; it never makes it GREEN.
 
-- **Chain break** (`showwork audit` RED): history was tampered with, a
-  record was deleted, or something appended outside the writer.
-- **Failed claim** (`showwork verify --session` RED): a claimed "done" is
-  not backed by the checked-out reality.
-- **No exit-gate close**: the session has no `session.finish` event â€” the
-  agent never went through the gate.
-- **Bypass stamp**: the session closed with `--no-verify`. A bypassed gate
-  is not a clean close, and the record says so durably.
-- With `strict: true`, YELLOW also fails: pre-chain-only ledgers,
-  checker errors, failed YELLOW-severity claims.
-
-## Fork-PR safety
-
-`command` checks execute a (locked) `python <script under project root>` â€”
-that is repo code, and running repo code from an untrusted fork inside a
-privileged workflow is how CI gets owned. By default the action sets
-`SHOWWORK_NO_COMMANDS=1`: command checks refuse to run and report an error,
-the verdict honestly degrades to YELLOW ("partially verified"), and the
-default non-strict gate still passes on everything else. Enable
-`allow-commands: true` only for same-repo branches you trust, e.g.:
-
-```yaml
-        with:
-          session: my-agent-session
-          allow-commands: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-```
-
-`http_probe` checks are also disabled by default. A ledger from a fork can
-choose its own URL, so the action sets `SHOWWORK_NO_NETWORK=1` unless
-`allow-network` is explicitly true. Enable it only for trusted same-repository
-branches, and treat the resulting evidence as a live external dependency:
-
-```yaml
-        with:
-          session: my-agent-session
-          allow-network: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-```
-
-## Mapping sessions to PRs
-
-The simplest convention: one agent session per branch, session id = branch
-name (or task slug), recorded in the PR body by the agent. Receipts commit
-with the work, so `verify --session` runs against exactly the ledger state
-the PR proposes. A missing-receipt policy for human contributors is a repo
-decision: run the audit-only form (no `session` input) on every PR and the
-session-verifying form on agent-labeled PRs.
-
-## The step summary is the receipt
-
-Both the audit and the session verification render into the job's step
-summary â€” reviewers see the OK/XX table and per-file head hashes without
-leaving the PR. Publishing a head hash anywhere out-of-band anchors the
-entire ledger history behind it.
+See [evidence scope](evidence-scope.md) for what receipts can and cannot prove.
+Checks cannot establish whether the requirements fully cover the user's request.

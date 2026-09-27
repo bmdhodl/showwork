@@ -51,13 +51,17 @@ def test_receipt_action_sensitive_inputs_default_to_refusal():
     assert "SHOWWORK_NO_NETWORK" in action
 
 
-def test_ci_receipt_gate_enforces_changed_committed_outcomes_on_trusted_branches():
+def test_ci_receipt_job_reviews_changed_committed_outcomes_on_trusted_branches():
     workflow = read_repo_file(".github", "workflows", "ci.yml")
     assert 'allow-commands: "true"' in workflow
     assert 'require-tracked: "true"' in workflow
     assert 'changed-since:' in workflow
     assert 'github.event.pull_request.head.repo.full_name == github.repository' in workflow
     assert "allow-network" not in workflow
+    receipts = workflow.split("  receipts:", 1)[1]
+    assert "mode: advisory" in receipts
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in receipts
+    assert "continue-on-error" not in receipts
 
 
 def test_ci_and_publishing_use_github_hosted_runners():
@@ -68,11 +72,12 @@ def test_ci_and_publishing_use_github_hosted_runners():
         assert "self-hosted" not in read_repo_file(".github", "workflows", name)
 
 
-def test_action_cannot_tolerate_unverified_outcomes():
+def test_action_defaults_to_enforcement():
     action = read_repo_file("actions", "verify", "action.yml")
     assert 'args=(--root "$SW_ROOT" gate)' in action
     assert 'exit "$code"' in action
     assert 'default: "true"' in input_block(action, "require-tracked")
+    assert 'default: "enforce"' in input_block(action, "mode")
 
 
 def test_ci_checkout_and_documentation_preserve_pin_boundary():

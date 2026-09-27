@@ -170,10 +170,19 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False,
 
 
 def changed_sessions(root: Path, base: str) -> list[str]:
-    """Select receipts changed by this PR, including deleted claim files."""
+    """Select receipts since the fork point, including deleted claim files."""
     from .ledger import load_all_events, session_file_stem
     if not base or base.startswith("-"):
         raise ValueError("changed-since must be a Git revision")
+    # Comparing branch tips treats receipts added only on main as PR deletions.
+    # Use the same fork-point comparison as a pull request's Files changed view.
+    merge_base = subprocess.run(
+        ["git", "-C", str(root), "merge-base", base, "HEAD"],
+        capture_output=True, text=True, timeout=15)
+    if merge_base.returncode:
+        raise ValueError("cannot resolve a common receipt base; fetch both revisions "
+                         "and use actions/checkout with fetch-depth: 0")
+    base = merge_base.stdout.strip()
     diff = subprocess.run(["git", "-C", str(root), "diff", "--no-renames", "--name-only", base, "HEAD",
                            "--", ".showwork/"], capture_output=True, text=True, timeout=15)
     if diff.returncode:

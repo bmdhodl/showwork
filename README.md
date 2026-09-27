@@ -175,7 +175,8 @@ See [evidence scope](docs/evidence-scope.md),
 | Inspect releases | [Changelog](CHANGELOG.md) |
 
 Every pull request carries the committed `.showwork/` receipt for the session
-that produced it. A pull request without one is not reviewed.
+that produced it. Receipt CI reports findings for review without blocking a
+merge; tests remain required. Repositories can opt into strict receipt enforcement.
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the receipt gate.
 
 Maintained by [Patrick Hughes](https://github.com/bmdhodl).

@@ -184,9 +184,8 @@ def test_cli_names_acknowledged_red_files(tmp_path, capsys):
     assert baseline in output
 
 
-def test_init_workflow_uses_installed_release(tmp_path):
-    # REGRESSION: the 0.6.1 package emitted an action pin that missed its fix.
-    from showwork import __version__
+def test_init_workflow_uses_merge_base_aware_action(tmp_path):
+    # REGRESSION: the old release pin misses the merge-base selection fix.
     assert main(["--root", str(tmp_path), "init"]) == 0
     workflow = (tmp_path / "docs/ci/showwork-verify.yml").read_text()
-    assert f"bmdhodl/showwork/actions/verify@v{__version__}" in workflow
+    assert "bmdhodl/showwork/actions/verify@0c1e52792a2eb5e7ae5dcc2b46f6bf7262850642" in workflow

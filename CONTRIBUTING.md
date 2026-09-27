@@ -9,14 +9,16 @@ A pull request must include the committed `.showwork/` receipt for the session
 that produced it. The receipt is one file per session under
 `.showwork/sessions/`, plus that session's claims under `.showwork/claims/`.
 
-**A pull request with no receipt is not reviewed.**
+Missing or unverified receipts are review findings. They do not prevent opening
+or reviewing a PR. This repository uses advisory receipt CI; tests still gate
+the change, and agents still record and verify their work locally.
 
 The receipt is the review marker. A reviewer reads it against the diff and asks
 two questions. Does a check back every completed change the session claimed?
 Does the diff match the files those checks name?
 
-A pull request with no receipt was never verified. The diff alone does not say
-whether anyone checked it, so a reviewer has nowhere to start.
+A missing receipt means showwork has no outcome evidence. Review the ordinary
+test results and artifacts too; receipt absence does not say those checks failed.
 
 Produce a receipt like this:
 
@@ -35,7 +37,8 @@ python -m showwork.cli claim --session <agent>-<task-slug> \
 python -m showwork.cli finish --session <agent>-<task-slug> --status ok
 
 git add .showwork/sessions/<agent>-<task-slug>.jsonl \
-        .showwork/claims/<agent>-<task-slug>.jsonl
+        .showwork/claims/<agent>-<task-slug>.jsonl \
+        .showwork/snapshots/<agent>-<task-slug>.json
 ```
 
 Check types are `file_exists`, `file_contains`, `path_moved`, `frontmatter`,
@@ -43,7 +46,8 @@ Check types are `file_exists`, `file_contains`, `path_moved`, `frontmatter`,
 
 `finish` refuses with exit 2 when a claimed change is not real. Repair the code,
 or retract the claim truthfully with `showwork retract`, then finish again. Do
-not pass `--no-verify`. The bypass is stamped on the record and CI fails on it.
+not pass `--no-verify`. The bypass is stamped on the record and never qualifies
+as a verified outcome, including in advisory CI.
 If you are truly stuck, close with `finish --status blocked` and say so in the
 pull request.
 
@@ -53,7 +57,9 @@ Run the gate against the committed tree before you push:
 python -m showwork.cli gate --session <agent>-<task-slug> --require-tracked
 ```
 
-CI runs the same gate on the receipts your change ships.
+CI runs the same gate on the PR head and reports the actual verdict in its step
+summary. Advisory mode allows an unverified receipt through the job without
+changing its verdict. See [CI policy and setup](docs/ci.md).
 
 ## Agent-authored pull requests say so
 
