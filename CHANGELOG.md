@@ -2,8 +2,17 @@
 
 All notable changes to showwork are recorded here.
 
-## Unreleased
+## 0.6.5 - 2026-09-27
 
+- The Claude Code Stop hook no longer appends the same `session.finish` on
+  every stop. It writes again when the verdict, the unverified claims, the
+  binding, or the latest event changes.
+- `start` and `run` record `CLAUDE_CODE_SESSION_ID` as `host_session`. The Stop
+  hook binds to the latest open session started from that host session and
+  stamps `session_bound_from: host_session`. Other hosts' sessions, stale open
+  sessions, and same-second ties are not bound.
+- An `export SHOWWORK_SESSION` inside a tool call never reached the hook. The
+  docs no longer suggest it.
 - Select PR receipts from the merge base, so unrelated receipts added on main
   do not appear as deletions by the PR. Real receipt deletions remain selected.
 - Check receipts on the PR head, independently of normal merge-result CI.
