@@ -17,7 +17,9 @@ from .ledger import (_read_jsonl, load_all_events, record_event, session_events_
                      verify_session)
 
 SESSION_ENV = "SHOWWORK_SESSION"
-LATEST_START = "latest-session-start"
+# Claude Code exports its session id to tool shells; Stop payloads carry it.
+HOST_SESSION_ENV = "CLAUDE_CODE_SESSION_ID"
+HOST_SESSION = "host_session"
 
 
 def read_stop_payload(stream: TextIO) -> dict:
@@ -51,36 +53,35 @@ def resolve_stop_session(root: Path, payload: dict) -> tuple[str, str | None]:
     """Bind Stop to the agent task slug.
 
     Returns (session_id, bound_from). SHOWWORK_SESSION wins. Otherwise the
-    hook binds to the latest started session while it is still open: a host
-    hook runs with the host's environment, so an agent cannot export the
-    variable to it mid-session. With neither, it falls back to the payload id
-    and ``observe_stop`` stamps ``session_unbound``.
+    hook binds to the open session that ``showwork start`` recorded from this
+    host session: a host hook runs with the host's environment, so an agent
+    cannot export the variable to it mid-session. With neither, it falls back
+    to the payload id and ``observe_stop`` stamps ``session_unbound``.
     """
     env = os.environ.get(SESSION_ENV, "").strip()
     if env:
         return env, SESSION_ENV
-    active = open_latest_session(root)
+    payload_id = payload_session_id(payload)
+    active = open_session_for_host(root, payload_id)
     if active:
-        return active, LATEST_START
-    return payload_session_id(payload), None
+        return active, HOST_SESSION
+    return payload_id, None
 
 
-def open_latest_session(root: Path) -> str | None:
-    """The most recently started session, if no explicit close followed it.
+def open_session_for_host(root: Path, host: str) -> str | None:
+    """The latest session started from ``host``, if no explicit close followed.
 
     Stop-hook observations do not close a session; a refused finish leaves it
-    open. A tie on the latest start time binds nothing rather than guess.
+    open.
     """
+    if host == "unknown-session":
+        return None
     events = load_all_events(root)
     starts = [e for e in events if e.get("event") == "session.start"
-              and isinstance(e.get("session"), str)]
+              and e.get("host_session") == host and isinstance(e.get("session"), str)]
     if not starts:
         return None
-    latest = max(str(e.get("ts", "")) for e in starts)
-    sessions = {e["session"] for e in starts if str(e.get("ts", "")) == latest}
-    if len(sessions) != 1:
-        return None
-    session = sessions.pop()
+    session = max(starts, key=lambda e: str(e.get("ts", "")))["session"]
     lifecycle = [e for e in events if e.get("session") == session
                  and e.get("event") in _LIFECYCLE
                  and e.get("observed_by") != "stop-hook"]

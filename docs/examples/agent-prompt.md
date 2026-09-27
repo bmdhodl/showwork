@@ -10,7 +10,8 @@ Start material work with:
 
     showwork start --session <agent>-<task-slug> --agent claude-code
 
-A Stop hook binds to the latest started session until `showwork finish` closes it.
+A Claude Code Stop hook binds to the session started from the same Claude Code
+session until `showwork finish` closes it.
 
 Use a distinct slug per agent (`cursor-fix-nav`, `codex-fix-nav`). Two agents
 that share a slug share one ledger file.

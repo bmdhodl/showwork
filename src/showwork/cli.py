@@ -46,7 +46,7 @@ from .control import (
     render_pre_tool_use,
 )
 from .guards import StuckDetector, ToolCall
-from .hooks import observe_stop, read_stop_payload
+from .hooks import HOST_SESSION_ENV, observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
     finish_session,
@@ -475,7 +475,8 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(str(exc)) from exc
 
     if args.cmd == "start":
-        start_session(root, args.session, agent=args.agent, note=args.note)
+        start_session(root, args.session, agent=args.agent, note=args.note,
+                      host_session=os.environ.get(HOST_SESSION_ENV, "").strip() or None)
         print(f"session.start recorded: {args.session}")
         return 0
 

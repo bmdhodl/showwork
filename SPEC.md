@@ -374,6 +374,9 @@ A `session.start` MUST [test:
 tests/test_snapshot.py::test_start_records_tree_snapshot] record
 `tree_snapshot` with `count` and `sha256` for a sidecar at
 `.showwork/snapshots/<stem>.json`. The sidecar is not a JSONL chain file.
+When `CLAUDE_CODE_SESSION_ID` is set, `start` MUST [test:
+tests/test_hooks.py::test_start_records_host_session] record it as
+`host_session`.
 `verify --session` and a clean `finish` MUST [test:
 tests/test_snapshot.py::test_undeclared_delete_is_red] fail RED when a file
 that existed at start is gone or its content hash changed, and no active
@@ -432,12 +435,13 @@ verdict and unverified claims but exit zero because hooks observe rather than
 gate. When `SHOWWORK_SESSION` is set, the Stop hook MUST [test:
 tests/test_hooks.py::test_stop_hook_prefers_showwork_session_env] bind to that
 id and stamp `session_bound_from`. When it is unset, the Stop hook MUST [test:
-tests/test_hooks.py::test_stop_hook_binds_to_open_latest_session] bind to the
-session with the latest `session.start` if no explicit `session.finish`
-follows that start, and stamp `session_bound_from: latest-session-start`.
-Stop-hook observations and refused finishes do not close a session. A tie on
-the latest start time MUST [test:
-tests/test_hooks.py::test_stop_hook_tied_starts_bind_nothing] bind nothing.
+tests/test_hooks.py::test_stop_hook_binds_to_session_started_by_same_host] bind
+to the latest session whose `session.start` recorded `host_session` equal to
+the payload session id, if no explicit `session.finish` follows that start,
+and stamp `session_bound_from: host_session`. Stop-hook observations and
+refused finishes do not close a session. It MUST [test:
+tests/test_hooks.py::test_stop_hook_ignores_other_hosts_open_session] ignore
+open sessions started from another host session.
 With no bound session it MUST [test:
 tests/test_hooks.py::test_stop_hook_marks_unbound_payload_session] stamp
 `session_unbound` on the observed finish. A gated `run` MUST [test:
