@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TextIO
 
 from .checks import gaps_payload
-from .ledger import record_event, verify_session
+from .ledger import _read_jsonl, record_event, session_events_path, verify_session
 
 SESSION_ENV = "SHOWWORK_SESSION"
 
@@ -85,5 +85,19 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
         fields["session_unbound"] = True
         if payload_id != session:
             fields["hook_payload_session"] = payload_id
+    # A repeat of the latest observation adds no evidence, and appending it
+    # would dirty the committed ledger on every stop.
+    events = _read_jsonl(session_events_path(root, session))
+    if events and _same_observation(events[-1], fields):
+        return events[-1], state
     event = record_event(root, "session.finish", session, **fields)
     return event, state
+
+
+_VOLATILE_KEYS = frozenset({"event", "session", "ts", "prev"})
+
+
+def _same_observation(last: dict, fields: dict) -> bool:
+    if last.get("event") != "session.finish":
+        return False
+    return {k: v for k, v in last.items() if k not in _VOLATILE_KEYS} == fields
