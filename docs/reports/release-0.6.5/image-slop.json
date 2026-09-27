@@ -1,0 +1,1 @@
+{"ok": true, "detail": "spec slop QA: PASS (score 0.0 <= 0.08, 5 text lines)", "note": "spec_slop_gate skips compare rows; all 14 visible strings scanned in image-text-slop.json"}

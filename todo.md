@@ -1,10 +1,17 @@
 # showwork build plan
 
-## v0.6.4 release — 2026-09-22  [status: in progress]
+## v0.6.5 release — 2026-09-27  [status: released]
+
+- [x] Stop hook binds to the task session; one verdict per change, not one per turn
+- [x] Slop scan passed at 0.0 for notes, X, LinkedIn, and every image string
+- [x] Tag v0.6.5, PyPI, GitHub release, posts (`docs/reports/release-0.6.5/`)
+
+## v0.6.4 release — 2026-09-22  [status: released]
 
 - [x] Slop scan passed at 0.0 for notes, X, LinkedIn, video lines, and the README line
 - [x] HDR demo encoded with hevc_nvenc on the 5090
-- [ ] Tag v0.6.4, PyPI, GitHub release, posts
+- [x] Tag v0.6.4, PyPI, GitHub release
+- [ ] Posts for 0.6.4 (not confirmed in this repo)
 
 ## SW-06 Codex-to-Claude handoff — 2026-09-21  [status: merged]
 
