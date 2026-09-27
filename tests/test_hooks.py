@@ -87,3 +87,38 @@ def test_stop_hook_marks_unbound_payload_session(tmp_path, monkeypatch):
     assert event["session"] == "host-uuid-only"
     assert event["session_unbound"] is True
     assert event.get("session_bound_from") is None
+
+
+def _stop(tmp_path, monkeypatch, session):
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps({"session_id": session})))
+    assert main(["--root", str(tmp_path), "stop-hook"]) == 0
+
+
+def test_stop_hook_skips_repeat_observation(tmp_path, monkeypatch):
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    for _ in range(3):
+        _stop(tmp_path, monkeypatch, "repeat")
+    assert len(_events(tmp_path, "repeat")) == 1
+
+
+def test_stop_hook_records_again_when_verdict_changes(tmp_path, monkeypatch):
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    record_claim(tmp_path, "flip", "proof exists",
+                 check={"type": "file_exists", "path": "proof.txt"})
+    _stop(tmp_path, monkeypatch, "flip")
+    (tmp_path / "proof.txt").write_text("real", encoding="utf-8")
+    _stop(tmp_path, monkeypatch, "flip")
+    _stop(tmp_path, monkeypatch, "flip")
+    assert [e["claims_verdict"] for e in _events(tmp_path, "flip")] == ["RED", "GREEN"]
+
+
+def test_stop_hook_records_after_another_event(tmp_path, monkeypatch):
+    from showwork.ledger import record_event
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    _stop(tmp_path, monkeypatch, "between")
+    record_event(tmp_path, "session.finish", "between", status="ok")
+    _stop(tmp_path, monkeypatch, "between")
+    events = _events(tmp_path, "between")
+    assert len(events) == 3
+    assert events[-1]["observed_by"] == "stop-hook"
