@@ -27,18 +27,15 @@ Add this to the project's `.claude/settings.json`:
 ```
 
 Claude Code sends the hook payload on standard input. showwork accepts either
-`session_id` or `sessionId`. Prefer binding the Stop hook to the same task
-slug you passed to `showwork start`:
+`session_id` or `sessionId`. The hook binds to a session in this order:
 
-```bash
-# In the agent shell (or wrapper) before Claude runs:
-export SHOWWORK_SESSION=<task-slug>
-```
-
-When `SHOWWORK_SESSION` is set, the hook verifies and stamps that session
-(`session_bound_from: SHOWWORK_SESSION`). When it is unset, the hook falls
-back to the host payload id and stamps `session_unbound: true` so orphan
-Claude UUID finishes stay visible in the ledger.
+1. `SHOWWORK_SESSION`, when it is set in the environment Claude Code started
+   with (`session_bound_from: SHOWWORK_SESSION`). An `export` inside a Bash
+   tool call does not reach the hook.
+2. The session with the latest `showwork start`, while no explicit
+   `showwork finish` has closed it (`session_bound_from: latest-session-start`).
+3. Otherwise the host payload id, stamped `session_unbound: true` so orphan
+   Claude UUID finishes stay visible in the ledger.
 
 The observed `session.finish` always includes `claims_verdict` and
 `claims_unverified`.
@@ -49,7 +46,7 @@ Add this project instruction:
 
 ```text
 Start material work with `showwork start --session <id> --agent claude-code`.
-Export SHOWWORK_SESSION=<id> in the same shell so the Stop hook binds to it.
+The Stop hook binds to that session until `showwork finish` closes it.
 After each completed change, record a falsifiable claim with `showwork claim`.
 Before reporting success, run `showwork finish --session <id> --status ok`.
 If the finish command refuses, fix the failed claim or retract it truthfully.

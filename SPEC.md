@@ -431,7 +431,14 @@ tests/test_hooks.py::test_stop_hook_records_red_but_exits_zero] record the
 verdict and unverified claims but exit zero because hooks observe rather than
 gate. When `SHOWWORK_SESSION` is set, the Stop hook MUST [test:
 tests/test_hooks.py::test_stop_hook_prefers_showwork_session_env] bind to that
-id and stamp `session_bound_from`; otherwise it MUST [test:
+id and stamp `session_bound_from`. When it is unset, the Stop hook MUST [test:
+tests/test_hooks.py::test_stop_hook_binds_to_open_latest_session] bind to the
+session with the latest `session.start` if no explicit `session.finish`
+follows that start, and stamp `session_bound_from: latest-session-start`.
+Stop-hook observations and refused finishes do not close a session. A tie on
+the latest start time MUST [test:
+tests/test_hooks.py::test_stop_hook_tied_starts_bind_nothing] bind nothing.
+With no bound session it MUST [test:
 tests/test_hooks.py::test_stop_hook_marks_unbound_payload_session] stamp
 `session_unbound` on the observed finish. A gated `run` MUST [test:
 tests/test_run.py::test_run_gate_refuses_success_with_no_claims] refuse with

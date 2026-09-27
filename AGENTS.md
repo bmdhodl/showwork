@@ -24,8 +24,9 @@ live in `.showwork/` and ship with the commit. If your change breaks the tool,
 your own exit gate is the first thing that will tell you.
 
 1. Start material work: `python -m showwork.cli start --session <agent>-<task-slug> --agent <claude-code|codex|gemini|cursor>`
-   Set `SHOWWORK_SESSION=<agent>-<task-slug>` in the same shell so the Claude Stop hook
-   binds to the task slug (otherwise it stamps `session_unbound` on the host id).
+   The Claude Stop hook binds to the latest started session until you finish
+   it. `SHOWWORK_SESSION` overrides that only when set in the environment the
+   agent host started with; an `export` inside a tool call does not reach it.
    Distinct slugs write distinct files under `.showwork/sessions/` and `.showwork/claims/`.
 2. Before recording completion claims, declare acceptance requirements. A behavior
    requirement needs a Python test of the actual changed path, including a case

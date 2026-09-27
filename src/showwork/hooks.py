@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import TextIO
 
 from .checks import gaps_payload
-from .ledger import _read_jsonl, record_event, session_events_path, verify_session
+from .ledger import (_read_jsonl, load_all_events, record_event, session_events_path,
+                     verify_session)
 
 SESSION_ENV = "SHOWWORK_SESSION"
+LATEST_START = "latest-session-start"
 
 
 def read_stop_payload(stream: TextIO) -> dict:
@@ -45,18 +47,49 @@ def payload_session_id(payload: dict) -> str:
     return "unknown-session"
 
 
-def resolve_stop_session(payload: dict) -> tuple[str, bool]:
-    """Prefer SHOWWORK_SESSION so Stop binds to the agent task slug.
+def resolve_stop_session(root: Path, payload: dict) -> tuple[str, str | None]:
+    """Bind Stop to the agent task slug.
 
-    Returns (session_id, bound_from_env). When the env var is unset, the hook
-    falls back to the payload id. ``observe_stop`` then stamps
-    ``session_unbound`` on that observed finish. The stamp does not depend on
-    UUID shape or a matching ``session.start``.
+    Returns (session_id, bound_from). SHOWWORK_SESSION wins. Otherwise the
+    hook binds to the latest started session while it is still open: a host
+    hook runs with the host's environment, so an agent cannot export the
+    variable to it mid-session. With neither, it falls back to the payload id
+    and ``observe_stop`` stamps ``session_unbound``.
     """
     env = os.environ.get(SESSION_ENV, "").strip()
     if env:
-        return env, True
-    return payload_session_id(payload), False
+        return env, SESSION_ENV
+    active = open_latest_session(root)
+    if active:
+        return active, LATEST_START
+    return payload_session_id(payload), None
+
+
+def open_latest_session(root: Path) -> str | None:
+    """The most recently started session, if no explicit close followed it.
+
+    Stop-hook observations do not close a session; a refused finish leaves it
+    open. A tie on the latest start time binds nothing rather than guess.
+    """
+    events = load_all_events(root)
+    starts = [e for e in events if e.get("event") == "session.start"
+              and isinstance(e.get("session"), str)]
+    if not starts:
+        return None
+    latest = max(str(e.get("ts", "")) for e in starts)
+    sessions = {e["session"] for e in starts if str(e.get("ts", "")) == latest}
+    if len(sessions) != 1:
+        return None
+    session = sessions.pop()
+    lifecycle = [e for e in events if e.get("session") == session
+                 and e.get("event") in _LIFECYCLE
+                 and e.get("observed_by") != "stop-hook"]
+    if lifecycle[-1].get("event") == "session.finish":
+        return None
+    return session
+
+
+_LIFECYCLE = frozenset({"session.start", "session.finish", "session.finish.refused"})
 
 
 def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, dict]:
@@ -66,7 +99,7 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
     it is RED because a Stop hook observes a completed stop; it is not the
     explicit exit gate.
     """
-    session, bound = resolve_stop_session(payload)
+    session, bound_from = resolve_stop_session(root, payload)
     payload_id = payload_session_id(payload)
     state = verify_session(root, session)
     unverified = gaps_payload(state)
@@ -76,12 +109,12 @@ def observe_stop(root: Path, payload: dict, status: str = "ok") -> tuple[dict, d
         "claims_verdict": state["verdict"],
         "claims_unverified": unverified,
     }
-    if bound:
-        fields["session_bound_from"] = SESSION_ENV
+    if bound_from:
+        fields["session_bound_from"] = bound_from
         if payload_id not in ("unknown-session", session):
             fields["hook_payload_session"] = payload_id
     else:
-        # Explicit: this finish used the host id, not SHOWWORK_SESSION.
+        # Explicit: this finish used the host id, not a task session.
         fields["session_unbound"] = True
         if payload_id != session:
             fields["hook_payload_session"] = payload_id

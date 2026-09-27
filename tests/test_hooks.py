@@ -122,3 +122,60 @@ def test_stop_hook_records_after_another_event(tmp_path, monkeypatch):
     events = _events(tmp_path, "between")
     assert len(events) == 3
     assert events[-1]["observed_by"] == "stop-hook"
+
+
+def test_stop_hook_binds_to_open_latest_session(tmp_path, monkeypatch):
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    assert main(["--root", str(tmp_path), "start", "--session", "task-a"]) == 0
+    _stop(tmp_path, monkeypatch, "host-uuid")
+    event = _events(tmp_path, "task-a")[-1]
+    assert event["observed_by"] == "stop-hook"
+    assert event["session_bound_from"] == "latest-session-start"
+    assert event["hook_payload_session"] == "host-uuid"
+    assert "session_unbound" not in event
+    assert not sessions_path(tmp_path, "host-uuid").exists()
+
+
+def test_stop_hook_binds_to_newest_start(tmp_path, monkeypatch):
+    from showwork import ledger
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    monkeypatch.setattr(ledger, "_now", lambda: "2026-01-01T00:00:00")
+    ledger.record_event(tmp_path, "session.start", "older")
+    monkeypatch.setattr(ledger, "_now", lambda: "2026-01-01T00:00:01")
+    ledger.record_event(tmp_path, "session.start", "newer")
+    _stop(tmp_path, monkeypatch, "host-uuid")
+    assert _events(tmp_path, "newer")[-1]["session_bound_from"] == "latest-session-start"
+    assert len(_events(tmp_path, "older")) == 1
+
+
+def test_stop_hook_unbound_after_explicit_finish(tmp_path, monkeypatch):
+    from showwork.ledger import record_event
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    record_event(tmp_path, "session.start", "done-task")
+    record_event(tmp_path, "session.finish", "done-task", status="ok")
+    _stop(tmp_path, monkeypatch, "host-uuid")
+    assert len(_events(tmp_path, "done-task")) == 2
+    assert _events(tmp_path, "host-uuid")[-1]["session_unbound"] is True
+
+
+def test_stop_hook_stays_bound_after_refused_finish(tmp_path, monkeypatch):
+    from showwork.ledger import record_event
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    record_event(tmp_path, "session.start", "refused-task")
+    record_event(tmp_path, "session.finish.refused", "refused-task")
+    _stop(tmp_path, monkeypatch, "host-uuid")
+    assert _events(tmp_path, "refused-task")[-1]["observed_by"] == "stop-hook"
+
+
+def test_stop_hook_tied_starts_bind_nothing(tmp_path, monkeypatch):
+    from showwork import ledger
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    monkeypatch.setattr(ledger, "_now", lambda: "2026-01-01T00:00:00")
+    ledger.record_event(tmp_path, "session.start", "tie-a")
+    ledger.record_event(tmp_path, "session.start", "tie-b")
+    _stop(tmp_path, monkeypatch, "host-uuid")
+    assert _events(tmp_path, "host-uuid")[-1]["session_unbound"] is True

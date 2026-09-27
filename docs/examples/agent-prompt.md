@@ -9,7 +9,8 @@ or your agent harness config):
 Start material work with:
 
     showwork start --session <agent>-<task-slug> --agent claude-code
-    export SHOWWORK_SESSION=<agent>-<task-slug>
+
+A Stop hook binds to the latest started session until `showwork finish` closes it.
 
 Use a distinct slug per agent (`cursor-fix-nav`, `codex-fix-nav`). Two agents
 that share a slug share one ledger file.
