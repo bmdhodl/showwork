@@ -6,14 +6,15 @@ suite passes ("command" claims run `python <script under project root>` only).
 
 import subprocess
 import sys
+import tempfile
 
-raise SystemExit(
-    subprocess.run([
+with tempfile.TemporaryDirectory(prefix="showwork-pytest-") as basetemp:
+    result = subprocess.run([
         sys.executable,
         "-m",
         "pytest",
         "tests/",
         "-q",
-        "--basetemp=.showwork/pytest-tmp",
-    ]).returncode
-)
+        f"--basetemp={basetemp}",
+    ])
+raise SystemExit(result.returncode)

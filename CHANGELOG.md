@@ -11,6 +11,8 @@ All notable changes to showwork are recorded here.
   Enforcement remains the action default; showwork's own receipt job uses advisory
   mode while tests and local outcome gates remain required.
 - Replace contradictory historical CI examples with current setup and recovery steps.
+- Give each test-runner invocation its own system-temp directory and clean it up
+  afterward, avoiding shared scratch directories across verification runs.
 
 ## 0.6.4 - 2026-09-22
 

@@ -89,7 +89,8 @@ isolated test workflow for them.
 ## Existing installations
 
 The [drop-in workflow](ci/verify.yml) and `showwork init --ci` template use the
-published v0.6.4 action. They select the PR head with full history. To stop that
+reviewed commit containing the merge-base selector. They select the PR head with full history.
+For workflows still pinned to v0.6.4 or earlier, to stop that
 older action from blocking while retaining its visible failure, set
 `continue-on-error: true` on the **receipt action step** and inspect its
 `steps.<id>.outcome` in a following warning step. Do not apply it to the build or
