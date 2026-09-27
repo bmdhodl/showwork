@@ -187,3 +187,23 @@ def test_stop_hook_stays_bound_after_refused_finish(tmp_path, monkeypatch):
     record_event(tmp_path, "session.finish.refused", "refused-task")
     _stop(tmp_path, monkeypatch, "host-1")
     assert _events(tmp_path, "refused-task")[-1]["observed_by"] == "stop-hook"
+
+
+def test_stop_hook_same_second_host_starts_bind_nothing(tmp_path, monkeypatch):
+    from showwork import ledger
+
+    monkeypatch.delenv("SHOWWORK_SESSION", raising=False)
+    monkeypatch.setattr(ledger, "_now", lambda: "2026-01-01T00:00:00")
+    _start(tmp_path, monkeypatch, "task-a", "host-1")
+    _start(tmp_path, monkeypatch, "task-b", "host-1")
+    _stop(tmp_path, monkeypatch, "host-1")
+    assert len(_events(tmp_path, "task-a")) == 1
+    assert len(_events(tmp_path, "task-b")) == 1
+    assert _events(tmp_path, "host-1")[-1]["session_unbound"] is True
+
+
+def test_run_records_host_session(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "host-1")
+    main(["--root", str(tmp_path), "run", "--session", "wrapped", "--agent", "x",
+          "--", sys.executable, "-c", "pass"])
+    assert _events(tmp_path, "wrapped")[0]["host_session"] == "host-1"

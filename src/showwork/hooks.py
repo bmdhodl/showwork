@@ -72,7 +72,7 @@ def open_session_for_host(root: Path, host: str) -> str | None:
     """The latest session started from ``host``, if no explicit close followed.
 
     Stop-hook observations do not close a session; a refused finish leaves it
-    open.
+    open. Two sessions tied on the latest start time bind nothing.
     """
     if host == "unknown-session":
         return None
@@ -81,7 +81,12 @@ def open_session_for_host(root: Path, host: str) -> str | None:
               and e.get("host_session") == host and isinstance(e.get("session"), str)]
     if not starts:
         return None
-    session = max(starts, key=lambda e: str(e.get("ts", "")))["session"]
+    latest = max(str(e.get("ts", "")) for e in starts)
+    sessions = {e["session"] for e in starts if str(e.get("ts", "")) == latest}
+    if len(sessions) != 1:
+        # ts has one-second precision; a tie cannot say which start was last.
+        return None
+    session = sessions.pop()
     lifecycle = [e for e in events if e.get("session") == session
                  and e.get("event") in _LIFECYCLE
                  and e.get("observed_by") != "stop-hook"]
