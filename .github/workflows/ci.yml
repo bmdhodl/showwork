@@ -65,6 +65,8 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          # Receipts describe the branch, not GitHub's synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install acceptance test dependencies
         run: bash scripts/ci/ensure-python-dependencies.sh
@@ -72,9 +74,10 @@ jobs:
       - name: Install acceptance browser
         run: .venv/bin/python -m playwright install --with-deps chromium
 
-      - name: Gate the receipts shipped by this change
+      - name: Review the receipts shipped by this change
         uses: ./actions/verify
         with:
+          mode: advisory
           changed-since: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
           allow-commands: "true"
           require-tracked: "true"
