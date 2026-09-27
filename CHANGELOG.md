@@ -2,6 +2,16 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- Select PR receipts from the merge base, so unrelated receipts added on main
+  do not appear as deletions by the PR. Real receipt deletions remain selected.
+- Check receipts on the PR head, independently of normal merge-result CI.
+- Add explicit advisory action mode with warnings and original verdict outputs.
+  Enforcement remains the action default; showwork's own receipt job uses advisory
+  mode while tests and local outcome gates remain required.
+- Replace contradictory historical CI examples with current setup and recovery steps.
+
 ## 0.6.4 - 2026-09-22
 
 - add(2, 2) returned 5. The test expected 4. finish exited 2 and refused the close. The repair returned a + b. The same check then passed 3 of 3.
