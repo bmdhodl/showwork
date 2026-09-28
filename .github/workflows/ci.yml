@@ -33,6 +33,8 @@ jobs:
         run: bash scripts/ci/ensure-python-dependencies.sh
 
       - name: Run the full behavioral suite through the genesis receipt
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
         run: .venv/bin/python scripts/check_ci_genesis.py
 
       - name: Install Chromium for receipt UI verification

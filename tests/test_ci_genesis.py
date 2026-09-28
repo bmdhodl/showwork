@@ -59,5 +59,8 @@ def test_missing_or_changed_suite_refuses_before_execution(tmp_path, mutation):
 def test_ci_has_one_genesis_entry_point():
     workflow = (ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8')
     assert 'run: .venv/bin/python scripts/check_ci_genesis.py' in workflow
+    # REGRESSION: the verifier's 120-second default cut short a passing full suite.
+    genesis_step = workflow.split('- name: Run the full behavioral suite through the genesis receipt')[1].split('\n      - name:')[0]
+    assert 'SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"' in genesis_step
     assert 'run: .venv/bin/python scripts/run_tests.py' not in workflow
     assert 'run: .venv/bin/showwork verify --session genesis' not in workflow
