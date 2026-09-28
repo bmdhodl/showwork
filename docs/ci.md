@@ -19,9 +19,24 @@ on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
 is available. Each matrix job has a 20-minute bound and records its exact commit
 and dependency versions. This workflow does not publish or sign a release.
 
-Existing historical receipt replays remain during the CI comparison period.
-Their removal requires same-commit parity evidence; an integrity audit alone
-does not prove the historical acceptance commands still pass.
+The behavioral suite runs through the existing genesis receipt once, using
+`python scripts/check_ci_genesis.py`. The entry point refuses a missing,
+retracted, duplicated or changed suite command before execution. It uses the
+normal verifier for both the full test command and the remaining genesis
+artifact claims. It does not cache results, rewrite receipts or omit tests.
+The genesis step explicitly allows 600 seconds for its command inside the
+15-minute job. Without this setting the verifier's 120-second default can
+terminate a passing full suite. This is a bounded execution budget, not a
+timeout retry or a waiver; a suite exceeding it still fails.
+Real subprocess fixtures prove one execution and propagation of suite failures,
+missing success output and missing artifacts. This removes only the standalone
+invocation that immediately repeated the same suite on the same checkout.
+
+Today's claims still run separately, as do the trusted changed-receipt checks.
+They may replay commands again; further deduplication remains pending. Neither
+date-scoped verification nor the genesis receipt replays every historical
+session, and neither is a hash-chain audit (`showwork audit`). Full historical
+replay and integrity coverage remain separate rollout work.
 
 ## Choose a policy
 

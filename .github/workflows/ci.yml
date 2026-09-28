@@ -32,8 +32,10 @@ jobs:
       - name: Install dependencies when inputs changed
         run: bash scripts/ci/ensure-python-dependencies.sh
 
-      - name: Run behavioral and conformance tests
-        run: .venv/bin/python scripts/run_tests.py
+      - name: Run the full behavioral suite through the genesis receipt
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
+        run: .venv/bin/python scripts/check_ci_genesis.py
 
       - name: Install Chromium for receipt UI verification
         run: .venv/bin/python -m playwright install --with-deps chromium
@@ -41,10 +43,7 @@ jobs:
       - name: Exercise receipt UI and responsive states
         run: .venv/bin/python scripts/check_receipts_ui.py
 
-      - name: Verify the committed genesis receipt
-        run: .venv/bin/showwork verify --session genesis --no-report
-
-      - name: Verify the integrity chain
+      - name: Verify today's claims
         run: .venv/bin/showwork verify
 
   conformance-js:
