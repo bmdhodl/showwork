@@ -19,6 +19,30 @@ on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
 is available. Each matrix job has a 20-minute bound and records its exact commit
 and dependency versions. This workflow does not publish or sign a release.
 
+The hourly integration candidate (`integration.yml`, minute 19 UTC) checks out
+the immutable event SHA on standard hosted Ubuntu. It builds and installs that
+commit's wheel, exercises the installed CLI, then runs outcome and CLI cases.
+Admission reads Actions history for the same commit, which also fixes suite,
+lockfile and workflow identity. It reuses only an actual successful `integration`
+job from the last 24 hours. Nightly OS/Python compatibility still runs regardless
+of source changes; hourly admission does not replace it.
+
+A newer failed execution invalidates an older pass. One automatic retry is
+allowed; two failed or timed-out executions defer additional work at that SHA.
+An explicit manual `force` dispatch may retry after triage. Incomplete/unavailable
+history refuses selection rather than resetting that budget. An active equivalent
+run defers the tick, and the hourly concurrency group keeps the latest pending
+tick without cancelling an executing probe. PR, nightly and release groups remain
+separate.
+
+Read coverage freshness from the last successful **integration job**, not the
+workflow's aggregate conclusion: admission-only workflows may succeed while
+integration is skipped. The admission summary reports `already-verified`,
+`deferred-active` or `deferred-retry-limit`, with the existing evidence run ID.
+Skipped ticks do not update the tested timestamp. This candidate still needs
+failure-to-incident routing and hosted dispatch/skip/retry verification before
+activation is accepted. Local selector tests are not scheduled-execution proof.
+
 The behavioral suite runs through the existing genesis receipt once, using
 `python scripts/check_ci_genesis.py`. The entry point refuses a missing,
 retracted, duplicated or changed suite command before execution. It uses the
