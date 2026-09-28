@@ -178,6 +178,16 @@ Checks cannot establish whether the requirements fully cover the user's request.
 
 ## Platform regression follow-up
 
+The hourly integration lane reports admission or execution failures in one
+marked GitHub issue. Repeated failures of the same kind at the same commit do
+not add notifications. New failed commits update that issue with their execution
+link. Only an actual successful integration on the default branch closes it;
+skipped, cancelled and non-default-branch runs cannot claim recovery. API errors
+fail the reporting job loudly. The issue is the repair handoff: reproduce once,
+classify code versus infrastructure/configuration, and use reviewed changes.
+After the retry limit, a triaged manual force can resume execution. This uses
+existing Actions history and GitHub issues, with no mutable local CI state file.
+
 The supported Python 3.10 lane uses the `tomli` backport only for tests that read
 `pyproject.toml`. Python 3.11 and newer use standard-library `tomllib`. Local full
 suite setup on Python 3.10 needs
