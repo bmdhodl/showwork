@@ -22,13 +22,31 @@ def input_block(action: str, name: str) -> str:
     return match.group(0)
 
 
-def test_clean_room_skips_fork_shaped_pull_requests():
-    workflow = read_repo_file(".github", "workflows", "clean-room-action.yml")
-    guard = (
-        "if: github.event_name != 'pull_request' || "
-        "github.event.pull_request.head.repo.full_name == github.repository"
-    )
-    assert guard in workflow
+def test_fork_prs_get_isolated_behavior_and_clean_room_checks():
+    # REGRESSION: all behavioral jobs were skipped for external contributions.
+    clean_room = read_repo_file(".github", "workflows", "clean-room-action.yml")
+    workflow = read_repo_file(".github", "workflows", "ci.yml")
+    ordinary = workflow.split("  receipts:", 1)[0]
+    for content in (clean_room, ordinary):
+        assert "head.repo.full_name" not in content
+        assert "permissions:\n  contents: read" in content
+        assert "persist-credentials: false" in content
+        assert "pull_request_target" not in content
+        assert "self-hosted" not in content
+
+
+def test_nightly_package_matrix_never_publishes():
+    workflow = read_repo_file(".github", "workflows", "nightly.yml")
+    for platform in ("ubuntu-latest", "windows-latest", "macos-latest"):
+        assert platform in workflow
+    for version in ("3.10", "3.11", "3.12", "3.13"):
+        assert version in workflow
+    assert "scripts/smoke_release.py" in workflow
+    assert "scripts/run_tests.py" in workflow
+    assert "schedule:" in workflow
+    assert "contents: read" in workflow
+    assert "id-token: write" not in workflow
+    assert "gh-action-pypi-publish" not in workflow
 
 
 def test_clean_room_tamper_uses_per_session_event_file():

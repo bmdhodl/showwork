@@ -4,6 +4,25 @@ Receipt verification and merge policy are separate choices. Showwork always
 reports the actual verification result. A repository decides whether an
 unverified receipt should block merging.
 
+## Repository test lanes
+
+Every PR, including forks, runs behavioral/conformance tests, receipt UI checks,
+the JavaScript auditor and the ten clean-room action cases on disposable hosted
+runners with read-only permissions and no persisted checkout credentials. The
+receipt-command review job remains limited to trusted branches and advisory.
+Its successful job status must not be described as a verified outcome.
+
+Nightly at 08:37 UTC, package compatibility builds and installs the current
+commit's wheel. The installed CLI must refuse a missing artifact and accept it
+after creation, then pass the other release-smoke cases. Behavioral tests run
+on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
+is available. Each matrix job has a 20-minute bound and records its exact commit
+and dependency versions. This workflow does not publish or sign a release.
+
+Existing historical receipt replays remain during the CI comparison period.
+Their removal requires same-commit parity evidence; an integrity audit alone
+does not prove the historical acceptance commands still pass.
+
 ## Choose a policy
 
 - **Advisory:** run the checks, show failures in the job summary, and warn on an
