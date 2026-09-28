@@ -40,6 +40,20 @@ def test_golffly_magic_strings_cannot_close_an_outcome(tmp_path, capsys):
     assert state["outcome"]["verdict"] == "UNVERIFIED"
 
 
+def test_receipt_manifest_accepts_equivalent_root_spelling(tmp_path):
+    # REGRESSION: macOS /var aliases and Windows short temp paths resolved the
+    # claim file but not its root, so a successful finish raised ValueError.
+    from showwork.outcomes import receipt_manifest
+    (tmp_path / "proof.txt").write_text("proof", encoding="utf-8")
+    start_session(tmp_path, "alias")
+    record_claim(tmp_path, "alias", "proof exists",
+                 {"type": "file_exists", "path": "proof.txt"})
+    expected = receipt_manifest(tmp_path.resolve(), "alias")
+    alias = tmp_path / ".." / tmp_path.name
+    assert receipt_manifest(alias, "alias") == expected
+    assert expected["claims"]
+
+
 def test_behavior_requirement_rejects_string_check(tmp_path):
     start_session(tmp_path, "golf")
     assert require(tmp_path, check={"type": "file_contains", "path": "receipt.json",

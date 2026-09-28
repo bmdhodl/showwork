@@ -94,6 +94,9 @@ def outcome_summary(state: dict) -> dict:
 
 def receipt_manifest(root: Path, session: str) -> dict:
     from .ledger import iter_claim_paths, _read_jsonl
+    # Ledger paths are canonicalized; normalize the root to the same spelling
+    # before computing portable names (macOS /var and Windows short paths).
+    root = root.resolve()
     files = {}
     for path in iter_claim_paths(root):
         if any(row.get("session") == session for row in _read_jsonl(path)):

@@ -597,13 +597,15 @@ def test_glob_count_uses_direct_lookup_for_literal_prefix(tmp_path, monkeypatch)
 
 
 def test_glob_count_respects_directory_only_trailing_separator(tmp_path):
-    """Trailing slash should count directories only, matching pathlib glob behavior."""
+    """Trailing slash counts only directories on every supported Python version."""
     (tmp_path / "build").mkdir()
     (tmp_path / "alpha").mkdir()
     (tmp_path / "build.txt").write_text("x", encoding="utf-8")
     (tmp_path / "root_file.md").write_text("x", encoding="utf-8")
 
-    expected_root_glob = list(tmp_path.glob("*/"))
+    # Python 3.10 pathlib includes files for this pattern. Assert the product
+    # contract against this fixture, not the host interpreter's glob behavior.
+    expected_root_glob = [tmp_path / "build", tmp_path / "alpha"]
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "*/", "op": "==", "n": len(expected_root_glob)}),
         tmp_path,
@@ -611,7 +613,7 @@ def test_glob_count_respects_directory_only_trailing_separator(tmp_path):
     assert result["status"] == "pass", result
     assert f"count {len(expected_root_glob)} ==" in result["detail"], result
 
-    expected_build_glob = list(tmp_path.glob("build/"))
+    expected_build_glob = [tmp_path / "build"]
     result = verify_claim(
         claim({"type": "glob_count", "pattern": "build/", "op": "==", "n": len(expected_build_glob)}),
         tmp_path,
