@@ -20,7 +20,8 @@ def smoke():
 
         def run(name, args, expected=0):
             proc = subprocess.run([sys.executable, "-m", "showwork", "--root", str(root), *args],
-                                  env=env, cwd=root, capture_output=True, text=True, timeout=30)
+                                  env=env, cwd=root, capture_output=True, text=True, timeout=30,
+                                  creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             assert proc.returncode == expected, (name, proc.returncode, proc.stdout, proc.stderr)
             checks.append(name)
             return proc.stdout
