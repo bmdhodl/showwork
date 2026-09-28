@@ -19,6 +19,19 @@ on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
 is available. Each matrix job has a 20-minute bound and records its exact commit
 and dependency versions. This workflow does not publish or sign a release.
 
+A separate five-minute nightly job runs `showwork audit --json` across every
+historical ledger file and retains the full result as a 14-day Actions artifact.
+It preserves the CLI's exit code: legacy unchained records produce YELLOW (3),
+tampering produces RED (2), and only GREEN returns zero. Existing historical
+debt is not rewritten, allowlisted or converted into passing integrity. Package
+matrix results remain independent of this job's conclusion.
+
+This is a chain-integrity audit, not replay of historical claim checks. It reads
+ledger bytes without executing recorded commands or HTTP probes. Historical
+behavior replay and the rollout observation window remain separate outstanding
+work. A non-green audit artifact describes integrity findings; it does not prove
+the current package's behavioral tests failed.
+
 The hourly integration candidate (`integration.yml`, minute 19 UTC) checks out
 the immutable event SHA on standard hosted Ubuntu. It builds and installs that
 commit's wheel, exercises the installed CLI, then runs outcome and CLI cases.
