@@ -19,6 +19,30 @@ on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
 is available. Each matrix job has a 20-minute bound and records its exact commit
 and dependency versions. This workflow does not publish or sign a release.
 
+The hourly integration candidate (`integration.yml`, minute 19 UTC) checks out
+the immutable event SHA on standard hosted Ubuntu. It builds and installs that
+commit's wheel, exercises the installed CLI, then runs outcome and CLI cases.
+Admission reads Actions history for the same commit, which also fixes suite,
+lockfile and workflow identity. It reuses only an actual successful `integration`
+job from the last 24 hours. Nightly OS/Python compatibility still runs regardless
+of source changes; hourly admission does not replace it.
+
+A newer failed execution invalidates an older pass. One automatic retry is
+allowed; two failed or timed-out executions defer additional work at that SHA.
+An explicit manual `force` dispatch may retry after triage. Incomplete/unavailable
+history refuses selection rather than resetting that budget. An active equivalent
+run defers the tick, and the hourly concurrency group keeps the latest pending
+tick without cancelling an executing probe. PR, nightly and release groups remain
+separate.
+
+Read coverage freshness from the last successful **integration job**, not the
+workflow's aggregate conclusion: admission-only workflows may succeed while
+integration is skipped. The admission summary reports `already-verified`,
+`deferred-active` or `deferred-retry-limit`, with the existing evidence run ID.
+Skipped ticks do not update the tested timestamp. This candidate still needs
+failure-to-incident routing and hosted dispatch/skip/retry verification before
+activation is accepted. Local selector tests are not scheduled-execution proof.
+
 The behavioral suite runs through the existing genesis receipt once, using
 `python scripts/check_ci_genesis.py`. The entry point refuses a missing,
 retracted, duplicated or changed suite command before execution. It uses the
@@ -153,6 +177,20 @@ See [evidence scope](evidence-scope.md) for what receipts can and cannot prove.
 Checks cannot establish whether the requirements fully cover the user's request.
 
 ## Platform regression follow-up
+
+The hourly integration lane reports admission or execution failures in one
+marked GitHub issue. Repeated failures of the same kind at the same commit do
+not add notifications. New failed commits update that issue with their execution
+link. Only an actual successful integration on the default branch closes it;
+skipped, cancelled and non-default-branch runs cannot claim recovery. API errors
+fail the reporting job loudly. The issue is the repair handoff: reproduce once,
+classify code versus infrastructure/configuration, and use reviewed changes.
+After the retry limit, a triaged manual force can resume execution. This uses
+existing Actions history and GitHub issues, with no mutable local CI state file.
+An issue-reporting failure does not invalidate a successful integration job or
+cause its tests to rerun hourly. That reporting failure remains visible in its
+job result. Reusing a prior pass does not claim a new run or close an incident;
+recovery still requires actual integration execution (or a triaged manual force).
 
 The supported Python 3.10 lane uses the `tomli` backport only for tests that read
 `pyproject.toml`. Python 3.11 and newer use standard-library `tomllib`. Local full
