@@ -136,3 +136,20 @@ change is needed when the required receipt job itself uses advisory mode.
 
 See [evidence scope](evidence-scope.md) for what receipts can and cannot prove.
 Checks cannot establish whether the requirements fully cover the user's request.
+
+## Platform regression follow-up
+
+The supported Python 3.10 lane uses the `tomli` backport only for tests that read
+`pyproject.toml`. Python 3.11 and newer use standard-library `tomllib`. Local full
+suite setup on Python 3.10 needs
+`python -m pip install build pytest "setuptools>=77.0.3" wheel tomli`.
+The installed-package test's offline build uses the declared setuptools floor;
+an older setuptools bundled in a Python 3.10 venv cannot build this project.
+The shipped package still has no runtime dependencies. The first scheduled-matrix
+dispatch exposed the missing test import; do not skip packaging or handoff tests
+to make that lane pass.
+
+The Windows and macOS lanes also exposed receipt-manifest failures when a temp
+directory has an alias (Windows short names or macOS `/var`). Manifest paths now
+use the same resolved root as ledger paths. A regression exercises equivalent
+root spellings without changing receipt bytes or weakening containment checks.
