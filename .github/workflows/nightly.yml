@@ -13,6 +13,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ledger-audit:
+    name: Historical ledger integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Audit every historical ledger chain
+        env:
+          PYTHONPATH: src
+        # Preserve exit 3 (YELLOW) and 2 (RED); neither is passing integrity.
+        # Audit reads ledger bytes. It never executes historical claim commands.
+        run: python -m showwork audit --json > ledger-audit.json
+      - name: Preserve complete integrity findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ledger-integrity-${{ github.sha }}-${{ github.run_attempt }}
+          path: ledger-audit.json
+          if-no-files-found: error
+          retention-days: 14
+
   package:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
