@@ -32,6 +32,12 @@ def test_successful_actual_job_reuses_its_existing_receipt():
     assert result == {'run': False, 'state': 'already-verified', 'evidence_run': 9}
 
 
+def test_reporter_failure_does_not_invalidate_successful_integration():
+    # REGRESSION: an Issues API outage must not rerun passing tests every hour.
+    result = selector().decide([run(9, 'failure')], lambda _: jobs('success'), SHA, 10)
+    assert result == {'run': False, 'state': 'already-verified', 'evidence_run': 9}
+
+
 @pytest.mark.parametrize('job_conclusion', ['skipped', 'cancelled', None])
 def test_successful_workflow_with_no_passed_integration_does_not_prove_coverage(job_conclusion):
     # REGRESSION: an admission-only successful workflow is not a fresh test pass.

@@ -187,6 +187,10 @@ fail the reporting job loudly. The issue is the repair handoff: reproduce once,
 classify code versus infrastructure/configuration, and use reviewed changes.
 After the retry limit, a triaged manual force can resume execution. This uses
 existing Actions history and GitHub issues, with no mutable local CI state file.
+An issue-reporting failure does not invalidate a successful integration job or
+cause its tests to rerun hourly. That reporting failure remains visible in its
+job result. Reusing a prior pass does not claim a new run or close an incident;
+recovery still requires actual integration execution (or a triaged manual force).
 
 The supported Python 3.10 lane uses the `tomli` backport only for tests that read
 `pyproject.toml`. Python 3.11 and newer use standard-library `tomllib`. Local full

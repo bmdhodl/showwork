@@ -28,7 +28,9 @@ def decide(runs, jobs_for_run, sha, current_run, *, force=False, complete=True, 
         if len(actual) != 1 or actual[0]['status'] != 'completed':
             continue
         conclusion = actual[0]['conclusion']
-        if conclusion == 'success' and prior['conclusion'] == 'success':
+        # The independent reporter can fail after a valid integration pass.
+        # Its failure stays visible but cannot invalidate execution evidence.
+        if conclusion == 'success':
             if not failures and not uncertain_attempt:
                 finished = datetime.fromisoformat(actual[0]['completed_at'].replace('Z', '+00:00'))
                 age = (now - finished).total_seconds()
