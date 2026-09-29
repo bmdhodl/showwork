@@ -42,6 +42,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 
 SHELL_META = set(";|&$<>`\n\r")
@@ -593,7 +594,8 @@ def _required_path_field(check: dict, key: str) -> str | None:
     return None
 
 
-def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[str, str]:
+def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
+                command_cache: dict | None = None) -> tuple[str, str]:
     """Run a LOCKED command. Only `python <script under the project root>`,
     no shell, no metacharacters, no `..` escape. A ledger data file must never
     be able to run arbitrary commands."""
@@ -616,6 +618,13 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[s
     script = (root / argv[1]).resolve()
     run_argv = [sys.executable or "python", str(script), *argv[2:]]
     env = {**os.environ, VERIFYING_ENV: "1"}
+    # Opt-in repository replay only. Arbitrary scripts may change state relevant
+    # to the tests, so executing one invalidates previously shared suite output.
+    reusable = command_cache is not None and argv == ["python", "scripts/run_tests.py"]
+    if command_cache is not None and not reusable:
+        command_cache.clear()
+    if command_cache is not None and evidence is None:
+        evidence = {}
     if evidence is not None:
         from . import __version__
         from .snapshot import capture_tree
@@ -628,17 +637,37 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None) -> tuple[s
                         script_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
                         source_sha256=hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest(),
                         source_files=len(before), source_scope="bounded showwork tree snapshot")
+    cache_key = None
+    if reusable:
+        cache_key = hashlib.sha256(json.dumps({
+            "root": str(root.resolve()), "argv": run_argv,
+            "environment": env, "timeout": timeout_seconds,
+            "source": evidence["source_sha256"],
+        }, sort_keys=True).encode()).hexdigest()
     try:
-        proc = run_process(run_argv, capture_output=True,
-                              timeout=timeout_seconds, cwd=str(root), env=env)
+        reused = cache_key is not None and cache_key in command_cache
+        if reused:
+            proc, execution_id = command_cache[cache_key]
+        else:
+            proc = run_process(run_argv, capture_output=True,
+                               timeout=timeout_seconds, cwd=str(root), env=env)
+            execution_id = uuid.uuid4().hex
     except Exception as e:  # noqa: BLE001
+        if command_cache is not None:
+            command_cache.clear()
         return ("error", f"command failed to run: {e}")
     if evidence is not None:
         evidence.update(exit_code=proc.returncode,
                         stdout_sha256=hashlib.sha256(proc.stdout.encode()).hexdigest(),
                         stderr_sha256=hashlib.sha256(proc.stderr.encode()).hexdigest())
         if capture_tree(root) != before:
+            if command_cache is not None:
+                command_cache.clear()
             return ("fail", "source tree changed while the acceptance command was running")
+        if cache_key is not None:
+            command_cache[cache_key] = (proc, execution_id)
+            evidence.update(execution_id=execution_id, execution_reused=reused,
+                            execution_input_sha256=cache_key)
     if proc.returncode != expect:
         return ("fail", f"exit {proc.returncode}, expected {expect}")
     needle = c.get("stdout_contains")
@@ -824,7 +853,8 @@ CHECKERS = {
 
 
 def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str] | None = None,
-                 acceptance_requirement: bool = False) -> dict:
+                 acceptance_requirement: bool = False,
+                 command_cache: dict | None = None) -> dict:
     claim = record.get("claim", "(no description)")
     # SPEC: severity is RED or YELLOW. Anything else (empty, GREEN, typos)
     # must not demote a failed claim out of the exit gate — default to RED.
@@ -869,9 +899,10 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         return {**base, "type": ctype, "status": "error",
                 "detail": f"unknown check type {ctype!r}"}
     try:
-        if ctype == "command" and acceptance_requirement:
+        if ctype == "command" and (acceptance_requirement or command_cache is not None):
             evidence = {}
-            status, detail = chk_command(check, root, evidence=evidence)
+            status, detail = chk_command(check, root, evidence=evidence,
+                                         command_cache=command_cache)
             base["evidence"] = evidence
         else:
             status, detail = fn(check, root)
@@ -945,14 +976,16 @@ def apply_append_retractions(records: list[dict]) -> list[dict]:
 
 
 def evaluate_records(records: list[dict], root: Path, label: str = "", *,
-                     allowed_check_types: frozenset[str] | None = None) -> dict:
+                     allowed_check_types: frozenset[str] | None = None,
+                     command_cache: dict | None = None) -> dict:
     """Verify a list of claim records. Verdict: any failed RED claim => RED;
     any other failure or checker error => YELLOW; else GREEN."""
     records = apply_append_retractions(records)
     # Retraction markers are bookkeeping, not claims; do not list them.
     claims = [r for r in records
               if not (r.get("retracted") and isinstance(r.get("retracts"), dict))]
-    results = [verify_claim(r, root, allowed_check_types=allowed_check_types) for r in claims]
+    results = [verify_claim(r, root, allowed_check_types=allowed_check_types,
+                           command_cache=command_cache) for r in claims]
     fails = [r for r in results if r["status"] == "fail"]
     errors = [r for r in results if r["status"] == "error"]
     red = [r for r in fails if r["severity"] == "RED"]

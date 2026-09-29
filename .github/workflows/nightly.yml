@@ -13,6 +13,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  historical-replay:
+    name: Historical check replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Install the existing acceptance dependencies
+        run: bash scripts/ci/ensure-python-dependencies.sh
+      - name: Install the acceptance browser
+        run: .venv/bin/python -m playwright install --with-deps chromium
+      - name: Replay every historical claim and acceptance requirement
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
+        run: .venv/bin/python scripts/replay_history.py > history-replay.json
+      - name: Preserve replay assertions and execution identities
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: history-replay-${{ github.sha }}-${{ github.run_attempt }}
+          path: history-replay.json
+          if-no-files-found: error
+          retention-days: 14
+
   ledger-audit:
     name: Historical ledger integrity
     runs-on: ubuntu-latest
