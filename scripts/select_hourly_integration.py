@@ -10,32 +10,38 @@ from urllib.request import Request, urlopen
 def decide(runs, jobs_for_run, sha, current_run, *, force=False, complete=True, now=None):
     if not re.fullmatch(r'[0-9a-f]{40}', sha):
         raise ValueError('An immutable full commit SHA is required')
+    relevant = [prior for prior in runs if prior['id'] != current_run and prior['head_sha'] == sha]
+    for prior in relevant:
+        if prior['status'] != 'completed':
+            return {'run': False, 'state': 'deferred-active', 'evidence_run': prior['id']}
     if force:
         return {'run': True, 'state': 'manual-force', 'evidence_run': None}
     failures = []
     uncertain_attempt = False
     now = now or datetime.now(timezone.utc)
-    # Include rerun update times. A newer failed execution invalidates reuse of
-    # an older pass at the same SHA until a fresh execution succeeds.
-    for prior in sorted(runs, key=lambda row: (row.get('updated_at', ''), row['id']), reverse=True):
-        if prior['id'] == current_run or prior['head_sha'] != sha:
-            continue
-        if prior['status'] != 'completed':
-            return {'run': False, 'state': 'deferred-active', 'evidence_run': prior['id']}
+    executions = []
+    for prior in relevant:
         actual = [job for job in jobs_for_run(prior['id']) if job['name'] == 'integration']
         if len(actual) > 1:
             raise RuntimeError('Ambiguous integration job evidence')
         if len(actual) != 1 or actual[0]['status'] != 'completed':
             continue
         conclusion = actual[0]['conclusion']
+        if conclusion == 'skipped':
+            continue
+        finished = datetime.fromisoformat(actual[0]['completed_at'].replace('Z', '+00:00'))
+        if finished.tzinfo is None or finished > now:
+            raise ValueError('Future or timezone-free execution evidence is not valid')
+        executions.append((finished, prior, conclusion))
+    # Reporter completion can lag the tests. Use actual execution order,
+    # including reruns, rather than workflow update or creation order.
+    for finished, prior, conclusion in sorted(executions,
+            key=lambda item: (item[0], item[1]['id']), reverse=True):
         # The independent reporter can fail after a valid integration pass.
         # Its failure stays visible but cannot invalidate execution evidence.
         if conclusion == 'success':
             if not failures and not uncertain_attempt:
-                finished = datetime.fromisoformat(actual[0]['completed_at'].replace('Z', '+00:00'))
                 age = (now - finished).total_seconds()
-                if age < 0:
-                    raise ValueError('Future execution evidence is not valid')
                 if age >= 24 * 60 * 60:
                     return {'run': True, 'state': 'daily-refresh', 'evidence_run': prior['id']}
                 return {'run': False, 'state': 'already-verified', 'evidence_run': prior['id']}

@@ -42,7 +42,14 @@ of source changes; hourly admission does not replace it.
 
 A newer failed execution invalidates an older pass. One automatic retry is
 allowed; two failed or timed-out executions defer additional work at that SHA.
-An explicit manual `force` dispatch may retry after triage. Incomplete/unavailable
+Actual integration-job completion orders passes, failures and recoveries. A late
+reporter cannot make an older pass hide a newer failure, or erase a later recovery.
+The selector reads job evidence for the bounded history window before ordering it;
+workflow update timestamps are not execution evidence. Timezone-free and future
+job completion timestamps are refused.
+
+An explicit manual `force` dispatch may retry after triage, but cannot override
+an observed active equivalent run. Incomplete/unavailable
 history refuses selection rather than resetting that budget. An active equivalent
 run defers the tick, and the hourly concurrency group keeps the latest pending
 tick without cancelling an executing probe. PR, nightly and release groups remain
