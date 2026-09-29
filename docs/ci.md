@@ -27,10 +27,34 @@ debt is not rewritten, allowlisted or converted into passing integrity. Package
 matrix results remain independent of this job's conclusion.
 
 This is a chain-integrity audit, not replay of historical claim checks. It reads
-ledger bytes without executing recorded commands or HTTP probes. Historical
-behavior replay and the rollout observation window remain separate outstanding
-work. A non-green audit artifact describes integrity findings; it does not prove
-the current package's behavioral tests failed.
+ledger bytes without executing recorded commands or HTTP probes. A non-green
+audit artifact describes integrity findings; it does not prove the current
+package's behavioral tests failed.
+
+The separate historical-replay job evaluates every loaded claim and acceptance
+requirement against the current checkout with `scripts/replay_history.py`.
+Retractions withdraw claims but cannot erase acceptance requirements. Duplicate
+or malformed requirements fail. Missing check specs remain unverified (YELLOW),
+and stale historical assertions retain their actual RED/YELLOW results. The
+complete JSON result is retained for 14 days. This does not reconstruct old
+environments or certify past session outcomes, and does not replace the audit.
+Claims and requirements are loaded before execution; a final byte-level ledger
+comparison fails if any command changed or removed historical records.
+
+Replay may share raw output from the normalized Python invocation of
+`scripts/run_tests.py` within that single replay. Accepted `python3` and virtual
+environment interpreter aliases normalize to the same actual executable and
+share that execution too. Every assertion still checks its own expected exit
+code and output text. Reuse requires the same bounded source snapshot, resolved
+command, environment and timeout. Executing another script clears that reuse;
+source changes during execution fail and clear it too. Results identify the
+execution and whether it was reused, with output hashes rather than raw output.
+There is no persistent cache, and ordinary CLI verification does not opt in.
+The source snapshot excludes generated/dependency trees and large files; this
+is intended for the isolated repository CI checkout with fixed dependencies,
+not arbitrary live environments. The job has a 30-minute bound and uses the
+existing 600-second per-command allowance. Real nightly observation remains
+required before rollout acceptance.
 
 The hourly integration candidate (`integration.yml`, minute 19 UTC) checks out
 the immutable event SHA on standard hosted Ubuntu. It builds and installs that
@@ -79,8 +103,8 @@ invocation that immediately repeated the same suite on the same checkout.
 Today's claims still run separately, as do the trusted changed-receipt checks.
 They may replay commands again; further deduplication remains pending. Neither
 date-scoped verification nor the genesis receipt replays every historical
-session, and neither is a hash-chain audit (`showwork audit`). Full historical
-replay and integrity coverage remain separate rollout work.
+session, and neither is a hash-chain audit (`showwork audit`). The separate
+nightly replay and integrity jobs provide those checks with distinct results.
 
 ## Choose a policy
 
