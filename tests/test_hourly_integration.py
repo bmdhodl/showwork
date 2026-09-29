@@ -1,6 +1,6 @@
 """Actions history is evidence only when the actual integration job passed."""
 import importlib.util
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -108,8 +108,13 @@ def test_daily_refresh_uses_execution_time_not_skipped_tick_time():
 
 def test_new_successful_rerun_supersedes_later_created_failures():
     retried = {**run(7), 'updated_at': '2026-09-28T23:59:00Z'}
+    def evidence(number):
+        rows = jobs('success' if number == 7 else 'failure')
+        if number != 7:
+            rows[0]['completed_at'] = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        return rows
     result = selector().decide([run(9, 'failure'), retried],
-        lambda number: jobs('success' if number == 7 else 'failure'), SHA, 10)
+        evidence, SHA, 10)
     assert result['state'] == 'already-verified'
     assert result['evidence_run'] == 7
 
@@ -124,6 +129,33 @@ def test_future_success_evidence_refuses():
 def test_ambiguous_job_evidence_refuses():
     with pytest.raises(RuntimeError, match='Ambiguous'):
         selector().decide([run(9)], lambda _: jobs('success') * 2, SHA, 10)
+
+
+def test_late_reporter_cannot_reuse_pass_before_newer_failure():
+    now = datetime.now(timezone.utc)
+    def evidence(number):
+        rows = jobs('success' if number == 9 else 'failure')
+        rows[0]['completed_at'] = (now - timedelta(hours=2 if number == 9 else 1)).isoformat()
+        return rows
+    result = selector().decide([run(9), run(8)], evidence, SHA, 10, now=now)
+    assert result['state'] == 'needs-execution'
+    assert result['evidence_run'] == 8
+
+
+def test_late_failure_reporter_cannot_erase_newer_recovery():
+    now = datetime.now(timezone.utc)
+    def evidence(number):
+        rows = jobs('failure' if number == 9 else 'success')
+        rows[0]['completed_at'] = (now - timedelta(hours=2 if number == 9 else 1)).isoformat()
+        return rows
+    result = selector().decide([run(9), run(8)], evidence, SHA, 10, now=now)
+    assert result['state'] == 'already-verified'
+    assert result['evidence_run'] == 8
+
+
+def test_force_does_not_admit_over_observed_active_work():
+    result = selector().decide([run(9, status='in_progress')], lambda _: [], SHA, 10, force=True)
+    assert result['state'] == 'deferred-active'
 
 
 def test_cli_writes_admission_without_a_fresh_test_claim(tmp_path, monkeypatch):

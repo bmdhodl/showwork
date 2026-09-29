@@ -106,13 +106,35 @@ def test_run_records_wall_clock_budget(tmp_path):
     assert finish["budget_elapsed_seconds"] >= 0
 
 
-def test_run_halts_when_wall_clock_budget_expires(tmp_path, capsys):
-    started = time.monotonic()
+def test_run_halts_when_wall_clock_budget_expires(tmp_path, capsys, monkeypatch):
+    import showwork.cli as cli
+    import showwork.process as process
+
+    # REGRESSION: total CLI timing included Windows taskkill and ledger I/O.
+    # Prove the requested deadline reaches the real process runner and that
+    # it actually terminates the child, independent of host cleanup latency.
+    deadlines = []
+    terminated = []
+    real_run = cli.run_process
+    real_kill = process._kill_tree
+
+    def observe_run(*args, **kwargs):
+        deadlines.append(kwargs.get("timeout"))
+        return real_run(*args, **kwargs)
+
+    def observe_kill(proc):
+        real_kill(proc)
+        terminated.append(proc.returncode)
+
+    monkeypatch.setattr(cli, "run_process", observe_run)
+    monkeypatch.setattr(process, "_kill_tree", observe_kill)
     code = main(["--root", str(tmp_path), "run", "--session", "w",
                  "--max-seconds", "0.05", "--", sys.executable, "-c",
                  "import time; time.sleep(2)"])
     assert code == 2
-    assert time.monotonic() - started < 1
+    assert deadlines == [0.05]
+    assert len(terminated) == 1
+    assert terminated[0] is not None and terminated[0] != 0
     finish = _sessions(tmp_path)[-1]
     assert finish["status"] == "budget_exceeded"
     assert finish["budget_exceeded"] is True
