@@ -620,7 +620,8 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
     env = {**os.environ, VERIFYING_ENV: "1"}
     # Opt-in repository replay only. Arbitrary scripts may change state relevant
     # to the tests, so executing one invalidates previously shared suite output.
-    reusable = command_cache is not None and argv == ["python", "scripts/run_tests.py"]
+    reusable = command_cache is not None and run_argv == [
+        sys.executable or "python", str((root / "scripts/run_tests.py").resolve())]
     if command_cache is not None and not reusable:
         command_cache.clear()
     if command_cache is not None and evidence is None:

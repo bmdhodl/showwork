@@ -37,6 +37,20 @@ def test_shared_execution_preserves_each_assertion(tmp_path):
     assert 'passed' not in json.dumps(good['evidence'])
 
 
+def test_accepted_interpreter_aliases_share_normalized_execution(tmp_path):
+    root, counter, _ = fixture_command(tmp_path)
+    cache = {}
+    results = []
+    for alias in ['python', 'python3', '.venv/bin/python']:
+        claim = record()
+        claim['check']['argv'][0] = alias
+        results.append(verify_claim(claim, root, command_cache=cache))
+    assert all(result['status'] == 'pass' for result in results)
+    assert counter.read_text() == '1'
+    assert len({result['evidence']['execution_id'] for result in results}) == 1
+    assert [result['evidence']['execution_reused'] for result in results] == [False, True, True]
+
+
 def test_source_change_requires_new_execution(tmp_path):
     root, counter, script = fixture_command(tmp_path)
     cache = {}

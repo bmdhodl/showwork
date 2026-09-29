@@ -41,8 +41,10 @@ environments or certify past session outcomes, and does not replace the audit.
 Claims and requirements are loaded before execution; a final byte-level ledger
 comparison fails if any command changed or removed historical records.
 
-Replay may share raw output from the exact `python scripts/run_tests.py` command
-within that single invocation. Every assertion still checks its own expected exit
+Replay may share raw output from the normalized Python invocation of
+`scripts/run_tests.py` within that single replay. Accepted `python3` and virtual
+environment interpreter aliases normalize to the same actual executable and
+share that execution too. Every assertion still checks its own expected exit
 code and output text. Reuse requires the same bounded source snapshot, resolved
 command, environment and timeout. Executing another script clears that reuse;
 source changes during execution fail and clear it too. Results identify the
