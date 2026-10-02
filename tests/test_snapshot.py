@@ -212,18 +212,18 @@ def test_unreferenced_artifact_prevents_outcome_close(tmp_path):
 
 
 def test_cited_artifact_does_not_warn(tmp_path):
-    """The summary-line receipt a claim points at is proof, not clutter."""
+    """A referenced fixture artifact does not produce a clutter warning."""
     start_session(tmp_path, "cited")
     arts = session_artifacts_dir(tmp_path, "cited")
     arts.mkdir(parents=True, exist_ok=True)
     receipt = arts / "check-summary.txt"
-    receipt.write_text("Tests 2117 passed", encoding="utf-8")
+    receipt.write_text("fixture artifact content", encoding="utf-8")
     record_claim(
-        tmp_path, "cited", "the suite passed 2117 tests",
+        tmp_path, "cited", "the fixture artifact contains the declared text",
         check={
             "type": "file_contains",
             "path": receipt.relative_to(tmp_path).as_posix(),
-            "pattern": "2117 passed",
+            "pattern": "fixture artifact content",
         },
     )
     state = verify_session(tmp_path, "cited")

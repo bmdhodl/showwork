@@ -141,7 +141,8 @@ def test_gate_detects_missing_claim_file_in_fresh_checkout(tmp_path):
 
 
 def test_one_pass_cannot_hide_an_unmet_requirement(tmp_path):
-    (tmp_path / "check.py").write_text('print("passed")\n')
+    """A completed command cannot hide a missing required artifact."""
+    (tmp_path / "check.py").write_text('print("command-output")\n')
     start_session(tmp_path, "golf")
     assert require(tmp_path) == 0
     assert require(tmp_path, "video", {"type": "file_exists", "path": "video.mp4"}, "artifact") == 0
