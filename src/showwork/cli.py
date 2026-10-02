@@ -353,6 +353,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scope", choices=["artifact", "behavior"], required=True)
     _add_check_flags(p)
 
+    p = sub.add_parser("recover", help="declare fresh verification covering a blocked missing-acceptance attempt")
+    p.add_argument("--session", required=True)
+    p.add_argument("--supersedes", required=True)
+    p.add_argument("--reason", required=True)
+    p.add_argument("--coverage-file", required=True,
+                   help="JSON object mapping every work path to a fresh behavior requirement ID")
+
     p = sub.add_parser("gate", help="require a complete outcome receipt and rerun its checks")
     selection = p.add_mutually_exclusive_group(required=True)
     selection.add_argument("--session")
@@ -499,6 +506,20 @@ def main(argv: list[str] | None = None) -> int:
         print("acceptance requirement recorded")
         return 0
 
+    if args.cmd == "recover":
+        from .recovery import record_recovery
+        try:
+            coverage_path = (root / args.coverage_file).resolve()
+            if not coverage_path.is_relative_to(root):
+                raise ValueError("coverage file must be inside the project")
+            coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+            record_recovery(root, args.session, args.supersedes, args.reason, coverage)
+        except (ValueError, OSError, TypeError, KeyError) as exc:
+            print(f"recovery rejected: {exc}", file=sys.stderr)
+            return 2
+        print("recovery declaration recorded; the failed attempt remains unverified")
+        return 0
+
     if args.cmd == "gate":
         from .outcomes import changed_sessions, release_gate
         try:
@@ -512,6 +533,14 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
             result = {"verdict": "RED", "errors": [str(exc)]}
         for session_result in result.get("sessions", []):
+            recovery = session_result.get("recovery")
+            if recovery:
+                result["notes"].append(
+                    f"{session_result['session']}: original outcome remains UNVERIFIED; "
+                    f"work verified by {recovery['replacement']} "
+                    f"({len(recovery['coverage'])} explicitly covered paths)")
+                result["notes"].extend(f"preserved original finding: {error}"
+                                       for error in session_result.get("original_errors", []))
             baseline = session_result.get("legacy_baseline")
             if baseline:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")

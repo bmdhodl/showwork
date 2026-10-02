@@ -97,7 +97,31 @@ close as blocked; corrections append new records.
 Distinct session slugs write distinct files under `.showwork/sessions/` and
 `.showwork/claims/`. Reusing one slug requires one writer.
 See [concurrency](docs/concurrency.md) and the
-[`spec-v0.5` ledger specification](SPEC.md).
+[`spec-v0.6` ledger specification](SPEC.md).
+
+## Recover an acceptance-ordering mistake
+
+If claims were recorded before any acceptance requirements, the failed attempt
+cannot be repaired by backdating requirements or retracting its history.
+Close it as blocked, start a fresh session, and declare executable behavior
+requirements before recording any new claims. Then use `showwork recover`:
+
+```bash
+showwork recover --session fresh --supersedes failed --reason 'Acceptance requirements were omitted before claims' --coverage-file recovery-coverage.json
+```
+
+The JSON object maps every changed or claimed work path to a fresh behavior
+requirement ID, for example `{"src/product.py":"product-regression"}`.
+Record new claims naming every covered path, finish the fresh session, and
+commit both sessions' exact receipts and original artifacts. The ordinary
+`gate --changed-since` checks both sessions. It preserves the original
+UNVERIFIED outcome and reports which verified replacement certifies the work.
+
+Recovery is limited to a recorded missing-acceptance refusal followed by a
+blocked close with no accepted requirements. Existing requirements, successful
+sessions, recovery chains and ambiguous links cannot be superseded. Missing
+coverage, changed history, failed fresh checks or changes after the fresh
+outcome close refuse release. Coverage and test adequacy still need human review.
 
 ## Add it to a repository
 
