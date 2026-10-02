@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from showwork.cli import main
 from showwork.ledger import session_claims_path, sessions_path
 
@@ -33,16 +35,40 @@ def test_require_accepts_claim_flags(tmp_path):
 def test_require_accepts_command_flags_for_behavior(tmp_path):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
-    (scripts / "run_tests.py").write_text("print('passed')\n", encoding="utf-8")
+    (scripts / "run_tests.py").write_text("print('command-output')\n", encoding="utf-8")
     assert run(tmp_path, "start", "--session", "cmd") == 0
     assert run(tmp_path, "require", "--session", "cmd", "--id", "regression",
-               "--description", "tests fail when the behavior is broken",
+               "--description", "command flags preserve exit and stdout expectations",
                "--scope", "behavior", "--type", "command",
                "--command-arg", "python", "--command-arg", "scripts/run_tests.py",
-               "--expect-exit", "0", "--stdout-contains", "passed") == 0
+               "--expect-exit", "0", "--stdout-contains", "command-output") == 0
+    requirement = next(row for row in _events(tmp_path, "cmd")
+                       if row.get("event") == "session.requirement")
+    assert requirement["check"] == {
+        "type": "command", "argv": ["python", "scripts/run_tests.py"],
+        "expect_exit": 0, "stdout_contains": "command-output",
+    }
     assert run(tmp_path, "claim", "--session", "cmd", "--claim", "script exists",
                "--type", "file_exists", "--path", "scripts/run_tests.py") == 0
     assert run(tmp_path, "finish", "--session", "cmd") == 0
+
+
+@pytest.mark.parametrize("script", [
+    "print('command-output'); raise SystemExit(7)\n", "print('other-output')\n",
+])
+def test_command_flags_reject_wrong_exit_or_missing_stdout(tmp_path, script):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "run_tests.py").write_text(script, encoding="utf-8")
+    assert run(tmp_path, "start", "--session", "cmd-negative") == 0
+    assert run(tmp_path, "require", "--session", "cmd-negative", "--id", "command",
+               "--description", "child exit and required stdout are enforced",
+               "--scope", "behavior", "--type", "command",
+               "--command-arg", "python", "--command-arg", "scripts/run_tests.py",
+               "--expect-exit", "0", "--stdout-contains", "command-output") == 0
+    assert run(tmp_path, "claim", "--session", "cmd-negative", "--claim", "script exists",
+               "--type", "file_exists", "--path", "scripts/run_tests.py") == 0
+    assert run(tmp_path, "finish", "--session", "cmd-negative") == 2
 
 
 def test_require_needs_type_or_check_json(tmp_path, capsys):

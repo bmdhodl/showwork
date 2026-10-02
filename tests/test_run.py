@@ -241,17 +241,17 @@ def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
     bindir.mkdir()
     if os.name == "nt":
         shim = bindir / "swdemo.cmd"
-        shim.write_text("@echo Tests 3 passed\r\n", encoding="utf-8")
+        shim.write_text("@echo path-command-output\r\n", encoding="utf-8")
     else:
         shim = bindir / "swdemo"
-        shim.write_text("#!/bin/sh\necho 'Tests 3 passed'\n", encoding="utf-8")
+        shim.write_text("#!/bin/sh\necho 'path-command-output'\n", encoding="utf-8")
         shim.chmod(0o755)
     monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
     code = main(["--root", str(tmp_path), "run", "--session", "w",
-                 "--keep", "Tests .* passed", "--", "swdemo"])
+                 "--keep", "path-command-output", "--", "swdemo"])
     assert code == 0
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
-    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+    assert kept.read_text(encoding="utf-8").splitlines() == ["path-command-output"]
 def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys):
     """--max-seconds bounded only the child; a catastrophic regex ran unbounded."""
     # (a+)+$ against a's followed by a non-a backtracks exponentially: ~3.5s
