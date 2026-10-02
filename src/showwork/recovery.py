@@ -117,6 +117,8 @@ def _validate(root: Path, session: str, event: dict, *, claims_required: bool) -
                 and e.get("supersedes") == old]
     if incoming and (len(incoming) != 1 or incoming[0].get("session") != session):
         raise ValueError("ambiguous recovery links")
+    if incoming_recovery(root, session):
+        raise ValueError("recovery chains cannot target a replacement")
     own = _events(root, session)
     starts = [e for e in own if e.get("event") == "session.start"]
     if len(starts) != 1 or starts[0].get("ts", "") < lifecycle[-1].get("ts", ""):

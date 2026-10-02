@@ -131,6 +131,29 @@ def test_ambiguous_and_cyclic_links_fail_closed(tmp_path):
     assert release_gate(tmp_path, "fresh")["verdict"] == "RED"
 
 
+def test_incoming_recovery_to_replacement_blocks_both_endpoints(tmp_path):
+    recover(tmp_path)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    for selected in ("old", "fresh"):
+        assert release_gate(tmp_path, selected)["verdict"] == "GREEN"
+    # Raw ledger input must not extend a supported pair into a recovery chain.
+    record_event(tmp_path, "session.recovery", "third", supersedes="fresh",
+                 reason="unsupported transitive recovery", coverage={})
+    for selected in ("old", "fresh"):
+        result = release_gate(tmp_path, selected)
+        assert result["verdict"] == "RED"
+        assert "recovery" in str(result["errors"])
+
+
+def test_incoming_recovery_to_replacement_prevents_successful_close(tmp_path):
+    recover(tmp_path)
+    record_event(tmp_path, "session.recovery", "third", supersedes="fresh",
+                 reason="unsupported transitive recovery", coverage={})
+    assert finish_session(tmp_path, "fresh")[0] == 2
+    for selected in ("old", "fresh"):
+        assert release_gate(tmp_path, selected)["verdict"] == "RED"
+
+
 def test_changed_since_gates_both_committed_receipts(tmp_path, capsys):
     def git(*args):
         return subprocess.run(["git", *args], cwd=tmp_path, capture_output=True, text=True, check=True).stdout.strip()
