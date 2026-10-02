@@ -536,11 +536,14 @@ def main(argv: list[str] | None = None) -> int:
             recovery = session_result.get("recovery")
             if recovery:
                 result["notes"].append(
-                    f"{session_result['session']}: original outcome remains UNVERIFIED; "
+                    f"{recovery['original']}: original outcome remains UNVERIFIED; "
                     f"work verified by {recovery['replacement']} "
                     f"({len(recovery['coverage'])} explicitly covered paths)")
                 result["notes"].extend(f"preserved original finding: {error}"
                                        for error in session_result.get("original_errors", []))
+                result["notes"].append(
+                    f"{recovery['original']}: preserved historical integrity "
+                    f"{recovery['original_gate']['historical_integrity']}")
             baseline = session_result.get("legacy_baseline")
             if baseline:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")

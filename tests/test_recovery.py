@@ -10,7 +10,7 @@ from showwork.outcomes import record_requirement, release_gate, changed_sessions
 from showwork.recovery import record_recovery, _work
 
 
-def prepare(root):
+def prepare(root, before_fresh=None):
     (root / "product.py").write_text("answer = 1\n")
     (root / "check.py").write_text(
         'from pathlib import Path\nassert "answer = 2" in Path("product.py").read_text()\nprint("verified")\n')
@@ -19,6 +19,8 @@ def prepare(root):
     record_claim(root, "old", "product changed", {"type": "file_contains", "path": "product.py", "pattern": "answer"})
     assert finish_session(root, "old")[0] == 2
     assert finish_session(root, "old", status="blocked")[0] == 0
+    if before_fresh:
+        before_fresh()
     start_session(root, "fresh")
     record_requirement(root, "fresh", "behavior", "product returns the updated answer", "behavior",
                        {"type": "command", "argv": ["python", "check.py"], "stdout_contains": "verified"})
@@ -224,3 +226,103 @@ def test_unrelated_tampering_still_blocks_recovered_release(tmp_path):
     path = tmp_path / ".showwork/claims-2020-01-01.jsonl"
     path.write_text('{"session":"other","claim":"tampered","prev":"' + 'f' * 64 + '"}\n')
     assert release_gate(tmp_path, "old")["verdict"] == "RED"
+
+
+def git_fixture(root):
+    def git(*args, **kwargs):
+        return subprocess.run(["git", *args], cwd=root, capture_output=True,
+                              check=True, **kwargs).stdout
+    git("init")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "Recovery review test")
+    return git
+
+
+def test_selecting_fresh_requires_original_evidence_at_head(tmp_path):
+    git = git_fixture(tmp_path)
+    recover(tmp_path)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    git("add", "product.py", "check.py", ".showwork/claims/fresh.jsonl",
+        ".showwork/sessions/fresh.jsonl", ".showwork/snapshots/fresh.json")
+    git("commit", "-m", "replacement only")
+    result = release_gate(tmp_path, "fresh", require_tracked=True)
+    assert result["verdict"] == "RED"
+    assert any("superseded evidence" in e for e in result["errors"])
+    assert release_gate(tmp_path, "old", require_tracked=True)["verdict"] == "RED"
+
+
+def test_fresh_only_diff_exposes_original_failure_and_integrity(tmp_path, capsys):
+    git = git_fixture(tmp_path)
+    def commit_original():
+        git("add", ".")
+        git("commit", "-m", "blocked original")
+    coverage = prepare(tmp_path, before_fresh=commit_original)
+    base = git("rev-parse", "HEAD").decode().strip()
+    recover(tmp_path, coverage)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    git("add", ".")
+    git("commit", "-m", "fresh verification")
+    assert changed_sessions(tmp_path, base) == ["fresh", "old"]
+    assert main(["--root", str(tmp_path), "gate", "--changed-since", base, "--require-tracked"]) == 0
+    text = capsys.readouterr().out
+    assert "old" in text and "original outcome remains UNVERIFIED" in text
+    assert "preserved original finding" in text
+    result = release_gate(tmp_path, "fresh", require_tracked=True)
+    assert result["recovery"]["original"] == "old"
+    assert result["recovery"]["original_gate"]["checks"]["outcome"]["verdict"] == "UNVERIFIED"
+    assert result["recovery"]["original_gate"]["historical_integrity"] == "GREEN"
+
+
+@pytest.mark.parametrize("prefix", [b"\x00", b"\xff"])
+def test_binary_head_bytes_must_equal_verified_work_for_both_selections(tmp_path, prefix):
+    git = git_fixture(tmp_path)
+    coverage = prepare(tmp_path)
+    binary = tmp_path / "binary.bin"
+    binary.write_bytes(prefix + b"new\r\n")
+    coverage["binary.bin"] = "behavior"
+    recover(tmp_path, coverage)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    git("add", ".")
+    # Put a different binary blob in HEAD while retaining the verified bytes
+    # in the worktree. Text-only normalization must not hide this difference.
+    blob = git("hash-object", "-w", "--stdin", input=prefix + b"new\n").decode().strip()
+    git("update-index", "--cacheinfo", f"100644,{blob},binary.bin")
+    git("commit", "-m", "different binary at HEAD")
+    assert git("show", "HEAD:binary.bin") == prefix + b"new\n"
+    assert binary.read_bytes() == prefix + b"new\r\n"
+    for selected in ("fresh", "old"):
+        result = release_gate(tmp_path, selected, require_tracked=True)
+        assert result["verdict"] == "RED"
+        assert "binary.bin" in str(result["errors"])
+
+
+def test_utf8_text_checkout_normalization_remains_allowed(tmp_path):
+    git = git_fixture(tmp_path)
+    coverage = prepare(tmp_path)
+    text = tmp_path / "checkout.txt"
+    text.write_bytes(b"text\r\n")
+    coverage["checkout.txt"] = "behavior"
+    recover(tmp_path, coverage)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    git("add", ".")
+    blob = git("hash-object", "-w", "--stdin", input=b"text\n").decode().strip()
+    git("update-index", "--cacheinfo", f"100644,{blob},checkout.txt")
+    git("commit", "-m", "text checkout conversion")
+    for selected in ("fresh", "old"):
+        assert release_gate(tmp_path, selected, require_tracked=True)["verdict"] == "GREEN"
+
+
+def test_old_artifact_head_bytes_are_checked_for_fresh_selection(tmp_path):
+    git = git_fixture(tmp_path)
+    coverage = prepare(tmp_path)
+    artifact = tmp_path / ".showwork/artifacts/old/proof.bin"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"\x00proof\r\n")
+    recover(tmp_path, coverage)
+    assert finish_session(tmp_path, "fresh")[0] == 0
+    git("add", ".")
+    blob = git("hash-object", "-w", "--stdin", input=b"\x00proof\n").decode().strip()
+    rel = artifact.relative_to(tmp_path).as_posix()
+    git("update-index", "--cacheinfo", f"100644,{blob},{rel}")
+    git("commit", "-m", "different original artifact at HEAD")
+    assert release_gate(tmp_path, "fresh", require_tracked=True)["verdict"] == "RED"

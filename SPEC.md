@@ -580,8 +580,10 @@ fresh start after that close. No existing events, claims or snapshots are rewrit
 The gate MUST [test: tests/test_recovery.py::test_recovery_keeps_failed_history_and_requires_fresh_execution]
 preserve the original UNVERIFIED outcome and original errors separately from
 the verified replacement's release result. Changed-session selection still
-includes both sessions. Both exact receipts and original artifacts are required
-at HEAD when `require_tracked` is enabled.
+includes both sessions, following recovery dependencies even when the original
+receipt is unchanged in the base. Selecting the replacement alone still exposes
+the original outcome and findings. Both exact receipts and original artifacts
+are required at HEAD when `require_tracked` is enabled, for either selection.
 
 Coverage MUST [test: tests/test_recovery.py::test_coverage_includes_undeclared_changes_and_new_files]
 include every claimed path and every source addition, edit or deletion relative
