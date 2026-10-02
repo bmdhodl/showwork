@@ -34,16 +34,23 @@ jobs:
       - uses: actions/checkout@v4
 
       # Verify the integrity chain and one session's claims
-      - uses: bmdhodl/showwork/actions/verify@v0.3.0
+      - uses: bmdhodl/showwork/actions/verify@v0.6.5
         with:
           session: my-agent-session
           # allow-commands: false (default, fork-safe)
 
-  # Chain audit only (no session check)
-  audit-only:
+  # Verify every receipt a pull request changed. The action needs exactly one
+  # of 'session' and 'changed-since'; it exits 2 when both are missing.
+  changed-receipts:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The merge base with the PR base needs full history.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: bmdhodl/showwork/actions/verify@v0.3.0
-        # Omit 'session' to audit the chain only
+      - uses: bmdhodl/showwork/actions/verify@v0.6.5
+        with:
+          changed-since: ${{ github.event.pull_request.base.sha }}

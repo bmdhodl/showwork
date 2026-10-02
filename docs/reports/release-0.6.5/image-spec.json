@@ -1,0 +1,12 @@
+{
+  "template": "compare",
+  "size": "wide",
+  "kicker": "SHOWWORK 0.6.5 / CLAUDE CODE",
+  "title": "Your AI agent broke the fix. Did anything notice?",
+  "footer": "The test: one task, one rule. The fix file must exist. I deleted it halfway through.",
+  "source": "github.com/bmdhodl/showwork",
+  "columns": [
+    {"header": "0.6.4", "rows": ["Said all good", "Twenty times in a row", "Even after the file was gone", "Your task never got a score"]},
+    {"header": "0.6.5", "accent": true, "rows": ["Caught it", "At the next check", "Marked the task as broken", "pip install -U showwork"]}
+  ]
+}

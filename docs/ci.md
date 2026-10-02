@@ -156,6 +156,7 @@ jobs:
 ```
 
 For another repository use `bmdhodl/showwork/actions/verify@<reviewed-commit>`.
+The full SHA behind `v0.6.5` is `0502f87ed38faaea0a09c01a795d7d5ae15aa91d`.
 Do not run `@main` in a gate you trust. The action installs its own pinned source,
 not the latest PyPI package. Upgrade deliberately; no release is required when
 pinning a reviewed commit.
