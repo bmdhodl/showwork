@@ -46,20 +46,30 @@ def record_requirement(root: Path, session: str, requirement_id: str,
 
 
 def evaluate_requirements(root: Path, session: str, *, allowed_check_types=None) -> list[dict]:
+    return evaluate_requirement_records(root, requirement_records(root, session),
+                                        allowed_check_types=allowed_check_types)
+
+
+def evaluate_requirement_records(root: Path, records: list[dict], *,
+                                 allowed_check_types=None, command_cache=None) -> list[dict]:
+    """Evaluate loaded requirement events without rereading history per session."""
     from .checks import verify_claim
     rows = []
     seen = set()
-    for record in requirement_records(root, session):
+    for record in records:
+        session = record.get("session", "")
         requirement_id = record.get("requirement_id")
         error = None
-        if not isinstance(requirement_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", requirement_id):
+        if not isinstance(session, str) or not session:
+            error = "invalid requirement session"
+        elif not isinstance(requirement_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", requirement_id):
             error = "invalid requirement id"
-        elif requirement_id in seen:
+        elif (session, requirement_id) in seen:
             error = "duplicate requirement id; acceptance checks cannot be replaced"
         else:
-            seen.add(requirement_id)
+            seen.add((session, requirement_id))
         scope, check = record.get("scope"), record.get("check")
-        if scope not in {"artifact", "behavior"} or not isinstance(check, dict):
+        if scope not in ("artifact", "behavior") or not isinstance(check, dict):
             error = "requirement is missing its scope or executable check"
         elif scope == "behavior" and check.get("type") != "command":
             error = "behavior requires an executable command check"
@@ -73,7 +83,7 @@ def evaluate_requirements(root: Path, session: str, *, allowed_check_types=None)
             clean = {k: record[k] for k in ("claim", "session", "check") if k in record}
             clean.update(requirement_id=requirement_id, scope=scope, severity="RED")
             rows.append(verify_claim(clean, root, allowed_check_types=allowed_check_types,
-                                     acceptance_requirement=True))
+                                     acceptance_requirement=True, command_cache=command_cache))
     return rows
 
 
@@ -94,6 +104,9 @@ def outcome_summary(state: dict) -> dict:
 
 def receipt_manifest(root: Path, session: str) -> dict:
     from .ledger import iter_claim_paths, _read_jsonl
+    # Ledger paths are canonicalized; normalize the root to the same spelling
+    # before computing portable names (macOS /var and Windows short paths).
+    root = root.resolve()
     files = {}
     for path in iter_claim_paths(root):
         if any(row.get("session") == session for row in _read_jsonl(path)):

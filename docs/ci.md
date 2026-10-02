@@ -4,6 +4,108 @@ Receipt verification and merge policy are separate choices. Showwork always
 reports the actual verification result. A repository decides whether an
 unverified receipt should block merging.
 
+## Repository test lanes
+
+Every PR, including forks, runs behavioral/conformance tests, receipt UI checks,
+the JavaScript auditor and the ten clean-room action cases on disposable hosted
+runners with read-only permissions and no persisted checkout credentials. The
+receipt-command review job remains limited to trusted branches and advisory.
+Its successful job status must not be described as a verified outcome.
+
+Nightly at 08:37 UTC, package compatibility builds and installs the current
+commit's wheel. The installed CLI must refuse a missing artifact and accept it
+after creation, then pass the other release-smoke cases. Behavioral tests run
+on Linux Python 3.10 through 3.13, Windows 3.13 and macOS 3.13. Manual dispatch
+is available. Each matrix job has a 20-minute bound and records its exact commit
+and dependency versions. This workflow does not publish or sign a release.
+
+A separate five-minute nightly job runs `showwork audit --json` across every
+historical ledger file and retains the full result as a 14-day Actions artifact.
+It preserves the CLI's exit code: legacy unchained records produce YELLOW (3),
+tampering produces RED (2), and only GREEN returns zero. Existing historical
+debt is not rewritten, allowlisted or converted into passing integrity. Package
+matrix results remain independent of this job's conclusion.
+
+This is a chain-integrity audit, not replay of historical claim checks. It reads
+ledger bytes without executing recorded commands or HTTP probes. A non-green
+audit artifact describes integrity findings; it does not prove the current
+package's behavioral tests failed.
+
+The separate historical-replay job evaluates every loaded claim and acceptance
+requirement against the current checkout with `scripts/replay_history.py`.
+Retractions withdraw claims but cannot erase acceptance requirements. Duplicate
+or malformed requirements fail. Missing check specs remain unverified (YELLOW),
+and stale historical assertions retain their actual RED/YELLOW results. The
+complete JSON result is retained for 14 days. This does not reconstruct old
+environments or certify past session outcomes, and does not replace the audit.
+Claims and requirements are loaded before execution; a final byte-level ledger
+comparison fails if any command changed or removed historical records.
+
+Replay may share raw output from the normalized Python invocation of
+`scripts/run_tests.py` within that single replay. Accepted `python3` and virtual
+environment interpreter aliases normalize to the same actual executable and
+share that execution too. Every assertion still checks its own expected exit
+code and output text. Reuse requires the same bounded source snapshot, resolved
+command, environment and timeout. Executing another script clears that reuse;
+source changes during execution fail and clear it too. Results identify the
+execution and whether it was reused, with output hashes rather than raw output.
+There is no persistent cache, and ordinary CLI verification does not opt in.
+The source snapshot excludes generated/dependency trees and large files; this
+is intended for the isolated repository CI checkout with fixed dependencies,
+not arbitrary live environments. The job has a 30-minute bound and uses the
+existing 600-second per-command allowance. Real nightly observation remains
+required before rollout acceptance.
+
+The hourly integration candidate (`integration.yml`, minute 19 UTC) checks out
+the immutable event SHA on standard hosted Ubuntu. It builds and installs that
+commit's wheel, exercises the installed CLI, then runs outcome and CLI cases.
+Admission reads Actions history for the same commit, which also fixes suite,
+lockfile and workflow identity. It reuses only an actual successful `integration`
+job from the last 24 hours. Nightly OS/Python compatibility still runs regardless
+of source changes; hourly admission does not replace it.
+
+A newer failed execution invalidates an older pass. One automatic retry is
+allowed; two failed or timed-out executions defer additional work at that SHA.
+Actual integration-job completion orders passes, failures and recoveries. A late
+reporter cannot make an older pass hide a newer failure, or erase a later recovery.
+The selector reads job evidence for the bounded history window before ordering it;
+workflow update timestamps are not execution evidence. Timezone-free and future
+job completion timestamps are refused.
+
+An explicit manual `force` dispatch may retry after triage, but cannot override
+an observed active equivalent run. Incomplete/unavailable
+history refuses selection rather than resetting that budget. An active equivalent
+run defers the tick, and the hourly concurrency group keeps the latest pending
+tick without cancelling an executing probe. PR, nightly and release groups remain
+separate.
+
+Read coverage freshness from the last successful **integration job**, not the
+workflow's aggregate conclusion: admission-only workflows may succeed while
+integration is skipped. The admission summary reports `already-verified`,
+`deferred-active` or `deferred-retry-limit`, with the existing evidence run ID.
+Skipped ticks do not update the tested timestamp. This candidate still needs
+failure-to-incident routing and hosted dispatch/skip/retry verification before
+activation is accepted. Local selector tests are not scheduled-execution proof.
+
+The behavioral suite runs through the existing genesis receipt once, using
+`python scripts/check_ci_genesis.py`. The entry point refuses a missing,
+retracted, duplicated or changed suite command before execution. It uses the
+normal verifier for both the full test command and the remaining genesis
+artifact claims. It does not cache results, rewrite receipts or omit tests.
+The genesis step explicitly allows 600 seconds for its command inside the
+15-minute job. Without this setting the verifier's 120-second default can
+terminate a passing full suite. This is a bounded execution budget, not a
+timeout retry or a waiver; a suite exceeding it still fails.
+Real subprocess fixtures prove one execution and propagation of suite failures,
+missing success output and missing artifacts. This removes only the standalone
+invocation that immediately repeated the same suite on the same checkout.
+
+Today's claims still run separately, as do the trusted changed-receipt checks.
+They may replay commands again; further deduplication remains pending. Neither
+date-scoped verification nor the genesis receipt replays every historical
+session, and neither is a hash-chain audit (`showwork audit`). The separate
+nightly replay and integrity jobs provide those checks with distinct results.
+
 ## Choose a policy
 
 - **Advisory:** run the checks, show failures in the job summary, and warn on an
@@ -118,3 +220,34 @@ change is needed when the required receipt job itself uses advisory mode.
 
 See [evidence scope](evidence-scope.md) for what receipts can and cannot prove.
 Checks cannot establish whether the requirements fully cover the user's request.
+
+## Platform regression follow-up
+
+The hourly integration lane reports admission or execution failures in one
+marked GitHub issue. Repeated failures of the same kind at the same commit do
+not add notifications. New failed commits update that issue with their execution
+link. Only an actual successful integration on the default branch closes it;
+skipped, cancelled and non-default-branch runs cannot claim recovery. API errors
+fail the reporting job loudly. The issue is the repair handoff: reproduce once,
+classify code versus infrastructure/configuration, and use reviewed changes.
+After the retry limit, a triaged manual force can resume execution. This uses
+existing Actions history and GitHub issues, with no mutable local CI state file.
+An issue-reporting failure does not invalidate a successful integration job or
+cause its tests to rerun hourly. That reporting failure remains visible in its
+job result. Reusing a prior pass does not claim a new run or close an incident;
+recovery still requires actual integration execution (or a triaged manual force).
+
+The supported Python 3.10 lane uses the `tomli` backport only for tests that read
+`pyproject.toml`. Python 3.11 and newer use standard-library `tomllib`. Local full
+suite setup on Python 3.10 needs
+`python -m pip install build pytest "setuptools>=77.0.3" wheel tomli`.
+The installed-package test's offline build uses the declared setuptools floor;
+an older setuptools bundled in a Python 3.10 venv cannot build this project.
+The shipped package still has no runtime dependencies. The first scheduled-matrix
+dispatch exposed the missing test import; do not skip packaging or handoff tests
+to make that lane pass.
+
+The Windows and macOS lanes also exposed receipt-manifest failures when a temp
+directory has an alias (Windows short names or macOS `/var`). Manifest paths now
+use the same resolved root as ledger paths. A regression exercises equivalent
+root spellings without changing receipt bytes or weakening containment checks.

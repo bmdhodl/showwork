@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # One run per ref. A superseded push should not hold a runner while the
 # commit it tested is already history.
 concurrency:
@@ -14,13 +17,14 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           clean: false
+          persist-credentials: false
 
       - name: Reset workspace and keep the Python environment
         run: git clean -ffdx -e /.venv/
@@ -28,8 +32,10 @@ jobs:
       - name: Install dependencies when inputs changed
         run: bash scripts/ci/ensure-python-dependencies.sh
 
-      - name: Run behavioral and conformance tests
-        run: .venv/bin/python scripts/run_tests.py
+      - name: Run the full behavioral suite through the genesis receipt
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
+        run: .venv/bin/python scripts/check_ci_genesis.py
 
       - name: Install Chromium for receipt UI verification
         run: .venv/bin/python -m playwright install --with-deps chromium
@@ -37,18 +43,17 @@ jobs:
       - name: Exercise receipt UI and responsive states
         run: .venv/bin/python scripts/check_receipts_ui.py
 
-      - name: Verify the committed genesis receipt
-        run: .venv/bin/showwork verify --session genesis --no-report
-
-      - name: Verify the integrity chain
+      - name: Verify today's claims
         run: .venv/bin/showwork verify
 
   conformance-js:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -60,11 +65,13 @@ jobs:
   receipts:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
           # Receipts describe the branch, not GitHub's synthetic merge commit.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 

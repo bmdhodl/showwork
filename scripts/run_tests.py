@@ -11,10 +11,12 @@ import tempfile
 with tempfile.TemporaryDirectory(prefix="showwork-pytest-") as basetemp:
     result = subprocess.run([
         sys.executable,
+        "-u",
         "-m",
         "pytest",
         "tests/",
         "-q",
         f"--basetemp={basetemp}",
-    ])
+    ], stdout=sys.stdout, stderr=sys.stderr,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 raise SystemExit(result.returncode)

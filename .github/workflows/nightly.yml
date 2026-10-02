@@ -1,0 +1,110 @@
+name: Nightly package compatibility
+
+on:
+  schedule:
+    - cron: "37 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  historical-replay:
+    name: Historical check replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Install the existing acceptance dependencies
+        run: bash scripts/ci/ensure-python-dependencies.sh
+      - name: Install the acceptance browser
+        run: .venv/bin/python -m playwright install --with-deps chromium
+      - name: Replay every historical claim and acceptance requirement
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
+        run: .venv/bin/python scripts/replay_history.py > history-replay.json
+      - name: Preserve replay assertions and execution identities
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: history-replay-${{ github.sha }}-${{ github.run_attempt }}
+          path: history-replay.json
+          if-no-files-found: error
+          retention-days: 14
+
+  ledger-audit:
+    name: Historical ledger integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Audit every historical ledger chain
+        env:
+          PYTHONPATH: src
+        # Preserve exit 3 (YELLOW) and 2 (RED); neither is passing integrity.
+        # Audit reads ledger bytes. It never executes historical claim commands.
+        run: python -m showwork audit --json > ledger-audit.json
+      - name: Preserve complete integrity findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ledger-integrity-${{ github.sha }}-${{ github.run_attempt }}
+          path: ledger-audit.json
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build and install this commit's wheel
+        shell: bash
+        run: |
+          python -m pip install build pytest 'setuptools>=77.0.3' wheel 'tomli>=2; python_version < "3.11"'
+          python -m build --wheel
+          python -m pip install --no-deps dist/*.whl
+      - name: Installed CLI accepts real outcomes and refuses false completion
+        run: python scripts/smoke_release.py
+      - name: Behavioral and conformance tests
+        run: python scripts/run_tests.py
+      - name: Record tested revision and runtime
+        if: always()
+        shell: bash
+        run: |
+          git rev-parse HEAD >> "$GITHUB_STEP_SUMMARY"
+          python --version >> "$GITHUB_STEP_SUMMARY"
+          python -m pip freeze >> "$GITHUB_STEP_SUMMARY"
