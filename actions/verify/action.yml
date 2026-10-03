@@ -70,6 +70,8 @@ runs:
         SW_LEGACY_BASELINE: ${{ inputs.legacy-integrity-baseline }}
         SW_ALLOW_COMMANDS: ${{ inputs.allow-commands }}
         SW_ALLOW_NETWORK: ${{ inputs.allow-network }}
+        SHOWWORK_CI_REPOSITORY: ${{ github.repository }}
+        SHOWWORK_CI_SERVER_URL: ${{ github.server_url }}
       run: |
         set -euo pipefail
         if [ "$SW_MODE" != "enforce" ] && [ "$SW_MODE" != "advisory" ]; then
@@ -96,7 +98,7 @@ runs:
         code=$?
         set -e
         printf '%s\n' "$output"
-        printf '```text\n%s\n```\n' "$output" >> "$GITHUB_STEP_SUMMARY"
+        printf '%s\n' "$output" >> "$GITHUB_STEP_SUMMARY"
         result=error
         if [ "$code" -eq 0 ]; then result=verified; fi
         if [ "$code" -eq 2 ]; then result=unverified; fi
