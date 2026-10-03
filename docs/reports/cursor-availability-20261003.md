@@ -15,13 +15,23 @@ The actual pinned-runtime probe used a new public toy workspace, `--print`,
 `--mode ask` and JSON output. Its prompt requested only `CURSOR_TOY_READY`, with
 no tools, file reads or changes. The process exited 1 in 1.812 seconds. Its
 diagnostic was `Workspace Trust Required`, and the requested readiness token was
-absent. This establishes a runnable launcher and a real host trust refusal.
+absent. The first harness incorrectly set `CURSOR_AGENT_PERSIST_SESSION=0`,
+assuming it was a Boolean switch. Inspection of the pinned CLI showed that it
+accepts a session name; `0` matches its marker grammar. The first report's
+`persistent_terminal_session_enabled: false` field is therefore invalid as
+evidence of the marker being disabled. The
+[first observation](cursor-availability-20261003/first-observation.json) is
+retained with that qualification.
+
+The repeat explicitly removed that variable from the child environment. It
+also exited 1 with the same trust diagnostic and no readiness token, in 0.744
+seconds. This establishes a runnable launcher and a real host trust refusal.
 It does not establish loaded rules, native Stop dispatch or an acceptance task.
 
-The environment did not enable Cursor's persistent terminal-session feature.
-Local probe data used a validated throwaway directory. This does not certify
-general history retention, model-provider data handling or an account privacy
-change. Raw host logs stay local; the public
+The corrected child environment had no persistent-session marker. Local probe
+data used a validated throwaway directory. This does not certify general history
+retention, model-provider data handling or an account privacy change. Raw host
+logs stay local; the public
 [sanitized observation](cursor-availability-20261003/startup-observation.json)
 contains no account or credential fields.
 
