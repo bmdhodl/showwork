@@ -164,12 +164,17 @@ def uninstall_project(root: Path, *, cursor: bool = True, claude: bool = True,
         existing = _read_config(dest)
         incoming = json.loads(_template(template))
         hooks = existing.get("hooks", {})
+        removed = False
         for event, entries in incoming["hooks"].items():
             if event not in hooks:
                 continue
-            hooks[event] = [entry for entry in hooks[event] if entry not in entries]
+            retained = [entry for entry in hooks[event] if entry not in entries]
+            removed = removed or len(retained) != len(hooks[event])
+            hooks[event] = retained
             if not hooks[event]:
                 del hooks[event]
+        if not removed:
+            continue
         if not hooks:
             existing.pop("hooks", None)
         if existing == {"version": incoming.get("version")}:

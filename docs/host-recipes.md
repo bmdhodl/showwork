@@ -76,5 +76,7 @@ or skill, tool/check evidence, host Stop dispatch and final explicit gate. Run a
 lying claim first and retain its refusal, repair the real artifact, then retain a
 successful close. A second independent task needs a different slug. Record absent
 trust, unavailable UI/CLI, provider limits and missing dispatch as untested or
-unavailable; do not count a synthetic payload as activation. #97–#99 stay open
-until their required actual host runs and uninstall readback are retained.
+unavailable; do not count a synthetic payload as activation. The report retains
+two driver-controlled Claude behavior sessions proving its Stop boundary and
+uninstall, without claiming host-authored task completion. Codex and Cursor's
+required actual task runs remain outstanding on #97/#99.

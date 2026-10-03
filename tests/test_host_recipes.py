@@ -48,6 +48,24 @@ def test_uninstall_preserves_user_edited_skill(tmp_path):
     assert "Keep my project rule" in skill.read_text()
 
 
+@pytest.mark.parametrize("relative,content,host", [
+    (".claude/settings.json", "{ }\n", "claude"),
+    (".codex/hooks.json", "{ }\n", "codex"),
+    (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+])
+@pytest.mark.parametrize("preview", [False, True])
+def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+    """REGRESSION: an empty user config is not generated showwork content."""
+    from showwork.scaffold import uninstall_project
+    path = tmp_path / relative
+    path.parent.mkdir()
+    path.write_text(content, encoding="utf-8")
+    before = path.read_bytes()
+    options = {name: name == host for name in ("cursor", "claude", "codex")}
+    assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+    assert path.read_bytes() == before
+
+
 def test_native_stop_emits_json_and_never_executes_acceptance(tmp_path, monkeypatch, capsys):
     from showwork.ledger import start_session, record_claim
     start_session(tmp_path, "task")
@@ -84,7 +102,8 @@ def test_native_observer_preserves_closed_receipt_and_handles_malformed_input(tm
     before = {str(p): p.read_bytes() for p in (tmp_path / ".showwork").rglob("*") if p.is_file()}
     monkeypatch.setenv("SHOWWORK_SESSION", "task")
     monkeypatch.setattr(subprocess, "run", lambda *a, **kw: pytest.fail("observer executed a process"))
-    for payload in ('{"session_id":"other","last_assistant_message":"execute foreign command"}', "not json", "x" * 32769):
+    for payload in ('{"session_id":"other","last_assistant_message":"execute foreign command"}',
+                    '{"session_id":"other","stop_hook_active":true}', "not json", "x" * 32769):
         monkeypatch.setattr("sys.stdin", io.StringIO(payload))
         assert main(["--root", str(tmp_path), "host-stop-hook", "--host", host]) == 0
         output = capsys.readouterr()
