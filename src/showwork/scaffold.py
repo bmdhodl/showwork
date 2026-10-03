@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from pathlib import Path
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
@@ -89,6 +90,23 @@ def _is_showwork_stop_hook(group: object) -> bool:
         if not isinstance(hook, dict) or hook.get("type") != "command":
             continue
         command = hook.get("command")
-        if isinstance(command, str) and re.search(r"(?:^|\s)-m\s+showwork(?:\.cli)?\s+stop-hook(?:\s|$)", command):
+        if _is_showwork_command(command):
             return True
     return False
+
+
+def _is_showwork_command(command: object, kinds: tuple[str, ...] = ("stop-hook",)) -> bool:
+    if not isinstance(command, str):
+        return False
+    try:
+        argv = [item.strip("\"'") for item in shlex.split(command, posix=False)]
+    except ValueError:
+        return False
+    if not argv:
+        return False
+    launcher = re.split(r"[/\\]", argv[0])[-1]
+    if not re.fullmatch(r"(?:python(?:\d(?:\.\d+)*)?|py)(?:\.exe)?", launcher, re.I):
+        return False
+    if launcher.lower() in {"py", "py.exe"} and len(argv) > 1 and re.fullmatch(r"-3(?:\.\d+)?", argv[1]):
+        argv.pop(1)
+    return len(argv) >= 4 and argv[1] == "-m" and argv[2] in {"showwork", "showwork.cli"} and argv[3] in kinds

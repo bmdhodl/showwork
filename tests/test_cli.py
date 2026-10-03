@@ -533,3 +533,29 @@ def test_invalid_utf8_blocks_append_with_clear_error(tmp_path):
         raise AssertionError("expected ValueError for non-UTF-8 ledger on append")
 
 
+def test_version_flag_prints_version(capsys):
+    """showwork --version and -V must print the version and exit 0."""
+    from showwork import __version__
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert out.strip() == f"showwork {__version__}"
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["-V"])
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert out.strip() == f"showwork {__version__}"
+
+
+def test_missing_subcommand_names_command_metavar(capsys):
+    """When a subcommand is missing, argparse must refer to COMMAND rather than internal cmd."""
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--root", "."])
+    assert exc_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "the following arguments are required: COMMAND" in err
+
+

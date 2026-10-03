@@ -682,18 +682,22 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
 
 def _command_diagnostics(proc) -> str:
     """Failure context from bounded, redacted stderr (or stdout when absent)."""
-    from .explain import redact
-    runtime = f"Python {sys.version.split()[0]}; interpreter {redact(sys.executable)}"
+    runtime = f"Python {sys.version.split()[0]}; interpreter {_command_context_text(sys.executable)}"
     stream = "stderr" if (proc.stderr or "").strip() else "stdout"
     raw = proc.stderr if stream == "stderr" else proc.stdout
     lines = [line for line in (raw or "").splitlines() if line.strip()][-6:]
-    safe = []
-    for line in lines:
-        line = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", line)
-        line = re.sub(r"(?i)\b(?:password|token|secret|authorization|credential)\s*[:=]\s*\S+", "<secret>", line)
-        line = re.sub(r"[A-Za-z]:[/\\][^\s\"']+", "<path>", line)
-        safe.append(redact("".join(char for char in line if char.isprintable())))
+    safe = [_command_context_text(line) for line in lines]
     return f"\n       {runtime}" + (f"\n       {stream} tail:\n       " + "\n       ".join(safe) if safe else "")
+
+
+def _command_context_text(text: str) -> str:
+    from .explain import redact
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = re.sub(r"(?i)\b(?:password|token|secret|authorization|credential)\s*[:=]\s*\S+", "<secret>", text)
+    text = re.sub(r"([\"'])(?:[A-Za-z]:[/\\]|/)[^\r\n]*?\1", "<path>", text)
+    text = re.sub(r"[A-Za-z]:[/\\][^\s\"']+", "<path>", text)
+    text = re.sub(r"(?<![\w:/])/(?!/)[^\s\"'<>]+", "<path>", text)
+    return redact("".join(char for char in text if char.isprintable()))
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):

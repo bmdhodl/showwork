@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 from .process import run_process
+from . import __version__
 import sys
 from pathlib import Path
 
@@ -330,8 +331,7 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog="showwork",
                                  description="falsifiable claims + deterministic verification for AI agents")
-    from . import __version__
-    ap.add_argument("--version", action="version", version=f"showwork {__version__}")
+    ap.add_argument("-V", "--version", action="version", version=f"showwork {__version__}")
     ap.add_argument("--root", default=None,
                     help="project root (default: $SHOWWORK_ROOT or cwd)")
     sub = ap.add_subparsers(dest="cmd", required=True, metavar="COMMAND")

@@ -36,5 +36,13 @@ These changes require a source commit containing them. The published 0.6.5 packa
 is unchanged. #138's persisted snapshot exclusions await the owner's decision;
 no exclusion or new-file coverage change is included.
 
+Review follow-up: diagnostic redaction covers arbitrary absolute POSIX roots and
+quoted paths, including interpreter context, instead of relying on a directory
+allowlist. Hook detection requires a supported Python launcher; echoing module
+arguments does not count as an installed hook. Both issues reproduced as failing
+regressions before repair. The independently contributed #143 version fix and
+its tests are retained, including the `-V` alias, rather than replaced by this
+branch's overlapping implementation.
+
 Receipt session: `codex-cli-defects-01a1000f`.
 Sign-off: OpenAI | GPT-6 | auto.

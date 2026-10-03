@@ -44,6 +44,27 @@ def test_documented_stop_command_is_not_installed_twice(tmp_path, module):
     assert json.loads(path.read_text()) == original
 
 
+def test_echoing_hook_arguments_does_not_count_as_an_installed_hook(tmp_path):
+    """REGRESSION: matching only -m arguments mistook echo for Python."""
+    path = tmp_path / ".claude/settings.json"
+    path.parent.mkdir()
+    original = {"hooks": {"Stop": [{"hooks": [
+        {"type": "command", "command": "echo -m showwork stop-hook"}]}]}}
+    path.write_text(json.dumps(original))
+    init_project(tmp_path, cursor=False, ci=False)
+    assert len(json.loads(path.read_text())["hooks"]["Stop"]) == 2
+
+
+def test_failed_command_redacts_arbitrary_posix_absolute_paths(tmp_path):
+    """REGRESSION: /root, /workspace, /srv and /app escaped the allowlist."""
+    script = tmp_path / "fail.py"
+    script.write_text("import sys\nprint('/root/.venv/bin/python /workspace/private.py /srv/app.py /app/tool.py', file=sys.stderr)\nraise SystemExit(1)\n")
+    result = verify_claim({"claim": "suite", "check": {"type": "command", "argv": ["python", "fail.py"]}}, tmp_path)
+    assert result["status"] == "fail"
+    for prefix in ("/root/", "/workspace/", "/srv/", "/app/"):
+        assert prefix not in result["detail"]
+
+
 def test_execution_evidence_records_actual_locked_interpreter(tmp_path):
     """REGRESSION: evidence.argv named a Python executable never executed."""
     script = tmp_path / "runtime.py"
