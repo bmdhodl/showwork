@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [{"command": "python -m showwork host-stop-hook --host cursor"}]
+  }
+}

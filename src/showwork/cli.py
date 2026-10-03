@@ -46,7 +46,7 @@ from .control import (
     render_pre_tool_use,
 )
 from .guards import StuckDetector, ToolCall
-from .hooks import HOST_SESSION_ENV, observe_stop, read_stop_payload
+from .hooks import HOST_SESSION_ENV, observe_native_stop, observe_stop, read_stop_payload
 from .ledger import (
     ROOT_ENV,
     finish_session,
@@ -62,8 +62,8 @@ from .ledger import (
     verify_date,
     verify_session,
 )
-from .receipts import receipts_payload, render_badges_html
-from .scaffold import init_project
+from .receipts import receipts_payload, render_badges_html, resolve_receipts_root
+from .scaffold import init_project, uninstall_project
 from .report import render_status, render_usage, session_status, usage_report
 
 SESSION_ENV = "SHOWWORK_SESSION"
@@ -431,6 +431,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("stop-hook", help="observe a coding-agent Stop hook; never gates")
     p.add_argument("--status", default="ok")
 
+    p = sub.add_parser("host-stop-hook", help="bounded, read-only native Stop observer")
+    p.add_argument("--host", choices=["codex", "claude", "cursor"], required=True)
+
     p = sub.add_parser(
         "dashboard",
         help="render runs/status/interventions/proof-of-work; optionally serve it",
@@ -463,6 +466,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="write or merge .claude/settings.json Stop hook")
     p.add_argument("--ci", action="store_true",
                    help="write docs/ci/showwork-verify.yml (does not touch .github/)")
+    p.add_argument("--codex", action="store_true", help="write project Codex hook and skill")
+    p.add_argument("--preview", action="store_true", help="show planned paths without writing")
+    p.add_argument("--uninstall", action="store_true", help="remove only unchanged generated content")
     p.add_argument("--force", action="store_true",
                    help="overwrite files that already exist")
 
@@ -471,7 +477,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     args = ap.parse_args(argv)
-    root = resolve_root(args.root)
+    root = (resolve_receipts_root(args.root)
+            if args.cmd in {"receipts", "host-stop-hook"} else resolve_root(args.root))
     session = getattr(args, "session", None)
     if session:
         try:
@@ -788,6 +795,15 @@ def main(argv: list[str] | None = None) -> int:
               f"({state['passed']}/{state['total']} verified)")
         return proc_code
 
+    if args.cmd == "host-stop-hook":
+        try:
+            state = observe_native_stop(root, sys.stdin)
+            print("showwork native observation: " + json.dumps(state), file=sys.stderr)
+        except Exception as exc:  # The observer must never block host shutdown.
+            print(f"showwork native observation unavailable: {exc}", file=sys.stderr)
+        print(json.dumps({"continue": True} if args.host == "codex" else {}))
+        return 0
+
     if args.cmd == "stop-hook":
         try:
             payload = read_stop_payload(sys.stdin)
@@ -870,19 +886,24 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
     if args.cmd == "init":
-        selected = args.cursor or args.claude or args.ci
-        notes = init_project(
+        selected = args.cursor or args.claude or args.ci or args.codex
+        operation = uninstall_project if args.uninstall else init_project
+        options = {"preview": args.preview}
+        if not args.uninstall:
+            options["force"] = args.force
+        notes = operation(
             root,
             cursor=args.cursor or not selected,
             claude=args.claude or not selected,
             ci=args.ci or not selected,
-            force=args.force,
+            codex=args.codex,
+            **options,
         )
         for note in notes:
             print(note)
-        print("Next: python -m showwork start --session first-look --agent cursor")
-        print("Then claim a file that does not exist and run finish --status ok.")
-        print("The gate should refuse. That refusal is the product.")
+        if not args.uninstall:
+            print("Next: declare requirements before claims, then close with finish --status ok.")
+            print("Native hook trust remains the host user's decision; preview does not activate hooks.")
         return 0
 
     return 2  # unreachable

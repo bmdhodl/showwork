@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
-from showwork.ledger import record_claim, start_session
+from showwork.ledger import finish_session, record_claim, start_session
 from showwork.outcomes import record_requirement
 from showwork.receipts import decorate_records, render_badges_html
 
@@ -20,10 +20,13 @@ def main():
         (root / "receipt.txt").write_text("2360")
         start_session(root, "loose")
         record_claim(root, "loose", "All tests and HDR passed",
-                     {"type": "file_contains", "path": "receipt.txt", "pattern": "2360"})
+                     {"type": "file_exists", "path": "receipt.txt"})
         start_session(root, "artifact")
         record_requirement(root, "artifact", "file", "receipt.txt exists", "artifact",
                            {"type": "file_exists", "path": "receipt.txt"})
+        record_claim(root, "artifact", "receipt.txt exists",
+                     {"type": "file_exists", "path": "receipt.txt"})
+        assert finish_session(root, "artifact")[1]["outcome"]["verdict"] == "VERIFIED"
         rows = decorate_records([
             {"session": "loose", "title": "Unproven behavior", "surface": "home"},
             {"session": "artifact", "title": "Declared file check", "surface": "activity"},

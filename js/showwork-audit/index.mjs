@@ -16,6 +16,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
 
+export { inspectSession, readerCapabilities } from "./reader.mjs";
+
 const GENESIS_PREFIX = "showwork:genesis:";
 
 function displayLedgerFile(filePath) {
@@ -70,7 +72,7 @@ export function genesisHash(fileName) {
  *            forks: number, head: string|null, heads: string[],
  *            break_at: number|null, detail: string, verdict: string}}
  */
-export function auditFile(filePath, strict = false) {
+export function auditFile(filePath, strict = false, recordText = undefined) {
   const fileName = basename(filePath);
   const out = {
     file: displayLedgerFile(filePath),
@@ -84,7 +86,7 @@ export function auditFile(filePath, strict = false) {
     detail: "",
     verdict: "GREEN",
   };
-  let text = readFileSync(filePath, "utf8");
+  let text = recordText === undefined ? readFileSync(filePath, "utf8") : recordText;
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // BOM
   const genesis = genesisHash(fileName);
   const seen = new Set([genesis]); // genesis + every record line already seen

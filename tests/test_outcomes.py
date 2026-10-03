@@ -112,9 +112,11 @@ def test_read_only_badge_does_not_certify_a_prose_claim(tmp_path):
     record_claim(tmp_path, "golf", "All tests and HDR passed",
                  {"type": "file_contains", "path": "file.txt", "pattern": "2360"})
     badge = evidence_for_session(tmp_path, "golf")
-    assert badge["state"] == "claimed"
+    assert badge["state"] == "unknown"
+    assert badge["explanation"]["outcome_verdict"] == "UNVERIFIED"
     assert badge["claim"] == "All tests and HDR passed"
-    assert "2360" in badge["detail"]
+    assert "disabled" in badge["detail"]
+    assert "2360" not in badge["detail"]  # This read did not search the file.
 
 
 def test_gate_detects_missing_claim_file_in_fresh_checkout(tmp_path):

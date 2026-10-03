@@ -1,8 +1,9 @@
 """Read-only receipt overlay for a supervisor UI (BMD desktop).
 
-The UI process never appends. Agents write `.showwork/` in the *user
-workspace*. This module maps a live `verify_session` into the four evidence
-states BMD already renders: verified, claimed, failed, unknown.
+The UI process never appends or launches a process. Agents write `.showwork/`
+in the user workspace. The reader inspects history and observes supported
+filesystem checks through the existing Python checker. Commands, Git,
+network probes and regex worker checks require explicit active verification.
 
 Missing ledgers are unknown, never green. Unreadable JSONL is unknown.
 A done with no check-backed claims is claimed, not verified.
@@ -12,25 +13,22 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from .ledger import (
-    claims_for_session,
     has_minimum_proof,
-    ledger_dir,
-    load_all_events,
-    resolve_root,
-    session_claims_path,
     session_file_stem,
-    sessions_path,
-    verify_session,
 )
-from .audit import audit_root
+from .checks import evaluate_records
+from .outcomes import evaluate_requirement_records, outcome_summary
+from .reader import CAPABILITIES, confined_path, inspect_loaded, load_receipt, read_bytes
+from .snapshot import merge_undeclared, undeclared_results, unreferenced_artifacts
 from .explain import explain_state, redact
 
-READ_ONLY_CHECKS = frozenset({"file_exists", "file_contains", "path_moved", "frontmatter", "glob_count"})
+READ_ONLY_CHECKS = frozenset({"file_exists", "path_moved", "frontmatter", "glob_count"})
 
 EVIDENCE_STATES = ("verified", "claimed", "failed", "unknown")
 LABELS = {
@@ -195,24 +193,12 @@ def _payload(state: str, details: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _path_unreadable(path: Path) -> bool:
-    if not path.is_file():
-        return False
-    try:
-        path.read_bytes().decode("utf-8-sig")
-    except (OSError, UnicodeDecodeError):
-        return True
-    return False
-
-
-def _has_parse_error(claims: list[dict]) -> bool:
-    return any(isinstance(row, dict) and row.get("_parse_error") for row in claims)
-
-
 def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any]:
     """Map one session to a BMD evidence badge. Never writes."""
 
-    details: dict[str, Any] = {"session": session, "source": "showwork"}
+    details: dict[str, Any] = {"session": session, "source": "showwork",
+                              "capabilities": {**CAPABILITIES,
+                                               "filesystem_observations": sorted(READ_ONLY_CHECKS)}}
     if not session or not str(session).strip():
         return _payload("unknown", {**details, "reason": "no session"})
     if root is None or str(root).strip() == "":
@@ -226,7 +212,10 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
     if not workspace.is_dir():
         return _payload("unknown", {**details, "reason": "workspace missing"})
 
-    showwork_dir = ledger_dir(workspace)
+    try:
+        showwork_dir = confined_path(workspace, workspace / ".showwork")
+    except (OSError, ValueError):
+        return _payload("unknown", {**details, "reason": "ledger unreadable or escapes workspace"})
     if not showwork_dir.is_dir():
         return _payload(
             "unknown",
@@ -234,41 +223,46 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
         )
 
     try:
-        if _path_unreadable(sessions_path(workspace, session)) or _path_unreadable(
-            session_claims_path(workspace, session)
-        ):
-            return _payload(
-                "unknown",
-                {**details, "reason": "ledger unreadable"},
-            )
-        claims = claims_for_session(workspace, session)
-        events = [
-            rec for rec in load_all_events(workspace)
-            if rec.get("session") == session
-        ]
-        if _has_parse_error(claims) or _has_parse_error(events):
-            return _payload(
-                "unknown",
-                {**details, "reason": "ledger unreadable"},
-            )
+        receipt = load_receipt(workspace, session)
+        claims, events = receipt["claims"], receipt["events"]
+        reader = inspect_loaded(receipt)
+        details["reader"] = reader
         started = any(e.get("event") == "session.start" for e in events)
         if not started and not claims:
             return _payload(
                 "unknown",
                 {**details, "reason": "No receipts yet.", "empty": True},
             )
-        integrity = audit_root(workspace)
-        if integrity["verdict"] != "GREEN":
+        if reader["integrity"] != "GREEN":
             return _payload("unknown", {
                 **details,
                 "reason": "ledger integrity is not verified",
-                "integrity": integrity["verdict"],
+                "integrity": reader["integrity"],
             })
-        state = verify_session(workspace, session, allowed_check_types=READ_ONLY_CHECKS)
+        if reader["spec_coverage"] == "unsupported":
+            return _payload("unknown", {**details, "reason": "unsupported required receipt semantics"})
+        state = evaluate_records(claims, workspace, allowed_check_types=READ_ONLY_CHECKS)
+        requirements = [row for row in events if row.get("event") == "session.requirement"]
+        extra = evaluate_requirement_records(workspace, requirements,
+                                             allowed_check_types=READ_ONLY_CHECKS)
+        declared = claims + requirements
+        stem = session_file_stem(session)
+        artifacts = confined_path(workspace, showwork_dir / "artifacts" / stem)
+        extra += unreferenced_artifacts(workspace, declared, artifacts)
+        start = next((row for row in reversed(events) if row.get("event") == "session.start"), None)
+        snapshot = confined_path(workspace, showwork_dir / "snapshots" / f"{stem}.json")
+        if snapshot.exists():
+            read_bytes(workspace, snapshot)  # Bound the reference checker's input.
+        extra += undeclared_results(workspace, declared, start, snapshot)
+        state = merge_undeclared(state, extra)
+        state["outcome"] = outcome_summary(state)
+        if reader["recorded_outcome"] != "VERIFIED":
+            state["outcome"]["verdict"] = "UNVERIFIED"
         historical = _historical_outcome(events)
         details["integrity"] = "GREEN"
         details["explanation"] = explain_state(
             state, integrity="GREEN", historical_outcome=historical,
+            observation="current_filesystem_only; commands not executed",
         )
         open_session = False
         last_status = None
@@ -303,7 +297,10 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
             details["detail"] = first.get("detail")
             return _payload("failed", details)
         if any(r.get("policy_disabled") for r in checked):
-            return _payload("unknown", {**details, "reason": "checks require active verification"})
+            disabled = next(r for r in checked if r.get("policy_disabled"))
+            return _payload("unknown", {**details, "reason": "checks require active verification",
+                                        "claim": disabled.get("claim"), "check": disabled.get("type"),
+                                        "detail": disabled.get("detail"), "outcome": state.get("outcome")})
         details["outcome"] = state.get("outcome")
         if (has_minimum_proof(state) and state.get("verdict") == "GREEN"
                 and state.get("outcome", {}).get("verdict") == "VERIFIED"):
@@ -506,11 +503,10 @@ def receipts_payload(
         "root": str(root) if root else None,
         "records": decorated,
         "states": states,
-        "empty": not root or not (ledger_dir(root).is_dir() if root else False),
+        "empty": not root or not (root / ".showwork").is_dir(),
     }
 
 
 def resolve_receipts_root(root: str | Path | None = None) -> Path:
-    """Same root rules as the CLI. Exists so tests can pin the lookup."""
-
-    return resolve_root(root)
+    """Explicit workspace, environment or cwd. Receipt reads never discover Git."""
+    return Path(root or os.environ.get("SHOWWORK_ROOT") or Path.cwd()).expanduser().resolve()

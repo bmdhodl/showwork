@@ -1,0 +1,1 @@
+{"session": "fixture", "claim": "output exists", "check": {"type": "file_exists", "path": "output.txt"}}
