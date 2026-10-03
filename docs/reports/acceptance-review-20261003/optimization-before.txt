@@ -1,0 +1,56 @@
+....FFF                                                                  [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+____ test_optimized_python_cannot_disable_the_acceptance_gate[arguments0] _____
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-opt-before-01a1000f/test_optimized_python_cannot_d0')
+arguments = ['--mutation', 'empty-write']
+
+    @pytest.mark.parametrize("arguments", [["--mutation", "empty-write"], ["--mutation", "cache-only"], ["--read-existing"]])
+    def test_optimized_python_cannot_disable_the_acceptance_gate(tmp_path, arguments):
+        """REGRESSION: -O silently removed acceptance assertions and returned pass."""
+        proc = subprocess.run([sys.executable, "-O", str(EXAMPLE / "acceptance.py"),
+                               *arguments, str(tmp_path)], capture_output=True, text=True,
+                              timeout=15, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+>       assert proc.returncode == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\e...e-01a1000f\\test_optimized_python_cannot_d0'], returncode=0, stdout='write/read/reopen acceptance passed\n', stderr='').returncode
+
+tests\test_acceptance_review.py:54: AssertionError
+____ test_optimized_python_cannot_disable_the_acceptance_gate[arguments1] _____
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-opt-before-01a1000f/test_optimized_python_cannot_d1')
+arguments = ['--mutation', 'cache-only']
+
+    @pytest.mark.parametrize("arguments", [["--mutation", "empty-write"], ["--mutation", "cache-only"], ["--read-existing"]])
+    def test_optimized_python_cannot_disable_the_acceptance_gate(tmp_path, arguments):
+        """REGRESSION: -O silently removed acceptance assertions and returned pass."""
+        proc = subprocess.run([sys.executable, "-O", str(EXAMPLE / "acceptance.py"),
+                               *arguments, str(tmp_path)], capture_output=True, text=True,
+                              timeout=15, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+>       assert proc.returncode == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\e...e-01a1000f\\test_optimized_python_cannot_d1'], returncode=0, stdout='write/read/reopen acceptance passed\n', stderr='').returncode
+
+tests\test_acceptance_review.py:54: AssertionError
+____ test_optimized_python_cannot_disable_the_acceptance_gate[arguments2] _____
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-opt-before-01a1000f/test_optimized_python_cannot_d2')
+arguments = ['--read-existing']
+
+    @pytest.mark.parametrize("arguments", [["--mutation", "empty-write"], ["--mutation", "cache-only"], ["--read-existing"]])
+    def test_optimized_python_cannot_disable_the_acceptance_gate(tmp_path, arguments):
+        """REGRESSION: -O silently removed acceptance assertions and returned pass."""
+        proc = subprocess.run([sys.executable, "-O", str(EXAMPLE / "acceptance.py"),
+                               *arguments, str(tmp_path)], capture_output=True, text=True,
+                              timeout=15, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+>       assert proc.returncode == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\e...uacy-opt-before-01a1000f\\test_optimized_python_cannot_d2'], returncode=0, stdout='persisted values read\n', stderr='').returncode
+
+tests\test_acceptance_review.py:54: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_acceptance_review.py::test_optimized_python_cannot_disable_the_acceptance_gate[arguments0]
+FAILED tests/test_acceptance_review.py::test_optimized_python_cannot_disable_the_acceptance_gate[arguments1]
+FAILED tests/test_acceptance_review.py::test_optimized_python_cannot_disable_the_acceptance_gate[arguments2]
+3 failed, 4 passed in 2.29s

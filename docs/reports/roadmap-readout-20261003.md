@@ -140,4 +140,9 @@ This packet completes current-source investigation and preparation. Pilot target
 actual supported-host tasks, the dated owner verdict, installed-artifact suite
 join and release/campaign activation remain open, each on its existing issue.
 
+The first full-suite gate after integrating the acceptance example refused
+because its new shell omitted the existing task/CI 600-second command setting
+and used the 120-second default. The refusal is retained. The rerun restores
+`SHOWWORK_COMMAND_TIMEOUT_SECONDS=600`; no product default or check was changed.
+
 Sign-off: OpenAI | GPT-6 | auto.

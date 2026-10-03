@@ -5,6 +5,9 @@ recovery in an empty directory.
 
 ## Learn by running it
 
+- [Acceptance review](acceptance-review.md): identify fixture inputs and catch
+  empty-write or cache-only implementations before trusting a passing close.
+
 - [Python quickstart](quickstart-python.md): an example that works across shells.
 - [Behavior quickstart](quickstart-behavior.md): a broken function, a refused close, repair, and a fresh rerun.
 - [Codex to Claude handoff](handoff.md): a later process reads the receipt and does not inherit the close.
