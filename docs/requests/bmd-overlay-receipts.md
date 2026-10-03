@@ -19,6 +19,12 @@ decision: n/a
 
 # Request: BMD overlay receipts (vault card)
 
+> Historical September 3 request retained for provenance. The selected roadmap
+> supersedes the package-copy/pin and automatic-overlay instructions below.
+> Do not copy or execute this request. The pending
+> [suite contract proposal](../suite-contract-proposal.md), showwork #70 and the
+> canonical owner-selected BMD card govern the next step.
+
 ## Patrick's words (verbatim)
 
 ok just use like fucking the vault locally or something else i dont ffel like dicking around in github
