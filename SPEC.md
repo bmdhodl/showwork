@@ -406,6 +406,59 @@ change. `.showwork/` is excluded from the snapshot.
 Reopening a session MUST [test:
 tests/test_snapshot.py::test_restart_preserves_damage_baseline] preserve its
 existing snapshot and anchor. Use a new session id for a new baseline.
+
+### Optional frozen snapshot exclusions
+
+The source CLI supports repeatable `start --ignore RELATIVE_GLOB` options.
+This is an opt-in `spec-v0.5` extension identified by
+`required_semantics: ["snapshot-exclusions-v1"]` on each start. Readers without
+this capability cannot qualify a recorded outcome. A writer MUST [test:
+tests/test_snapshot_exclusions.py::test_background_exclusions_keep_real_source_damage_red]
+store `ignore_format: "relative-glob-v1"` and a sorted, unique `ignore_patterns`
+array in both the chained `tree_snapshot` metadata and its JSON sidecar.
+The snapshot SHA-256 binds compact, sorted-key, ASCII-escaped JSON of
+`{"files": <path-to-hash map>, "ignore_format": "relative-glob-v1",
+"ignore_patterns": [...]}`. `count` is the number of retained files.
+Sessions with no exclusions keep their original files-only digest and format.
+
+Patterns are case-sensitive, slash-separated, relative component globs.
+`*` and `?` match within one component. A terminal `/**` matches the named
+directory and its descendants; `**` is unsupported elsewhere. Empty or absolute
+paths, drive prefixes, backslashes, control characters, `.`/`..` components,
+bracket classes, ledger/Git targets and whole-workspace wildcards are rejected.
+Writers MUST [test:
+tests/test_snapshot_exclusions.py::test_invalid_patterns_reject_before_any_ledger_write]
+reject invalid patterns before writing any receipt, and MUST [test:
+tests/test_snapshot_exclusions.py::test_pattern_count_and_type_are_bounded]
+accept at most 32 supplied patterns, each at most 240 Unicode characters.
+Matching does not consult `.gitignore` or any mutable ignore configuration.
+
+Reopening MUST [test:
+tests/test_snapshot_exclusions.py::test_reopen_preserves_scope_and_rejects_changes_before_writes]
+preserve the first snapshot, patterns and capability marker; a different explicit
+scope requires a new session. All starts for an opted-in session carry the same
+anchor. The verifier MUST [test:
+tests/test_snapshot_exclusions.py::test_tampered_scope_refuses_and_readers_do_not_verify]
+refuse altered, missing or unsupported exclusion metadata, file maps, counts
+or sidecars. Opted-in snapshot reads and writes are bounded at 16 MiB in the verifier; read-only
+readers retain their stricter 4 MiB file and 32 MiB total bounds.
+
+Acceptance commands MUST [test:
+tests/test_snapshot_exclusions.py::test_command_evidence_uses_frozen_exclusions]
+use this scope for their before/after source comparison and bind it into
+`source_sha256` and command reuse inputs, disclosing it as `source_exclusions`.
+An invalid opted-in scope MUST [test:
+tests/test_snapshot_exclusions.py::test_tampered_scope_blocks_command_before_execution]
+prevent command execution. Unexcluded changes during a command still fail.
+Python and JavaScript read-only readers MUST [test:
+tests/test_snapshot_exclusions.py::test_python_and_js_readers_disclose_and_validate_same_scope]
+validate the frozen sidecar and disclose `snapshot_scope` before qualifying
+historical evidence. They perform no current command execution.
+
+These exclusions only narrow the existing prior-file damage check. New files
+created after start remain outside that check. Neither an exclusion nor a
+passing source comparison establishes test coverage of excluded paths.
+
 Snapshot paths MUST [test:
 tests/test_snapshot.py::test_snapshot_directory_cannot_escape_ledger] remain
 inside the ledger after symlink resolution.

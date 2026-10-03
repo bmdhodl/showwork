@@ -9,9 +9,11 @@ Old sessions with no tree_snapshot on session.start skip this check.
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 
 from .checks import apply_append_retractions, gaps_payload
@@ -62,6 +64,11 @@ SKIP_FILES = frozenset({
 SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo", ".log")
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_FILES = 50_000
+IGNORE_FORMAT = "relative-glob-v1"
+IGNORE_SEMANTIC = "snapshot-exclusions-v1"
+MAX_IGNORE_PATTERNS = 32
+MAX_IGNORE_LENGTH = 240
+MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
 # One row per dead artifact is a nudge; a thousand is a wall of noise.
 MAX_UNREFERENCED_ARTIFACTS = 100
 
@@ -74,14 +81,54 @@ def snapshot_file(ledger: Path, stem: str) -> Path:
     return path
 
 
-def capture_tree(root: Path) -> dict[str, str]:
+def validate_ignore_patterns(ignore: list[str] | None) -> list[str]:
+    """Canonical, bounded POSIX component globs; no implicit Git ignore rules."""
+    if ignore is None:
+        return []
+    if not isinstance(ignore, list) or len(ignore) > MAX_IGNORE_PATTERNS:
+        raise ValueError("ignore must be a list of at most 32 relative globs")
+    for pattern in ignore:
+        if (not isinstance(pattern, str) or not 1 <= len(pattern) <= MAX_IGNORE_LENGTH
+                or any(ord(c) < 32 or ord(c) == 127 for c in pattern)
+                or any(c in pattern for c in "\\:[]")):
+            raise ValueError("ignore requires a bounded slash-separated relative glob")
+        parts = pattern.split("/")
+        if any(part in ("", ".", "..") for part in parts):
+            raise ValueError("ignore cannot be absolute, empty or traverse parents")
+        if any("**" in part and not (part == "**" and i == len(parts) - 1)
+               for i, part in enumerate(parts)) or parts == ["**"]:
+            raise ValueError("ignore supports ** only as a terminal recursive component")
+        # A wildcard prefix must not cover the protected ledger or Git state.
+        if any(fnmatch.fnmatchcase(name, part) for part in parts if part != "**"
+               for name in (".git", ".showwork")):
+            raise ValueError("ignore cannot target .git, .showwork or the whole workspace")
+    return sorted(set(ignore))
+
+
+def ignored_path(relative: str, ignore: list[str], *, directory: bool = False) -> bool:
+    parts = relative.split("/")
+    for pattern in ignore:
+        wanted = pattern.split("/")
+        recursive = wanted[-1] == "**"
+        prefix = wanted[:-1] if recursive else wanted
+        if ((recursive and len(parts) >= len(prefix) or not recursive and len(parts) == len(prefix))
+                and (not directory or recursive)
+                and all(fnmatch.fnmatchcase(part, glob) for part, glob in zip(parts, prefix))):
+            return True
+    return False
+
+
+def capture_tree(root: Path, *, ignore: list[str] | None = None) -> dict[str, str]:
     """Map posix-relative paths to SHA-256 hex of file bytes."""
     root = root.resolve()
+    patterns = validate_ignore_patterns(ignore)
     out: dict[str, str] = {}
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         dirnames[:] = sorted(
             d for d in dirnames
             if d not in SKIP_DIRS and not d.endswith(".egg-info")
+            and not ignored_path((Path(dirpath) / d).relative_to(root).as_posix(),
+                                 patterns, directory=True)
         )
         for name in sorted(filenames):
             if name in SKIP_FILES or name.endswith(SKIP_SUFFIXES) or name.endswith("~"):
@@ -91,6 +138,8 @@ def capture_tree(root: Path) -> dict[str, str]:
                 if path.is_symlink() or not path.is_file():
                     continue
                 rel = path.relative_to(root).as_posix()
+                if ignored_path(rel, patterns):
+                    continue
                 size = path.stat().st_size
             except OSError:
                 continue
@@ -105,18 +154,117 @@ def capture_tree(root: Path) -> dict[str, str]:
     return out
 
 
-def write_tree_snapshot(root: Path, snapshot_path: Path) -> dict:
+def write_tree_snapshot(root: Path, snapshot_path: Path, *, ignore: list[str] | None = None) -> dict:
     """Write the sidecar JSON and return the chained {count, sha256} fields."""
-    files = capture_tree(root)
-    digest = _files_digest(files)
-    payload = {"files": files, "count": len(files), "sha256": digest}
+    patterns = validate_ignore_patterns(ignore)
+    scope = {"ignore_format": IGNORE_FORMAT, "ignore_patterns": patterns} if patterns else {}
+    files = capture_tree(root, ignore=patterns)
+    digest = snapshot_digest(files, scope)
+    payload = {"files": files, "count": len(files), "sha256": digest, **scope}
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    if scope and len(text.encode("utf-8")) > MAX_SNAPSHOT_BYTES:
+        raise ValueError("tree snapshot exceeds size bound")
     snapshot_path = snapshot_path.resolve()
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     snapshot_path.write_text(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+        text,
         encoding="utf-8",
     )
-    return {"count": len(files), "sha256": digest}
+    return {"count": len(files), "sha256": digest, **scope}
+
+
+def snapshot_digest(files: dict[str, str], scope: dict) -> str:
+    value = {"files": files, **scope} if scope else files
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def exclusion_scope(meta: dict) -> dict:
+    if not any(key in meta for key in ("ignore_format", "ignore_patterns")):
+        return {}
+    patterns = meta.get("ignore_patterns")
+    if (meta.get("ignore_format") != IGNORE_FORMAT or not isinstance(patterns, list)
+            or not patterns or validate_ignore_patterns(patterns) != patterns
+            or type(meta.get("count")) is not int or not 0 <= meta["count"] <= MAX_FILES
+            or not isinstance(meta.get("sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", meta["sha256"]) is None):
+        raise ValueError("snapshot exclusion metadata is missing, unsupported or noncanonical")
+    return {"ignore_format": IGNORE_FORMAT, "ignore_patterns": patterns}
+
+
+def scope_from_events(events: list[dict]) -> tuple[dict, dict | None]:
+    """New exclusions are bound to every start, including reopened sessions."""
+    starts = [row for row in events if row.get("event") == "session.start"]
+    if not starts:
+        return {}, None
+    scoped = [row for row in starts if isinstance(row.get("required_semantics"), (list, str, dict))
+              and IGNORE_SEMANTIC in row["required_semantics"]
+              or isinstance(row.get("tree_snapshot"), dict)
+              and any(key in row["tree_snapshot"] for key in ("ignore_format", "ignore_patterns"))]
+    if not scoped:
+        return {}, starts[-1].get("tree_snapshot")
+    meta = starts[0].get("tree_snapshot")
+    if not isinstance(meta, dict) or not exclusion_scope(meta):
+        raise ValueError("snapshot exclusions require the original frozen start metadata")
+    if any(row.get("tree_snapshot") != meta or
+           row.get("required_semantics") != [IGNORE_SEMANTIC] for row in starts):
+        raise ValueError("snapshot exclusions changed across starts; use a new session")
+    return exclusion_scope(meta), meta
+
+
+def validate_snapshot(payload: object, meta: dict) -> dict[str, str]:
+    files = payload.get("files") if isinstance(payload, dict) else None
+    if not isinstance(files, dict):
+        raise ValueError("tree snapshot is missing a files object")
+    scope = exclusion_scope(meta)
+    if scope:
+        if exclusion_scope(payload) != scope or len(files) > MAX_FILES:
+            raise ValueError("tree snapshot exclusions do not match session.start")
+        if (type(meta.get("count")) is not int or type(payload.get("count")) is not int
+                or meta["count"] != len(files) or payload["count"] != len(files)):
+            raise ValueError("tree snapshot count does not match session.start")
+        for path, digest in files.items():
+            if (not isinstance(path, str) or not path or "\\" in path or ":" in path
+                    or any(part in ("", ".", "..") for part in path.split("/"))
+                    or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                    or ignored_path(path, scope["ignore_patterns"])):
+                raise ValueError("tree snapshot contains an invalid or excluded file")
+    digest = snapshot_digest({str(k): str(v) for k, v in files.items()}, scope)
+    if digest != meta.get("sha256") or scope and payload.get("sha256") != digest:
+        raise ValueError("tree snapshot digest does not match session.start; the sidecar was changed or replaced")
+    return files
+
+
+def read_snapshot(path: Path, meta: dict) -> dict[str, str]:
+    if not path.is_file():
+        raise ValueError("undeclared-change snapshot missing")
+    scope = exclusion_scope(meta)
+    if scope and path.stat().st_size > MAX_SNAPSHOT_BYTES:
+        raise ValueError("tree snapshot exceeds size bound")
+    with path.open("rb") as stream:
+        data = stream.read(MAX_SNAPSHOT_BYTES + 1) if scope else stream.read()
+    if scope and len(data) > MAX_SNAPSHOT_BYTES:
+        raise ValueError("tree snapshot exceeds size bound")
+    return validate_snapshot(json.loads(data.decode("utf-8"), object_pairs_hook=_unique_object), meta)
+
+
+def _unique_object(pairs: list[tuple]) -> dict:
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError("duplicate snapshot JSON key")
+        out[key] = value
+    return out
+
+
+def session_exclusions(root: Path, session: str) -> dict:
+    """Validate opt-in scope before executing a session's command check."""
+    from .ledger import ledger_dir, load_all_events, session_file_stem
+    scope, meta = scope_from_events([row for row in load_all_events(root)
+                                     if row.get("session") == session])
+    if scope:
+        read_snapshot(snapshot_file(ledger_dir(root), session_file_stem(session)), meta)
+    return scope
 
 
 def declared_paths(claims: list[dict], root: Path) -> set[str]:
@@ -162,38 +310,18 @@ def undeclared_results(
         return []
     expected = meta.get("sha256")
     if not isinstance(expected, str) or not expected:
+        if any(key in meta for key in ("ignore_format", "ignore_patterns")):
+            return [_fail("undeclared-change snapshot invalid", "snapshot exclusion anchor missing")]
         return []
 
-    path = snapshot_path
-    if not path.is_file():
-        return [_fail(
-            "undeclared-change snapshot missing",
-            f"session.start declared tree_snapshot.sha256={expected[:16]} "
-            f"but {path.name} is gone",
-        )]
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return [_fail(
-            "undeclared-change snapshot unreadable",
-            f"could not read tree snapshot: {exc}",
-        )]
-    files = payload.get("files") if isinstance(payload, dict) else None
-    if not isinstance(files, dict):
-        return [_fail(
-            "undeclared-change snapshot invalid",
-            "tree snapshot is missing a files object",
-        )]
-    digest = _files_digest({str(k): str(v) for k, v in files.items()})
-    if digest != expected:
-        return [_fail(
-            "undeclared-change snapshot mismatch",
-            "tree snapshot digest does not match session.start; "
-            "the sidecar was changed or replaced",
-        )]
+        files = read_snapshot(snapshot_path, meta)
+        scope = exclusion_scope(meta)
+    except (OSError, ValueError) as exc:
+        return [_fail("undeclared-change snapshot invalid", str(exc))]
 
     declared = declared_paths(claims, root)
-    current = capture_tree(root)
+    current = capture_tree(root, ignore=scope.get("ignore_patterns"))
     results: list[dict] = []
     for rel, old_hash in files.items():
         if not isinstance(rel, str) or rel in declared:

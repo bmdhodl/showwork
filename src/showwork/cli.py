@@ -262,6 +262,9 @@ def _print_state(state: dict, as_json: bool) -> None:
     print(f"Outcome: {outcome['verdict']}. {outcome['reason']}")
     print(f"Scope: {outcome.get('behavior_checks', 0)} behavior checks, "
           f"{outcome.get('artifact_checks', 0)} artifact checks. Undeclared requirements: unknown.")
+    exclusions = state.get("snapshot_scope", {}).get("ignore_patterns", [])
+    if exclusions:
+        print("Snapshot exclusions (frozen): " + json.dumps(exclusions))
     marks = {"pass": "OK ", "fail": "XX ", "error": "!! ", "skipped": ".. "}
     for r in state["results"]:
         print(f"  {marks.get(r['status'], '?? ')} check for claim: {r['claim']}")
@@ -340,6 +343,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--session", required=True)
     p.add_argument("--agent")
     p.add_argument("--note")
+    p.add_argument("--ignore", action="append", metavar="RELATIVE_GLOB",
+                   help="freeze an explicit snapshot exclusion; repeat per relative glob")
 
     p = sub.add_parser("claim", help="append a falsifiable claim")
     p.add_argument("--session", required=True)
@@ -489,8 +494,12 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(str(exc)) from exc
 
     if args.cmd == "start":
-        start_session(root, args.session, agent=args.agent, note=args.note,
-                      host_session=_host_session())
+        try:
+            start_session(root, args.session, agent=args.agent, note=args.note,
+                          host_session=_host_session(), ignore=args.ignore)
+        except (ValueError, OSError) as exc:
+            print(f"start rejected: {exc}", file=sys.stderr)
+            return 2
         print(f"session.start recorded: {args.session}")
         return 0
 

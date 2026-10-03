@@ -30,6 +30,9 @@ from .snapshot import (
     undeclared_results,
     unreferenced_artifacts,
     write_tree_snapshot,
+    validate_ignore_patterns,
+    scope_from_events,
+    IGNORE_SEMANTIC,
 )
 
 LEDGER_DIRNAME = ".showwork"
@@ -683,6 +686,12 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
     except ValueError:
         return state
     extra: list[dict] = evaluate_requirements(rt, session, allowed_check_types=allowed_check_types)
+    try:
+        scope, _ = scope_from_events([row for row in load_all_events(rt)
+                                     if row.get("session") == session])
+        state["snapshot_scope"] = {"ignore_patterns": [], **scope}
+    except ValueError as exc:
+        extra.append(escape_result("snapshot exclusions invalid", str(exc)))
     declared = claims + requirement_records(rt, session)
     try:
         artifacts = session_artifacts_dir(rt, session)
@@ -719,19 +728,27 @@ def _latest_session_start(root: Path, session: str) -> dict | None:
 
 
 def start_session(root: Path, session: str, agent: str | None = None,
-                  note: str | None = None, host_session: str | None = None) -> dict:
+                  note: str | None = None, host_session: str | None = None,
+                  *, ignore: list[str] | None = None) -> dict:
+    requested = validate_ignore_patterns(ignore)
     snap_path = snapshot_file(ledger_dir(root), session_file_stem(session))
     previous = _latest_session_start(root, session)
+    scope, _ = scope_from_events([row for row in load_all_events(root)
+                                 if row.get("session") == session])
+    if previous and ignore is not None and requested != scope.get("ignore_patterns", []):
+        raise ValueError("snapshot exclusions are frozen; use a new session to change them")
     if previous and isinstance(previous.get("tree_snapshot"), dict):
         # Reopening a slug must not erase its original damage baseline.
         tree_snapshot = previous["tree_snapshot"]
     else:
-        tree_snapshot = write_tree_snapshot(root, snap_path)
+        tree_snapshot = write_tree_snapshot(root, snap_path, ignore=requested)
+    semantics = {"required_semantics": [IGNORE_SEMANTIC]} if scope or requested else {}
     from . import __version__
     return record_event(
         root, "session.start", session, agent=agent, note=note,
         host_session=host_session, tree_snapshot=tree_snapshot,
         verifier_version=__version__,
+        **semantics,
     )
 
 

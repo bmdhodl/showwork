@@ -595,7 +595,8 @@ def _required_path_field(check: dict, key: str) -> str | None:
 
 
 def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
-                command_cache: dict | None = None) -> tuple[str, str]:
+                command_cache: dict | None = None,
+                snapshot_scope: dict | None = None) -> tuple[str, str]:
     """Run a LOCKED command. Only `python <script under the project root>`,
     no shell, no metacharacters, no `..` escape. A ledger data file must never
     be able to run arbitrary commands."""
@@ -629,15 +630,19 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
     if evidence is not None:
         from . import __version__
         from .snapshot import capture_tree
-        before = capture_tree(root)
+        scope = snapshot_scope or {}
+        before = capture_tree(root, ignore=scope.get("ignore_patterns"))
+        source = {"files": before, **scope} if scope else before
         git_status, git_head = _run_git(root, ["rev-parse", "HEAD"])
         evidence.update(argv=list(run_argv), python=sys.version.split()[0],
                         timeout_seconds=timeout_seconds,
                         showwork_version=__version__,
                         git_commit=git_head.strip() if git_status == "pass" else None,
                         script_sha256=hashlib.sha256(script.read_bytes()).hexdigest(),
-                        source_sha256=hashlib.sha256(json.dumps(before, sort_keys=True).encode()).hexdigest(),
+                        source_sha256=hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest(),
                         source_files=len(before), source_scope="bounded showwork tree snapshot")
+        if scope:
+            evidence["source_exclusions"] = scope
     cache_key = None
     if reusable:
         cache_key = hashlib.sha256(json.dumps({
@@ -661,7 +666,7 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
         evidence.update(exit_code=proc.returncode,
                         stdout_sha256=hashlib.sha256(proc.stdout.encode()).hexdigest(),
                         stderr_sha256=hashlib.sha256(proc.stderr.encode()).hexdigest())
-        if capture_tree(root) != before:
+        if capture_tree(root, ignore=scope.get("ignore_patterns")) != before:
             if command_cache is not None:
                 command_cache.clear()
             return ("fail", "source tree changed while the acceptance command was running")
@@ -921,11 +926,14 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         return {**base, "type": ctype, "status": "error",
                 "detail": f"unknown check type {ctype!r}"}
     try:
-        if ctype == "command" and (acceptance_requirement or command_cache is not None):
-            evidence = {}
+        if ctype == "command":
+            from .snapshot import session_exclusions
+            scope = session_exclusions(root, record.get("session", ""))
+            evidence = {} if acceptance_requirement or command_cache is not None else None
             status, detail = chk_command(check, root, evidence=evidence,
-                                         command_cache=command_cache)
-            base["evidence"] = evidence
+                                         command_cache=command_cache, snapshot_scope=scope)
+            if evidence is not None:
+                base["evidence"] = evidence
         else:
             status, detail = fn(check, root)
     except PathEscapeError as e:

@@ -99,6 +99,9 @@ Distinct session slugs write distinct files under `.showwork/sessions/` and
 See [concurrency](docs/concurrency.md) and the
 [`spec-v0.5` ledger specification](SPEC.md).
 
+The source CLI also supports [explicit frozen snapshot exclusions](docs/snapshot-exclusions.md)
+for background writers. That feature is pending a package release.
+
 ## Add it to a repository
 
 ```bash
