@@ -495,6 +495,11 @@ include available revision, interpreter and pytest identity, with invocation
 arguments hashed rather than retained as raw text. Unknown metadata is null.
 Start and finish timestamps describe adapter hooks, not task completion.
 
+Strict XPASS MUST [test:
+tests/test_pytest_plugin.py::test_strict_xpass_is_separate_from_ordinary_failed_calls]
+count as xpassed separately from ordinary failed calls, while retaining pytest's
+failing exit status.
+
 A retained observation's content check MUST [test:
 tests/test_pytest_plugin.py::test_completed_attempt_corruption_is_visible]
 fail when its recorded fields change or extra content is appended. The historical

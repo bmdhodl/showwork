@@ -30,7 +30,8 @@ Each opted-in invocation receives a UUID and writes observations under
 - A finished observation records the hook's exit status, collection count when
   observed, and counts of observed pass/fail/skip/error/xfail/xpass reports.
   Setup, teardown and collection failures are errors. Report counts are not
-  disjoint test totals: a passed call can also have a teardown error. Exit zero
+  disjoint test totals. Strict XPASS counts as xpassed while retaining pytest's
+  failing exit status. A passed call can also have a teardown error. Exit zero
   can include all-skipped tests; it is not a coverage claim.
 - Context includes UTC start/finish times, Python version and executable, pytest
   version, a SHA-256 of invocation arguments (not their raw text), and Git HEAD

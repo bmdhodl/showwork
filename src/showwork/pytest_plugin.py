@@ -93,7 +93,11 @@ class _AttemptRecorder:
             self.counts["skipped"] += 1
 
     def pytest_runtest_logreport(self, report):
-        if report.failed:
+        # pytest exposes strict XPASS as a string longrepr, without wasxfail.
+        if (report.failed and report.when == "call" and isinstance(report.longrepr, str)
+                and report.longrepr.startswith("[XPASS(strict)] ")):
+            self.counts["xpassed"] += 1
+        elif report.failed:
             self.counts["failed" if report.when == "call" else "errors"] += 1
         elif report.skipped:
             self.counts["xfailed" if hasattr(report, "wasxfail") else "skipped"] += 1

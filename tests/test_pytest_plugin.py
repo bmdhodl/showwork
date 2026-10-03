@@ -246,6 +246,21 @@ def test_expected_failures_are_not_ordinary_passes_or_skips(tmp_path):
                       "xfailed": 1, "xpassed": 1}
 
 
+def test_strict_xpass_is_separate_from_ordinary_failed_calls(tmp_path):
+    """REGRESSION: strict XPASS has no wasxfail marker and was counted as failed."""
+    result = run_attempt(tmp_path, "import pytest\n"
+                         "@pytest.mark.xfail(strict=True, reason='fixture')\n"
+                         "def test_unexpected(): assert True\n"
+                         "def test_ordinary(): pytest.fail('[XPASS(strict)] ordinary failure')\n")
+    assert result.returncode == 1, result.stdout + result.stderr
+    report = latest(tmp_path)
+    assert report["passed"] is False
+    assert report["exitstatus"] == 1
+    assert report["collected"] == 2
+    assert report["counts"] == {"passed": 0, "failed": 1, "skipped": 0, "errors": 0,
+                                "xfailed": 0, "xpassed": 1}
+
+
 @pytest.mark.parametrize("phase", ["started", "finished"])
 @pytest.mark.parametrize("corruption", ["field", "append"])
 def test_completed_attempt_corruption_is_visible(tmp_path, phase, corruption):
