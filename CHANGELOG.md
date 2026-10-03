@@ -2,6 +2,16 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- Add append-only recovery for a blocked attempt that recorded claims before
+  any acceptance requirements. A fresh session must declare executable checks
+  and cover all prior work. Release verifies both receipts, preserves the
+  original UNVERIFIED outcome, and rejects changed evidence, later work,
+  ambiguous links, recovery chains and weakened existing requirements.
+- Extend the ledger contract to `spec-v0.6`; earlier release verifiers cannot
+  certify these recovery declarations.
+
 ## 0.6.5 - 2026-09-27
 
 - The Claude Code Stop hook no longer appends the same `session.finish` on

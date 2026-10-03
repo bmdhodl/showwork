@@ -1,6 +1,6 @@
 # showwork Claims Ledger Specification
 
-**Specification version:** `spec-v0.5`
+**Specification version:** `spec-v0.6`
 
 This document defines a portable, append-only format for falsifiable agent
 claims, deterministic verification, retractions, session lifecycle events, and
@@ -622,9 +622,54 @@ tests/test_checks.py::test_verdict_red_yellow_green] apply those severity rules.
 Checker errors MUST [test:
 tests/test_checks.py::test_checker_error_is_yellow] prevent a GREEN verdict.
 
+## Missing-acceptance recovery (`spec-v0.6`)
+
+This is a ledger extension; older release verifiers do not support recovery.
+A `session.recovery` event in the replacement's existing chained event stream
+contains `supersedes`, a nonempty `reason`, `coverage` (project-relative work
+path to fresh behavior requirement ID), `evidence` (original receipt, snapshot
+and artifact hashes), and `requirements_sha256` (the fresh requirement digest).
+Only Git LF/CRLF conversion of UTF-8 text is normalized; binary evidence is exact.
+
+A writer MUST [test: tests/test_recovery.py::test_no_artifact_only_or_late_recovery]
+record recovery once, after fresh executable requirements and before claims.
+It MUST [test: tests/test_recovery.py::test_existing_acceptance_requirements_cannot_be_weakened]
+reject an original session with accepted requirements. The original needs a
+recorded missing-acceptance refusal and a non-bypassed blocked close; a
+successful or still-open original cannot qualify. The replacement has one
+fresh start after that close. No existing events, claims or snapshots are rewritten.
+
+The gate MUST [test: tests/test_recovery.py::test_recovery_keeps_failed_history_and_requires_fresh_execution]
+preserve the original UNVERIFIED outcome and original errors separately from
+the verified replacement's release result. Changed-session selection still
+includes both sessions, following recovery dependencies even when the original
+receipt is unchanged in the base. Selecting the replacement alone still exposes
+the original outcome and findings. Both exact receipts and original artifacts
+are required at HEAD when `require_tracked` is enabled, for either selection.
+
+Coverage MUST [test: tests/test_recovery.py::test_coverage_includes_undeclared_changes_and_new_files]
+include every claimed path and every source addition, edit or deletion relative
+to the original authenticated start snapshot, within the snapshot's documented
+scope. Fresh claims MUST [test: tests/test_recovery.py::test_fresh_claims_cannot_omit_covered_paths]
+name those paths; every coverage entry names a fresh executable behavior
+requirement. Coverage is structural: the verifier does not judge whether a
+test is adequate for its mapped path. The replacement's outcome manifest also
+binds the recovery declaration and covered work bytes (or recorded deletion).
+
+Invalid, self-referential, cyclic or ambiguous links MUST [test:
+tests/test_recovery.py::test_ambiguous_and_cyclic_links_fail_closed] fail closed.
+Changed or missing original evidence MUST [test:
+tests/test_recovery.py::test_altered_or_missing_old_evidence_fails] refuse recovery.
+Unverified replacement requirements MUST [test:
+tests/test_recovery.py::test_unverified_requirement_blocks_both_sessions] refuse
+release. Added uncovered work MUST [test:
+tests/test_recovery.py::test_new_changes_after_recovery_are_not_hidden_by_fresh_snapshot]
+refuse the fresh close; covered work changed after that close also refuses release.
+Chains of recovery are deliberately unsupported in this bounded extension.
+
 ## Conformance
 
-An implementation conforms to `spec-v0.4` when:
+An implementation conforms to `spec-v0.6` when:
 
 - every normative requirement has a behavioral test named beside it;
 - new writes use per-session files and leftover shared files remain readable;
