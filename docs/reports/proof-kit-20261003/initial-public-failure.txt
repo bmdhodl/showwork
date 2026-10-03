@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 159, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 152, in main
+    results = [function(root / name) for name, function in selected.items()]
+               ~~~~~~~~^^^^^^^^^^^^^
+  File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 85, in damage
+    require(any("undeclared change: keep.txt" in row.get("detail", "") for row in failed["results"]),
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "refusal did not identify the undeclared deletion")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 24, in require
+    raise RuntimeError(detail)
+RuntimeError: refusal did not identify the undeclared deletion
