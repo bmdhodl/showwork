@@ -37,7 +37,8 @@ Each opted-in invocation receives a UUID and writes observations under
   when available. HEAD is a revision observation, not proof of a clean checkout
   or of what the tests covered. Unavailable context is null.
 
-Retained observations have content checks. The compatible `"pytest session
+Retained observations have checks for the complete JSON object, including
+rejection of appended content. The compatible `"pytest session
 passed"` claim still checks latest for `"passed": true`; a later failure or
 pending invocation invalidates that old pass. Existing three-field latest
 reports and ledger claims remain readable without migration. Use distinct

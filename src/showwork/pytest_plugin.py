@@ -140,7 +140,7 @@ def _retain_observation(recorder, path, payload, claim):
     record_claim(
         recorder.root, recorder.slug, claim,
         check={"type": "file_contains", "path": path.relative_to(recorder.root).as_posix(),
-               "pattern": re.escape(content)},
+               "pattern": r"\A" + re.escape(content) + r"\n?\Z"},
     )
 
 

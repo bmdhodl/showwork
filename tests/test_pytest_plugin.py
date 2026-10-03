@@ -246,13 +246,20 @@ def test_expected_failures_are_not_ordinary_passes_or_skips(tmp_path):
                       "xfailed": 1, "xpassed": 1}
 
 
-def test_completed_attempt_corruption_is_visible(tmp_path):
+@pytest.mark.parametrize("phase", ["started", "finished"])
+@pytest.mark.parametrize("corruption", ["field", "append"])
+def test_completed_attempt_corruption_is_visible(tmp_path, phase, corruption):
     from showwork.ledger import verify_session
     assert run_attempt(tmp_path, "def test_case(): assert True\n").returncode == 0
     report = latest(tmp_path)
-    artifact = tmp_path / f".showwork/artifacts/attempt/pytest-{report['invocation_id']}.json"
-    corrupted = {**report, "counts": {**report["counts"], "passed": 999}}
-    artifact.write_text(json.dumps(corrupted), encoding="utf-8")
+    suffix = "-started" if phase == "started" else ""
+    artifact = tmp_path / f".showwork/artifacts/attempt/pytest-{report['invocation_id']}{suffix}.json"
+    if corruption == "field":
+        retained = json.loads(artifact.read_text(encoding="utf-8"))
+        artifact.write_text(json.dumps({**retained, "python_version": "tampered"}), encoding="utf-8")
+    else:
+        before = artifact.read_bytes()
+        artifact.write_bytes(before + before)
     assert verify_session(tmp_path, "attempt")["verdict"] == "RED"
 
 

@@ -497,8 +497,8 @@ Start and finish timestamps describe adapter hooks, not task completion.
 
 A retained observation's content check MUST [test:
 tests/test_pytest_plugin.py::test_completed_attempt_corruption_is_visible]
-fail when its recorded fields change. The historical passing claim still
-checks latest; a later failing run invalidates it. A pytest artifact pass MUST
+fail when its recorded fields change or extra content is appended. The historical
+passing claim still checks latest; a later failing run invalidates it. A pytest artifact pass MUST
 [test: tests/test_pytest_plugin.py::test_artifact_pass_does_not_supply_acceptance_or_close]
 NOT provide behavioral acceptance or authorize an ordinary successful close
 without declared requirements. Separate slugs MUST [test:
