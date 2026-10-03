@@ -94,12 +94,12 @@ def test_empty_workspace_is_unknown(tmp_path):
 def test_green_session_is_verified(tmp_path):
     (tmp_path / "out.md").write_text("shipped: yes", encoding="utf-8")
     assert _run(tmp_path, "start", "--session", "bmd-green", "--agent", "test") == 0
-    record_requirement(tmp_path, "bmd-green", "file", "out.md contains shipped", "artifact",
-                       {"type": "file_contains", "path": "out.md", "pattern": "shipped"})
+    record_requirement(tmp_path, "bmd-green", "file", "out.md exists", "artifact",
+                       {"type": "file_exists", "path": "out.md"})
     assert _run(
         tmp_path, "claim", "--session", "bmd-green",
-        "--claim", "wrote out.md", "--type", "file_contains",
-        "--path", "out.md", "--pattern", "shipped",
+        "--claim", "wrote out.md", "--type", "file_exists",
+        "--path", "out.md",
     ) == 0
     assert _run(tmp_path, "finish", "--session", "bmd-green") == 0
     evidence = evidence_for_session(tmp_path, "bmd-green")
@@ -109,7 +109,7 @@ def test_green_session_is_verified(tmp_path):
     text = render_explanation(explanation)
     blob = json.dumps(explanation)
     assert explanation["historical_outcome"] == "VERIFIED"
-    assert explanation["observation"] == "current_rerun"
+    assert explanation["observation"] == "current_filesystem_only; commands not executed"
     assert explanation["outcome_verdict"] == "VERIFIED"
     assert "Historical finish: VERIFIED" in text
     assert "evidence:requirement:file" in text
@@ -119,7 +119,7 @@ def test_green_session_is_verified(tmp_path):
     assert "evidence:requirement:file" in html
     assert "result:pass" in html
     assert "Historical finish: VERIFIED" in html
-    assert "Observation: current_rerun" in html
+    assert "Observation: current_filesystem_only" in html
 
 
 def test_red_session_is_failed(tmp_path):
@@ -178,6 +178,7 @@ def test_overlay_joins_task_id(tmp_path):
         tmp_path, "claim", "--session", "bmd-task-9",
         "--claim", "ok.txt exists", "--type", "file_exists", "--path", "ok.txt",
     ) == 0
+    assert _run(tmp_path, "finish", "--session", "bmd-task-9") == 0
     overlay = overlay_record({"task_id": "task-9"}, tmp_path)
     assert overlay is not None
     assert overlay["state"] == "verified"

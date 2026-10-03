@@ -62,7 +62,7 @@ from .ledger import (
     verify_date,
     verify_session,
 )
-from .receipts import receipts_payload, render_badges_html
+from .receipts import receipts_payload, render_badges_html, resolve_receipts_root
 from .scaffold import init_project
 from .report import render_status, render_usage, session_status, usage_report
 
@@ -471,7 +471,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     args = ap.parse_args(argv)
-    root = resolve_root(args.root)
+    root = resolve_receipts_root(args.root) if args.cmd == "receipts" else resolve_root(args.root)
     session = getattr(args, "session", None)
     if session:
         try:

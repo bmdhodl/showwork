@@ -1,6 +1,6 @@
 """Read one handoff from receipt files and the local decision.
 
-This process runs `receipts` only. It does not run verify or gate, and it
+This process calls the receipt API only. It does not run verify or gate, and it
 does not execute the recorded command. A model summary is not an input.
 """
 
@@ -8,27 +8,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 
 REPO = Path(__file__).resolve().parents[2]
+if (REPO / "src" / "showwork").is_dir():
+    sys.path.insert(0, str(REPO / "src"))
+from showwork.reader import confined_path, load_receipt, read_bytes
+from showwork.receipts import evidence_for_session
 NO_MERGE = "This text does not authorize a merge or a clean close."
-
-
-def child_env() -> dict[str, str]:
-    env = os.environ.copy()
-    src = REPO / "src"
-    if (src / "showwork" / "__init__.py").is_file():
-        prev = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = str(src) + (os.pathsep + prev if prev else "")
-    env.pop("SHOWWORK_ROOT", None)
-    env.pop("SHOWWORK_SESSION", None)
-    env.pop("SHOWWORK_COMMAND_TIMEOUT_SECONDS", None)
-    return env
 
 
 def load_decision(root: Path) -> dict | None:
@@ -36,8 +26,8 @@ def load_decision(root: Path) -> dict | None:
     if not path.is_file():
         return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        data = json.loads(read_bytes(root, path).decode("utf-8"))
+    except (OSError, ValueError):
         return None
     if not isinstance(data, dict):
         return None
@@ -53,27 +43,22 @@ def source_name(root: Path, decision: dict | None) -> str:
     parts = Path(source).parts
     if Path(source).is_absolute() or ".." in parts:
         return "absent"
-    if not (root / source).is_file():
+    try:
+        path = confined_path(root, root / source)
+    except (OSError, ValueError):
+        return "absent"
+    if not path.is_file():
         return "absent"
     return source
 
 
 def finish_event(root: Path, session: str) -> dict | None:
-    path = root / ".showwork" / "sessions" / f"{session}.jsonl"
-    if not path.is_file():
-        return None
     last = None
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError:
+        rows = load_receipt(root, session)["events"]
+    except (OSError, ValueError):
         return None
-    for line in lines:
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            return None
+    for row in rows:
         if row.get("event") == "session.finish" and row.get("session") == session:
             last = row
     return last
@@ -95,24 +80,7 @@ def command_evidence(finish: dict | None) -> dict | None:
 
 
 def receipts(root: Path, session: str) -> dict:
-    proc = subprocess.run(
-        [
-            sys.executable, "-m", "showwork.cli", "--root", str(root),
-            "receipts", "--session", session, "--json",
-        ],
-        cwd=root, env=child_env(), text=True, capture_output=True, check=False,
-    )
-    if proc.returncode != 0 or not proc.stdout.strip():
-        return {}
-    try:
-        payload = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return {}
-    records = payload.get("records") if isinstance(payload, dict) else None
-    if not isinstance(records, list) or not records:
-        return {}
-    verification = records[0].get("verification")
-    return verification if isinstance(verification, dict) else {}
+    return evidence_for_session(root, session)
 
 
 def script_is_stale(root: Path, evidence: dict | None) -> bool:
@@ -124,7 +92,10 @@ def script_is_stale(root: Path, evidence: dict | None) -> bool:
     script = root / "check.py"
     if not script.is_file():
         return True
-    current = hashlib.sha256(script.read_bytes()).hexdigest()
+    try:
+        current = hashlib.sha256(read_bytes(root, script)).hexdigest()
+    except (OSError, ValueError):
+        return True
     return current != recorded
 
 
