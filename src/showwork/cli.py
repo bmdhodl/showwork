@@ -330,9 +330,11 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog="showwork",
                                  description="falsifiable claims + deterministic verification for AI agents")
+    from . import __version__
+    ap.add_argument("--version", action="version", version=f"showwork {__version__}")
     ap.add_argument("--root", default=None,
                     help="project root (default: $SHOWWORK_ROOT or cwd)")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
 
     p = sub.add_parser("start", help="record session.start")
     p.add_argument("--session", required=True)
