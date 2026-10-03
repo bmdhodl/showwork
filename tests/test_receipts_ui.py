@@ -22,6 +22,7 @@ def _fixture_records(tmp_path: Path) -> list[dict]:
         tmp_path, "claim", "--session", "bmd-green",
         "--claim", "ok.txt exists", "--type", "file_exists", "--path", "ok.txt",
     ) == 0
+    assert _run(tmp_path, "finish", "--session", "bmd-green") == 0
     assert _run(tmp_path, "start", "--session", "bmd-claimed") == 0
     assert _run(tmp_path, "claim", "--session", "bmd-claimed", "--claim", "said done") == 0
     rows = [

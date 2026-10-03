@@ -1,0 +1,82 @@
+{
+  "closed": {
+    "integrity": "GREEN",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "VERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "reopened": {
+    "integrity": "GREEN",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "missing-manifest": {
+    "integrity": "GREEN",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "changed-claims": {
+    "integrity": "GREEN",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "tampered": {
+    "integrity": "RED",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "legacy": {
+    "integrity": "YELLOW",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "supported_reading_fields",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "future": {
+    "integrity": "GREEN",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "unsupported",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "duplicate-key": {
+    "integrity": "unknown",
+    "scope": "recorded requirements and receipt manifest",
+    "spec_coverage": "unreadable",
+    "recorded_outcome": "UNVERIFIED",
+    "current_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "clock-rollback": {
+    "integrity": "GREEN",
+    "spec_coverage": "supported_reading_fields",
+    "manifest": "matches",
+    "freshness": "reopened",
+    "recorded_outcome": "UNVERIFIED",
+    "current_execution": "not performed"
+  },
+  "split-reclaimed": {
+    "integrity": "GREEN",
+    "spec_coverage": "supported_reading_fields",
+    "manifest": "matches",
+    "freshness": "recorded_close",
+    "recorded_outcome": "VERIFIED",
+    "current_execution": "not performed"
+  }
+}

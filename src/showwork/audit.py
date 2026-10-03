@@ -41,7 +41,7 @@ from .ledger import (
 )
 
 
-def audit_file(path: Path, strict: bool = False) -> dict:
+def audit_file(path: Path, strict: bool = False, *, record_text: str | None = None) -> dict:
     """Audit one ledger file's hash chain. Returns a dict with counts, the
     head hash, the branch heads, the fork count, first break (if any), and a
     per-file verdict. With ``strict=True`` a fork is a RED break rather than an
@@ -86,7 +86,7 @@ def audit_file(path: Path, strict: bool = False) -> dict:
     chain_started = False
     line_no = 0
     try:
-        text = read_record_text(path)
+        text = read_record_text(path) if record_text is None else record_text
     except ValueError as e:
         out["verdict"] = "RED"
         out["detail"] = str(e)

@@ -631,7 +631,7 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
         from .snapshot import capture_tree
         before = capture_tree(root)
         git_status, git_head = _run_git(root, ["rev-parse", "HEAD"])
-        evidence.update(argv=list(argv), python=sys.version.split()[0],
+        evidence.update(argv=list(run_argv), python=sys.version.split()[0],
                         timeout_seconds=timeout_seconds,
                         showwork_version=__version__,
                         git_commit=git_head.strip() if git_status == "pass" else None,
@@ -670,13 +670,34 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
             evidence.update(execution_id=execution_id, execution_reused=reused,
                             execution_input_sha256=cache_key)
     if proc.returncode != expect:
-        return ("fail", f"exit {proc.returncode}, expected {expect}")
+        return ("fail", f"exit {proc.returncode}, expected {expect}" + _command_diagnostics(proc))
     needle = c.get("stdout_contains")
     if needle is not None and needle != "":
         if needle not in proc.stdout:
-            return ("fail", f"stdout missing {needle!r}")
+            from .explain import redact
+            return ("fail", f"stdout missing {redact(needle)!r}" + _command_diagnostics(proc))
     return ("pass", f"exit {proc.returncode}"
             + (f", stdout has {needle!r}" if needle else ""))
+
+
+def _command_diagnostics(proc) -> str:
+    """Failure context from bounded, redacted stderr (or stdout when absent)."""
+    runtime = f"Python {sys.version.split()[0]}; interpreter {_command_context_text(sys.executable)}"
+    stream = "stderr" if (proc.stderr or "").strip() else "stdout"
+    raw = proc.stderr if stream == "stderr" else proc.stdout
+    lines = [line for line in (raw or "").splitlines() if line.strip()][-6:]
+    safe = [_command_context_text(line) for line in lines]
+    return f"\n       {runtime}" + (f"\n       {stream} tail:\n       " + "\n       ".join(safe) if safe else "")
+
+
+def _command_context_text(text: str) -> str:
+    from .explain import redact
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = re.sub(r"(?i)\b(?:password|token|secret|authorization|credential)\s*[:=]\s*\S+", "<secret>", text)
+    text = re.sub(r"([\"'])(?:[A-Za-z]:[/\\]|/)[^\r\n]*?\1", "<path>", text)
+    text = re.sub(r"[A-Za-z]:[/\\][^\s\"']+", "<path>", text)
+    text = re.sub(r"(?<![\w:/])/(?!/)[^\s\"'<>]+", "<path>", text)
+    return redact("".join(char for char in text if char.isprintable()))
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
