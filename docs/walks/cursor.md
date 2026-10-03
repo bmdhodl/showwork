@@ -14,6 +14,10 @@ python -m showwork --help
 
 ## 2. Glue (optional, once per repo)
 
+The reviewed source also supports native bounded Stop observation and reversible
+project setup. See [host recipes](../host-recipes.md) for preview, uninstall,
+launcher-environment binding and the actual-host proof limits.
+
 ```bash
 python -m showwork init --cursor
 ```

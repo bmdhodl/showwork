@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import importlib.metadata
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+
+import showwork
 
 
 BROKEN = "def add(a, b):\n    return a + b + 1\n"
@@ -151,7 +152,7 @@ def main(argv=None):
     functions = {"failure": failure, "damage": damage, "handoff": handoff}
     selected = functions if args.example == "all" else {args.example: functions[args.example]}
     results = [function(root / name) for name, function in selected.items()]
-    print(json.dumps({"version": importlib.metadata.version("showwork"),
+    print(json.dumps({"version": showwork.__version__,
                       "python": sys.version.split()[0], "results": results}, indent=2))
     return 0
 

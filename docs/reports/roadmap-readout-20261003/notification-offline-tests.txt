@@ -1,0 +1,14 @@
+test_bmd_refuses_missing_unuploaded_empty_and_wrong_host_assets (scripts.test_product_release.ProductReleaseTests.test_bmd_refuses_missing_unuploaded_empty_and_wrong_host_assets) ... ok
+test_bmd_refuses_missing_withdrawn_and_mismatched_manifest (scripts.test_product_release.ProductReleaseTests.test_bmd_refuses_missing_withdrawn_and_mismatched_manifest) ... ok
+test_bmd_uses_public_release_and_download (scripts.test_product_release.ProductReleaseTests.test_bmd_uses_public_release_and_download) ... ok
+test_credentials_never_follow_redirects (scripts.test_product_release.ProductReleaseTests.test_credentials_never_follow_redirects) ... ok
+test_incomplete_send_fails_and_logs_never_include_recipients (scripts.test_product_release.ProductReleaseTests.test_incomplete_send_fails_and_logs_never_include_recipients) ... ok
+test_no_key_never_calls_network (scripts.test_product_release.ProductReleaseTests.test_no_key_never_calls_network) ... ok
+test_rejects_unpublished_prerelease_wrong_url_and_unsafe_tag (scripts.test_product_release.ProductReleaseTests.test_rejects_unpublished_prerelease_wrong_url_and_unsafe_tag) ... ok
+test_showwork_has_pinned_upgrade_and_retry_key (scripts.test_product_release.ProductReleaseTests.test_showwork_has_pinned_upgrade_and_retry_key) ... ok
+test_showwork_refuses_missing_yanked_or_wrong_package (scripts.test_product_release.ProductReleaseTests.test_showwork_refuses_missing_yanked_or_wrong_package) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.002s
+
+OK
