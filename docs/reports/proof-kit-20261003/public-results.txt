@@ -1,0 +1,30 @@
+{
+  "version": "0.6.5",
+  "python": "3.13.2",
+  "results": [
+    {
+      "example": "declared-failure",
+      "broken_finish": 2,
+      "repaired_finish": 0,
+      "fresh_rerun": "VERIFIED",
+      "limits": "Only add(2,2) is tested; other inputs and requirement adequacy are unknown"
+    },
+    {
+      "example": "undeclared-damage",
+      "damaged_finish": 2,
+      "restored_finish": 0,
+      "current_rerun": "VERIFIED",
+      "limits": "Existing snapshotted files only; no claim that every new file or external effect is covered"
+    },
+    {
+      "example": "handoff",
+      "read_only_state": "unknown",
+      "inherited_command_executed": false,
+      "receipt_bytes_preserved": true,
+      "broken_explicit_rerun": 2,
+      "consumer_repaired_rerun": "VERIFIED",
+      "approval_inherited": false,
+      "limits": "Driver labels two client sessions; no actual model task, trust change or permission transfer"
+    }
+  ]
+}

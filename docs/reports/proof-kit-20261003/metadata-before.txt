@@ -1,0 +1,53 @@
+F                                                                        [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+_________ test_proof_kit_runs_without_installed_distribution_metadata _________
+
+tmp_path = WindowsPath('E:/tmp/sw-proof-metadata-before-01a1000f/test_proof_kit_runs_without_in0')
+
+    def test_proof_kit_runs_without_installed_distribution_metadata(tmp_path):
+        """REGRESSION: source-only pytest runs cannot depend on unrelated dist-info."""
+        env_root = tmp_path / "runtime"
+        created = subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(env_root)],
+                                 capture_output=True, text=True, timeout=60,
+                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        assert created.returncode == 0, created.stderr
+        executable = env_root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        source = tmp_path / "source"
+        shutil.copytree(ROOT / "src/showwork", source / "showwork", ignore=shutil.ignore_patterns("__pycache__"))
+        env = {**os.environ, "PYTHONPATH": str(source)}
+        proc = subprocess.run([str(executable), "-O", str(SCRIPT), str(tmp_path / "toy"),
+                               "--example", "failure"], env=env, capture_output=True, text=True,
+                              timeout=90, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+>       assert proc.returncode == 0, proc.stdout + proc.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "C:\Python313\Lib\importlib\metadata\__init__.py", line 407, in from_name
+E             return next(iter(cls.discover(name=name)))
+E         StopIteration
+E         
+E         During handling of the above exception, another exception occurred:
+E         
+E         Traceback (most recent call last):
+E           File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 160, in <module>
+E             raise SystemExit(main())
+E                              ~~~~^^
+E           File "E:\C-Offload\github\showwork-demand-evidence-20261003\examples\proof-kit\run.py", line 154, in main
+E             print(json.dumps({"version": importlib.metadata.version("showwork"),
+E                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+E           File "C:\Python313\Lib\importlib\metadata\__init__.py", line 987, in version
+E             return distribution(distribution_name).version
+E                    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+E           File "C:\Python313\Lib\importlib\metadata\__init__.py", line 960, in distribution
+E             return Distribution.from_name(distribution_name)
+E                    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+E           File "C:\Python313\Lib\importlib\metadata\__init__.py", line 409, in from_name
+E             raise PackageNotFoundError(name)
+E         importlib.metadata.PackageNotFoundError: No package metadata was found for showwork
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['E:\\tmp\\sw-proof-metadata-before-01a1000f\\test_proof_kit_runs_without_in0\\runtime\\Scripts\...ise PackageNotFoundError(name)\nimportlib.metadata.PackageNotFoundError: No package metadata was found for showwork\n').returncode
+
+tests\test_proof_kit.py:59: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_proof_kit.py::test_proof_kit_runs_without_installed_distribution_metadata
+1 failed, 4 deselected in 3.38s
