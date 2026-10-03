@@ -41,6 +41,19 @@ def test_every_selected_session_links_requirement_receipt_and_observed_revision(
     assert "behavior" in summary and "pass" in summary and "fail" in summary
     assert "exit 1" in summary and "b" * 64 in summary
     assert "test adequacy: not assessed" in summary
+    assert f"](https://github.com/bmdhodl/showwork/commit/{SHA})" in summary
+
+
+def test_aggregate_utf8_summary_stays_below_step_upload_limit():
+    """REGRESSION: per-session row caps could still produce a 16MB summary."""
+    row = receipt()
+    row["checks"]["results"][0].update(claim="🧪" * 240, detail="🧪" * 240)
+    row["checks"]["results"] *= 80
+    summary = render_summary({"verdict": "GREEN", "sessions": [row] * 256},
+                             revision=SHA, repository="bmdhodl/showwork")
+    assert len(summary.encode("utf-8")) < 1024 * 1024
+    assert "Summary truncated" in summary
+    assert "full gate JSON" in summary
 
 
 def test_missing_disabled_and_prose_checks_stay_visible():
