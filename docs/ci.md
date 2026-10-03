@@ -183,6 +183,20 @@ summary. Installation failures, invalid mode/selection, and unexpected verifier
 exit codes still fail the job. A gate refusal (exit 2), including a missing
 receipt or unresolved revision, is reported as unverified in advisory mode.
 
+Current source displays one section per selected session in the existing check
+summary. Each section names the declared requirement, its scope and observed
+result, and links to the committed session receipt at the reviewed HEAD. Command
+rows show their observed revision, exit code and stdout hash. A disabled command
+has no executed test evidence; an empty receipt has no declared acceptance.
+Rerunning at another SHA produces a new summary for that HEAD. Historical integrity
+and missing definitions remain visible even when advisory policy lets the job pass.
+
+The summary formats the gate result already obtained; it does not execute checks
+again. It never assesses test adequacy or fills undeclared requirements. Display
+limits are explicit, and the verifier still uses every selected row. These summary
+improvements are available only when the action is pinned to a reviewed commit
+containing them. The published 0.6.5 action retains its original text summary.
+
 Command and network checks remain disabled unless explicitly enabled. Disabled
 checks do not certify behavior. Never enable repository commands in a privileged
 workflow running untrusted fork code. The example skips forks; use a separate
