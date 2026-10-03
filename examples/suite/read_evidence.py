@@ -124,9 +124,13 @@ def acceptance_observation(root, session, requirement_id, revision):
         if not isinstance(commands, list) or not commands:
             return result
         definitions = {row["requirement_id"]: row for row in requirements}
+        seen_commands = set()
         for command in commands:
             if not isinstance(command, dict) or command.get("requirement_id") not in definitions:
                 return result
+            if command["requirement_id"] in seen_commands:
+                return result
+            seen_commands.add(command["requirement_id"])
             if not bound_command(root, command, definitions[command["requirement_id"]], revision,
                                  receipt["snapshot_scope"]):
                 return result

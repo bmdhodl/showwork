@@ -215,14 +215,15 @@ def test_suite_documentation_links_and_retires_executable_bmd_recipe():
     assert "Do not copy this historical request" in request
 
 
-def test_ambiguous_command_reference_is_unknown(workspace):
+@pytest.mark.parametrize("requirement", ["run", "artifact"])
+def test_ambiguous_command_reference_is_unknown(workspace, requirement):
     """REGRESSION: a duplicate command reference returned loaded with unknown acceptance."""
     root, _ = workspace
     close = [row for row in load_all_events(root) if row.get("event") == "session.finish"][-1]
     payload = {key: value for key, value in close.items() if key not in {"event", "session", "ts", "prev"}}
     payload["command_evidence"] = payload["command_evidence"] * 2
     record_event(root, "session.finish", "case", **payload)
-    view = read(workspace)
+    view = example.read_evidence(root, "case", requirement, workspace[1])
     assert view["acceptance"]["state"] == "unknown"
     assert view["acceptance"]["reference_bound"] is False
     assert view["reference_status"] == "unknown"
