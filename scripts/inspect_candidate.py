@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from email.parser import BytesParser
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -23,6 +24,13 @@ def require(condition: bool, message: str) -> None:
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def bounded_bytes(path: Path, limit: int, label: str) -> bytes:
+    with path.open("rb") as handle:
+        data = handle.read(limit + 1)
+    require(len(data) <= limit, f"{label} exceeds the read limit")
+    return data
 
 
 def unique_object(pairs):
@@ -66,11 +74,12 @@ def inspect_candidate(root: Path, reviewed_sha: str, base_sha: str, version: str
     require(wheel is not None and wheel.is_file(), "candidate wheel is missing")
     require(wheel.suffix == ".whl" and wheel.stat().st_size <= 50 * 1024 * 1024,
             "wheel must be a bounded .whl file")
-    wheel_sha = digest(wheel)
+    wheel_bytes = bounded_bytes(wheel, 50 * 1024 * 1024, "wheel")
+    wheel_sha = hashlib.sha256(wheel_bytes).hexdigest()
     if retry_sha256 is not None:
         require(bool(re.fullmatch(r"[0-9a-f]{64}", retry_sha256)), "retry hash must be SHA256")
         require(wheel_sha == retry_sha256, "retry must retain the exact previously approved artifact")
-    with zipfile.ZipFile(wheel) as archive:
+    with zipfile.ZipFile(io.BytesIO(wheel_bytes)) as archive:
         metadata = [item for item in archive.infolist() if item.filename.endswith(".dist-info/METADATA")]
         require(len(metadata) == 1 and metadata[0].file_size <= 256 * 1024,
                 "wheel must contain one bounded package metadata file")
@@ -78,9 +87,10 @@ def inspect_candidate(root: Path, reviewed_sha: str, base_sha: str, version: str
     require(fields.get_all("Name") == ["showwork"] and fields.get_all("Version") == [version],
             "wheel identity differs from proposed package/version")
     require(gate is not None and gate.is_file(), "receipt gate evidence is missing")
-    require(gate.stat().st_size <= 4 * 1024 * 1024, "gate evidence exceeds the read limit")
-    payload = json.loads(gate.read_text(encoding="utf-8"), object_pairs_hook=unique_object)
-    require(isinstance(payload, dict) and payload.get("verdict") == "GREEN", "receipt gate is not GREEN")
+    gate_bytes = bounded_bytes(gate, 4 * 1024 * 1024, "gate evidence")
+    payload = json.loads(gate_bytes.decode("utf-8"), object_pairs_hook=unique_object)
+    require(isinstance(payload, dict) and payload.get("verdict") == "GREEN"
+            and payload.get("errors") == [], "receipt gate is not GREEN or contains errors")
     sessions = payload.get("sessions")
     require(isinstance(sessions, list) and bool(sessions), "receipt gate has no sessions")
     for session in sessions:
@@ -96,12 +106,13 @@ def inspect_candidate(root: Path, reviewed_sha: str, base_sha: str, version: str
         behavior = [row for row in results if row.get("requirement_id") and row.get("scope") == "behavior"]
         require(bool(behavior), "candidate needs executable behavior acceptance evidence")
         for row in behavior:
-            evidence = row.get("command_evidence")
+            evidence = row.get("evidence")
             require(row.get("status") == "pass" and isinstance(evidence, dict)
                     and evidence.get("git_commit") == reviewed_sha
-                    and evidence.get("exit_code") == 0, "behavior evidence failed or names another revision")
+                    and type(evidence.get("exit_code")) is int
+                    and evidence["exit_code"] == 0, "behavior evidence failed or names another revision")
     return {**packet, "decision": "candidate-for-owner-review", "wheel_sha256": wheel_sha,
-            "gate_sha256": digest(gate), "retry": retry_sha256 is not None,
+            "gate_sha256": hashlib.sha256(gate_bytes).hexdigest(), "retry": retry_sha256 is not None,
             "limits": ["Local input hashes do not authenticate producer or prove wheel/source equivalence",
                        "No clean-install matrix, compatibility review or owner approval inferred",
                        "No receipt commands, provider queries, tags or publication executed"]}

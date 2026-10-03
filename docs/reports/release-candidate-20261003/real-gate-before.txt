@@ -1,0 +1,51 @@
+F                                                                        [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+______________ test_candidate_accepts_real_tracked_gate_evidence ______________
+
+inputs = (WindowsPath('E:/tmp/sw-candidate-real-before-01a1000f/test_candidate_accepts_real_tr0/source'), 'c4b28a270295f65f44da...t': 'VERIFIED'}, 'results': [{...}], 'verdict': 'GREEN'}, 'errors': [], 'verdict': 'GREEN'}], 'verdict': 'GREEN'}, ...)
+
+    def test_candidate_accepts_real_tracked_gate_evidence(inputs):
+        """REGRESSION: hand-built evidence must not substitute a different wire shape."""
+        from showwork.ledger import finish_session, record_claim, start_session
+        from showwork.outcomes import record_requirement, release_gate
+        root, _, base, wheel, gate, _, git = inputs
+        (root / "probe.py").write_text("print('passed')\n", encoding="utf-8")
+        git("add", "probe.py")
+        git("commit", "-m", "real probe")
+        start_session(root, "candidate-proof")
+        record_requirement(root, "candidate-proof", "probe", "execute the real probe", "behavior",
+                           {"type": "command", "argv": ["python", "probe.py"],
+                            "expect_exit": 0, "stdout_contains": "passed"})
+        record_claim(root, "candidate-proof", "probe exists", {"type": "file_exists", "path": "probe.py"})
+        finish_session(root, "candidate-proof", "ok")
+        git("add", ".showwork")
+        git("commit", "-m", "closed tracked receipt")
+        sha = git("rev-parse", "HEAD")
+        git("update-ref", "refs/remotes/origin/main", sha)
+        actual = release_gate(root, "candidate-proof", require_tracked=True)
+        assert actual["verdict"] == "GREEN", actual["errors"]
+        row = next(row for row in actual["checks"]["results"] if row.get("scope") == "behavior")
+        assert row["evidence"]["git_commit"] == sha
+        gate.write_text(json.dumps({"verdict": actual["verdict"], "errors": [], "sessions": [actual]}))
+>       packet = candidate.inspect_candidate(root, sha, base, "0.9.0", wheel, gate, accepted_change=True)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_candidate_inspection.py:160: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts\inspect_candidate.py:100: in inspect_candidate
+    require(row.get("status") == "pass" and isinstance(evidence, dict)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+condition = False
+message = 'behavior evidence failed or names another revision'
+
+    def require(condition: bool, message: str) -> None:
+        if not condition:
+>           raise ValueError(message)
+E           ValueError: behavior evidence failed or names another revision
+
+scripts\inspect_candidate.py:21: ValueError
+=========================== short test summary info ===========================
+FAILED tests/test_candidate_inspection.py::test_candidate_accepts_real_tracked_gate_evidence
+1 failed, 12 deselected in 5.25s

@@ -38,10 +38,10 @@ def inputs(tmp_path):
     wheel = tmp_path / "showwork-0.9.0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr("showwork-0.9.0.dist-info/METADATA", "Name: showwork\nVersion: 0.9.0\n")
-    payload = {"verdict": "GREEN", "sessions": [{"verdict": "GREEN", "errors": [],
+    payload = {"verdict": "GREEN", "errors": [], "sessions": [{"verdict": "GREEN", "errors": [],
                "checks": {"verdict": "GREEN", "outcome": {"verdict": "VERIFIED"}, "results": [
                    {"requirement_id": "actual", "scope": "behavior", "status": "pass",
-                    "command_evidence": {"git_commit": sha, "exit_code": 0}}]}}]}
+                    "evidence": {"git_commit": sha, "exit_code": 0}}]}}]}
     gate = tmp_path / "gate.json"
     gate.write_text(json.dumps(payload))
     return root, sha, base, wheel, gate, payload, git
@@ -65,20 +65,25 @@ def test_candidate_identifies_bytes_without_publication_authority(inputs):
         inspect(inputs, retry_sha256="a" * 64)
 
 
-@pytest.mark.parametrize("fault", ["red", "wrong-revision", "failed-command", "artifact-only", "no-session"])
+@pytest.mark.parametrize("fault", ["red", "wrong-revision", "failed-command", "artifact-only", "no-session",
+                                   "top-errors", "boolean-exit"])
 def test_candidate_refuses_bad_receipt_evidence(inputs, fault):
     data = inputs[5]
     row = data["sessions"][0]["checks"]["results"][0]
     if fault == "red":
         data["verdict"] = "RED"
     elif fault == "wrong-revision":
-        row["command_evidence"]["git_commit"] = inputs[2]
+        row["evidence"]["git_commit"] = inputs[2]
     elif fault == "failed-command":
-        row["command_evidence"]["exit_code"] = 1
+        row["evidence"]["exit_code"] = 1
     elif fault == "artifact-only":
         row["scope"] = "artifact"
-    else:
+    elif fault == "no-session":
         data["sessions"] = []
+    elif fault == "top-errors":
+        data["errors"] = ["contradictory gate evidence"]
+    else:
+        row["evidence"]["exit_code"] = False
     inputs[4].write_text(json.dumps(data))
     with pytest.raises(ValueError):
         inspect(inputs)
@@ -127,3 +132,31 @@ def test_optimized_cli_refuses_failed_check_and_writes_no_state(inputs):
     assert proc.returncode == 2
     assert "not GREEN" in proc.stderr
     assert before == {p.name: p.read_bytes() for p in inputs[0].iterdir() if p.is_file()}
+
+
+def test_candidate_accepts_real_tracked_gate_evidence(inputs):
+    """REGRESSION: hand-built evidence must not substitute a different wire shape."""
+    from showwork.ledger import finish_session, record_claim, start_session
+    from showwork.outcomes import record_requirement, release_gate
+    root, _, base, wheel, gate, _, git = inputs
+    (root / "probe.py").write_text("print('passed')\n", encoding="utf-8")
+    git("add", "probe.py")
+    git("commit", "-m", "real probe")
+    start_session(root, "candidate-proof")
+    record_requirement(root, "candidate-proof", "probe", "execute the real probe", "behavior",
+                       {"type": "command", "argv": ["python", "probe.py"],
+                        "expect_exit": 0, "stdout_contains": "passed"})
+    record_claim(root, "candidate-proof", "probe exists", {"type": "file_exists", "path": "probe.py"})
+    finish_session(root, "candidate-proof", "ok")
+    git("add", ".showwork")
+    git("commit", "-m", "closed tracked receipt")
+    sha = git("rev-parse", "HEAD")
+    git("update-ref", "refs/remotes/origin/main", sha)
+    actual = release_gate(root, "candidate-proof", require_tracked=True)
+    assert actual["verdict"] == "GREEN", actual["errors"]
+    row = next(row for row in actual["checks"]["results"] if row.get("scope") == "behavior")
+    assert row["evidence"]["git_commit"] == sha
+    gate.write_text(json.dumps({"verdict": actual["verdict"], "errors": [], "sessions": [actual]}))
+    packet = candidate.inspect_candidate(root, sha, base, "0.9.0", wheel, gate, accepted_change=True)
+    assert packet["decision"] == "candidate-for-owner-review"
+    assert packet["gate_sha256"] == candidate.digest(gate)

@@ -1,0 +1,67 @@
+FF                                                                       [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+___________ test_candidate_refuses_bad_receipt_evidence[top-errors] ___________
+
+inputs = (WindowsPath('E:/tmp/sw-candidate-shape-before-01a1000f/test_candidate_refuses_bad_rec0/source'), '69577ef1c936ade16be...t': 'VERIFIED'}, 'results': [{...}], 'verdict': 'GREEN'}, 'errors': [], 'verdict': 'GREEN'}], 'verdict': 'GREEN'}, ...)
+fault = 'top-errors'
+
+    @pytest.mark.parametrize("fault", ["red", "wrong-revision", "failed-command", "artifact-only", "no-session",
+                                       "top-errors", "boolean-exit"])
+    def test_candidate_refuses_bad_receipt_evidence(inputs, fault):
+        data = inputs[5]
+        row = data["sessions"][0]["checks"]["results"][0]
+        if fault == "red":
+            data["verdict"] = "RED"
+        elif fault == "wrong-revision":
+            row["command_evidence"]["git_commit"] = inputs[2]
+        elif fault == "failed-command":
+            row["command_evidence"]["exit_code"] = 1
+        elif fault == "artifact-only":
+            row["scope"] = "artifact"
+        elif fault == "no-session":
+            data["sessions"] = []
+        elif fault == "top-errors":
+            data["errors"] = ["contradictory gate evidence"]
+        else:
+            row["command_evidence"]["exit_code"] = False
+        inputs[4].write_text(json.dumps(data))
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests\test_candidate_inspection.py:88: Failed
+__________ test_candidate_refuses_bad_receipt_evidence[boolean-exit] __________
+
+inputs = (WindowsPath('E:/tmp/sw-candidate-shape-before-01a1000f/test_candidate_refuses_bad_rec1/source'), 'bfe681785f5f221d96f...t': 'VERIFIED'}, 'results': [{...}], 'verdict': 'GREEN'}, 'errors': [], 'verdict': 'GREEN'}], 'verdict': 'GREEN'}, ...)
+fault = 'boolean-exit'
+
+    @pytest.mark.parametrize("fault", ["red", "wrong-revision", "failed-command", "artifact-only", "no-session",
+                                       "top-errors", "boolean-exit"])
+    def test_candidate_refuses_bad_receipt_evidence(inputs, fault):
+        data = inputs[5]
+        row = data["sessions"][0]["checks"]["results"][0]
+        if fault == "red":
+            data["verdict"] = "RED"
+        elif fault == "wrong-revision":
+            row["command_evidence"]["git_commit"] = inputs[2]
+        elif fault == "failed-command":
+            row["command_evidence"]["exit_code"] = 1
+        elif fault == "artifact-only":
+            row["scope"] = "artifact"
+        elif fault == "no-session":
+            data["sessions"] = []
+        elif fault == "top-errors":
+            data["errors"] = ["contradictory gate evidence"]
+        else:
+            row["command_evidence"]["exit_code"] = False
+        inputs[4].write_text(json.dumps(data))
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests\test_candidate_inspection.py:88: Failed
+=========================== short test summary info ===========================
+FAILED tests/test_candidate_inspection.py::test_candidate_refuses_bad_receipt_evidence[top-errors]
+FAILED tests/test_candidate_inspection.py::test_candidate_refuses_bad_receipt_evidence[boolean-exit]
+2 failed, 10 deselected in 4.14s

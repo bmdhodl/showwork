@@ -1,5 +1,11 @@
 # BMD desktop (supervisor)
 
+> Historical integration recipe. Its 0.5.0 pin, copied-module instructions and
+> automatic overlay predate the current selected roadmap. Do not implement this
+> recipe or copy its request into the vault. Review the pending
+> [suite contract proposal](../../docs/suite-contract-proposal.md) and issue #70;
+> owner approval and the canonical BMD task govern any implementation.
+
 BMD is a local control plane. showwork is the receipt engine. They stay
 two processes: the agent writes `.showwork/` in the **user workspace**; the
 BMD sidecar only reads.

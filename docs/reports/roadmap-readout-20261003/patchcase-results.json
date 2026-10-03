@@ -1,0 +1,247 @@
+{
+  "package_version": "0.1.0",
+  "cases": {
+    "honest-pass": {
+      "observed": "verified",
+      "expected": "verified",
+      "match": true,
+      "production_stdout": null,
+      "manifest_sha256": "ce0a5edca0dfb21862e698675f2d8d44dacecce071225e12d294b1d9add47069",
+      "evidence": {
+        "schema_version": 1,
+        "proof_id": "ce0a5edca0df",
+        "manifest_sha256": "ce0a5edca0dfb21862e698675f2d8d44dacecce071225e12d294b1d9add47069",
+        "patchcase_version": "0.1.0",
+        "generated_at": "2026-10-03T07:42:02.184494+00:00",
+        "title": "Frozen SW-02 comparison: honest-pass",
+        "summary": "",
+        "overall_status": "verified",
+        "counts": {
+          "verified": 1,
+          "falsified": 0,
+          "error": 0,
+          "untested": 0
+        },
+        "repository": {
+          "name": "honest-pass",
+          "branch": "",
+          "commit": "",
+          "status": "",
+          "diff_stat": ""
+        },
+        "claims": [
+          {
+            "id": "tests",
+            "statement": "The supplied pytest suite passes",
+            "risk": "medium",
+            "rationale": "",
+            "falsification": "A failing actual test produces a nonzero exit",
+            "status": "verified",
+            "checks": [
+              {
+                "id": "pytest",
+                "name": "Run the supplied test",
+                "type": "command",
+                "stage": "verify",
+                "status": "passed",
+                "duration_ms": 546,
+                "failures": [],
+                "command": "'C:\\Python313\\python.exe' -m pytest -q test_add.py",
+                "cwd": ".",
+                "expected": {
+                  "exit_code": 0
+                },
+                "return_code": 0,
+                "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+                "stderr": ""
+              }
+            ]
+          }
+        ],
+        "limitations": []
+      }
+    },
+    "honest-fail": {
+      "observed": "falsified",
+      "expected": "falsified",
+      "match": true,
+      "production_stdout": null,
+      "manifest_sha256": "b4f2e32219c244a714acb0ae4d50f44875b7a4e6904aa17efc10f0d5c679afab",
+      "evidence": {
+        "schema_version": 1,
+        "proof_id": "b4f2e32219c2",
+        "manifest_sha256": "b4f2e32219c244a714acb0ae4d50f44875b7a4e6904aa17efc10f0d5c679afab",
+        "patchcase_version": "0.1.0",
+        "generated_at": "2026-10-03T07:42:03.350059+00:00",
+        "title": "Frozen SW-02 comparison: honest-fail",
+        "summary": "",
+        "overall_status": "falsified",
+        "counts": {
+          "verified": 0,
+          "falsified": 1,
+          "error": 0,
+          "untested": 0
+        },
+        "repository": {
+          "name": "honest-fail",
+          "branch": "",
+          "commit": "",
+          "status": "",
+          "diff_stat": ""
+        },
+        "claims": [
+          {
+            "id": "tests",
+            "statement": "The supplied pytest suite passes",
+            "risk": "medium",
+            "rationale": "",
+            "falsification": "A failing actual test produces a nonzero exit",
+            "status": "falsified",
+            "checks": [
+              {
+                "id": "pytest",
+                "name": "Run the supplied test",
+                "type": "command",
+                "stage": "verify",
+                "status": "failed",
+                "duration_ms": 601,
+                "failures": [
+                  "expected exit 0, observed 1"
+                ],
+                "command": "'C:\\Python313\\python.exe' -m pytest -q test_add.py",
+                "cwd": ".",
+                "expected": {
+                  "exit_code": 0
+                },
+                "return_code": 1,
+                "stdout": "F                                                                        [100%]\n================================== FAILURES ===================================\n__________________________________ test_add ___________________________________\n\n    def test_add():\n>       assert False\nE       assert False\n\ntest_add.py:2: AssertionError\n=========================== short test summary info ===========================\nFAILED test_add.py::test_add - assert False\n1 failed in 0.09s\n",
+                "stderr": ""
+              }
+            ]
+          }
+        ],
+        "limitations": []
+      }
+    },
+    "weak-fixture": {
+      "observed": "verified",
+      "expected": "verified",
+      "match": true,
+      "production_stdout": "5",
+      "manifest_sha256": "b0902f3a01e55802c51e0be3a9d942ea5859667fa83c6e03e6305acad47aa1b1",
+      "evidence": {
+        "schema_version": 1,
+        "proof_id": "b0902f3a01e5",
+        "manifest_sha256": "b0902f3a01e55802c51e0be3a9d942ea5859667fa83c6e03e6305acad47aa1b1",
+        "patchcase_version": "0.1.0",
+        "generated_at": "2026-10-03T07:42:04.267531+00:00",
+        "title": "Frozen SW-02 comparison: weak-fixture",
+        "summary": "",
+        "overall_status": "verified",
+        "counts": {
+          "verified": 1,
+          "falsified": 0,
+          "error": 0,
+          "untested": 0
+        },
+        "repository": {
+          "name": "weak-fixture",
+          "branch": "",
+          "commit": "",
+          "status": "",
+          "diff_stat": ""
+        },
+        "claims": [
+          {
+            "id": "tests",
+            "statement": "The supplied pytest suite passes",
+            "risk": "medium",
+            "rationale": "",
+            "falsification": "A failing actual test produces a nonzero exit",
+            "status": "verified",
+            "checks": [
+              {
+                "id": "pytest",
+                "name": "Run the supplied test",
+                "type": "command",
+                "stage": "verify",
+                "status": "passed",
+                "duration_ms": 444,
+                "failures": [],
+                "command": "'C:\\Python313\\python.exe' -m pytest -q test_add.py",
+                "cwd": ".",
+                "expected": {
+                  "exit_code": 0
+                },
+                "return_code": 0,
+                "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+                "stderr": ""
+              }
+            ]
+          }
+        ],
+        "limitations": []
+      }
+    },
+    "undeclared-deletion": {
+      "observed": "verified",
+      "expected": "verified",
+      "match": true,
+      "production_stdout": null,
+      "manifest_sha256": "20112bec157a06828ca5baba9b7839ec9ede947c4ad099f2132f051a194c1c8c",
+      "evidence": {
+        "schema_version": 1,
+        "proof_id": "20112bec157a",
+        "manifest_sha256": "20112bec157a06828ca5baba9b7839ec9ede947c4ad099f2132f051a194c1c8c",
+        "patchcase_version": "0.1.0",
+        "generated_at": "2026-10-03T07:42:05.095123+00:00",
+        "title": "Frozen SW-02 comparison: undeclared-deletion",
+        "summary": "",
+        "overall_status": "verified",
+        "counts": {
+          "verified": 1,
+          "falsified": 0,
+          "error": 0,
+          "untested": 0
+        },
+        "repository": {
+          "name": "undeclared-deletion",
+          "branch": "",
+          "commit": "",
+          "status": "",
+          "diff_stat": ""
+        },
+        "claims": [
+          {
+            "id": "tests",
+            "statement": "The supplied pytest suite passes",
+            "risk": "medium",
+            "rationale": "",
+            "falsification": "A failing actual test produces a nonzero exit",
+            "status": "verified",
+            "checks": [
+              {
+                "id": "pytest",
+                "name": "Run the supplied test",
+                "type": "command",
+                "stage": "verify",
+                "status": "passed",
+                "duration_ms": 450,
+                "failures": [],
+                "command": "'C:\\Python313\\python.exe' -m pytest -q test_add.py",
+                "cwd": ".",
+                "expected": {
+                  "exit_code": 0
+                },
+                "return_code": 0,
+                "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+                "stderr": ""
+              }
+            ]
+          }
+        ],
+        "limitations": []
+      }
+    }
+  }
+}
