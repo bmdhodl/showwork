@@ -93,4 +93,15 @@ but returned RED because the new native session/claim rows were not staged in
 the integration commit. The follow-up commits those existing append-only rows
 and reruns the tracked gate. The earlier RED is retained locally; it was not
 treated as acceptance or pushed as a completed receipt.
+## Follow-up: Cursor CLI discovery
+
+A later inspection of every `agent` command resolution found a separate Windows
+Cursor Agent CLI, `2026.09.15-d2fe57e`, behind the default Grok launcher. This
+corrects the earlier headless-availability assessment in this report. A real
+tool-free startup probe using the pinned Cursor runtime exited 1 with `Workspace
+Trust Required`; it produced no readiness response. The full Cursor task,
+failure/repair, Stop dispatch and interruption evidence remain outstanding.
+See the [dated follow-up](cursor-availability-20261003.md). The earlier Claude
+observations and their scope are unchanged.
+
 Sign-off: OpenAI | GPT-6 | auto.

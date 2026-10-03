@@ -1,0 +1,23 @@
+{
+  "version": "2026.09.15-d2fe57e",
+  "exit_code": 1,
+  "elapsed_seconds": 0.744,
+  "ready_token_observed": false,
+  "trust_diagnostic": true,
+  "policy_diagnostic": false,
+  "auth_diagnostic": false,
+  "source_writes_requested": false,
+  "security_override_requested": false,
+  "persistent_terminal_session_marker_present": false,
+  "scope": "host startup only; no actual task/receipt activation is claimed",
+  "observed_at": "2026-10-03T10:49:41.833067+00:00",
+  "showwork_checkout_sha": "848d459dfa80ca57cf9d19932a21167d6dc7527a",
+  "cursor_entrypoint_sha256": "9f51ecf275d932372bf367914708b0dd21bf9c9e807b5e20e789ec9e247d9f86",
+  "flags": [
+    "--print",
+    "--mode",
+    "ask",
+    "--output-format",
+    "json"
+  ]
+}

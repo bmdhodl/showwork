@@ -57,10 +57,20 @@ event. This observer emits no Cursor continuation request.
 
 ## Compatibility and proof boundaries
 
-Versions available for this investigation on October 3, 2026: Codex CLI 0.154.0,
-Claude Code 2.1.238, Cursor 3.22.7 (Windows x64). Presence and version output do not
-establish host activation. Cursor's installed desktop launcher is not a tested
-headless agent CLI in this environment; native desktop automation is unavailable.
+Versions inspected on October 3, 2026: Codex CLI 0.154.0, Claude Code 2.1.238,
+Cursor 3.22.7 (Windows x64 desktop), and Cursor Agent CLI
+`2026.09.15-d2fe57e`. Presence and version output do not establish host activation.
+The initial inspection missed the separately installed Cursor Agent launcher:
+the default `agent` command resolved to Grok. In PowerShell, inspect
+`Get-Command agent -All` and select the actual Cursor launcher explicitly.
+
+The pinned Cursor CLI's tool-free startup probe exited 1 with `Workspace Trust
+Required` for the isolated public toy workspace. No readiness response or task
+activation was observed. Installation does not grant workspace trust; review the
+workspace and exact hook command through the host's normal trust flow. Native
+desktop automation remains unavailable. The
+[CLI availability follow-up](reports/cursor-availability-20261003.md) records the
+corrected discovery and remaining trust/task evidence boundary.
 
 Deterministic tests cover preview, repeated installation, removal, edited file
 preservation, foreign hooks, invalid JSON, bound/unbound payloads, malformed and
