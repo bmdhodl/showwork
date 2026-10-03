@@ -1,5 +1,12 @@
 # Optional suite evidence references: owner review proposal
 
+**Historical proposal.** The owner selected its offline example-only scope on
+October 3, 2026. The implemented mapping, installed-package reproduction and BMD
+handoff are now in [suite evidence references](suite-evidence.md). The proposal
+below retains the original review state and source identities for provenance;
+its former approval request is resolved. It grants no release, BMD installation,
+new API, persisted join or fresh dispatch authority.
+
 Prepared October 3, 2026 for [#102](https://github.com/bmdhodl/showwork/issues/102),
 [#103](https://github.com/bmdhodl/showwork/issues/103) and
 [#70](https://github.com/bmdhodl/showwork/issues/70). **Proposed, not approved or

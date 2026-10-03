@@ -1,104 +1,30 @@
-# BMD desktop (supervisor)
+# BMD receipt handoff
 
-> Historical integration recipe. Its 0.5.0 pin, copied-module instructions and
-> automatic overlay predate the current selected roadmap. Do not implement this
-> recipe or copy its request into the vault. Review the pending
-> [suite contract proposal](../../docs/suite-contract-proposal.md) and issue #70;
-> owner approval and the canonical BMD task govern any implementation.
+The owner selected the offline reference example on October 3, 2026. Use the
+[reviewed vocabulary and compatibility matrix](../../docs/suite-evidence.md)
+and [suite example](../suite/README.md). showwork-side #70 owns this documentation
+and its consumer fixtures; BMD source work stays on its existing receipt owner
+BMD-008 and owner-selected roadmap task. The public boundary is
+[AgentGuard #744](https://github.com/bmdhodl/agent47/issues/744).
 
-BMD is a local control plane. showwork is the receipt engine. They stay
-two processes: the agent writes `.showwork/` in the **user workspace**; the
-BMD sidecar only reads.
+The BMD view still reads its existing vault/frontmatter evidence. Its `verified`
+label is that contract's observation, not a portable showwork behavior result.
+Selection, authorization, runtime limits, declared acceptance, integrity,
+freshness, human acceptance and promotion remain separate.
 
-This environment cannot write `bmdhodl/bmd-desktop` (private). Copy the
-snippets below into that repo. Do not add `.showwork/` to the BMD git tree.
+Historical pin: `showwork==0.5.0` (retired). The copied-module, automatic-overlay,
+installation and dispatch recipes were superseded. Their provenance remains in
+Git history. A frozen sidecar is not a Python CLI; any future packaging/dispatch
+work needs its canonical BMD task and provisioned interpreter decision.
 
-Track the remaining work in the **vault**, not GitHub Projects. The card is
-[`docs/requests/bmd-overlay-receipts.md`](../../docs/requests/bmd-overlay-receipts.md).
-Copy it to `Requests/bmd-overlay-receipts.md` in the vault. BMD already
-reads vault/frontmatter for badges. A user-owned GitHub board is not the
-tracker.
+A fresh reviewer can open the named session requirement and command references
+through `examples/suite/read_evidence.py`. Empty or absent evidence stays unknown;
+prose stays claimed; failure stays visible. The view performs no current check
+execution, creates no BMD ledger and provides no vault fallback to green when a
+reference is missing. Runtime files and raw claims remain in the user workspace.
+Sharing uses an explicit redacted summary and references.
 
-## Pin (from-scratch install)
-
-`requirements.txt`:
-
-```
-showwork==0.5.0
-```
-
-The sidecar already vendors stdlib-only code. showwork has no runtime deps.
-After the next showwork tag that includes `showwork.receipts`, you can import
-it from the package. Until then, copy `src/showwork/receipts.py` beside
-`lab/verification_badges.py` as `lab/showwork_receipts.py` and keep the
-imports local.
-
-PyInstaller (`packaging/bmd-server.spec`) `hiddenimports`:
-
-```
-showwork
-showwork.cli
-showwork.ledger
-showwork.checks
-showwork.audit
-showwork.report
-showwork.receipts
-showwork.snapshot
-showwork.hooks
-showwork.scaffold
-showwork.dashboard
-showwork.control
-showwork.guards
-showwork.budgets
-showwork.__main__
-```
-
-Skip `showwork.pytest_plugin`. Boot must not import a ledger. `/api/ping`
-stays zero-work. Missing `.showwork/` is `unknown`, never green.
-
-## Reader overlay
-
-In `lab/verification_badges.py`, after the existing vault/frontmatter
-resolution, join a run to receipts when it has `task_id` or `session`:
-
-```python
-from showwork.receipts import overlay_record
-
-overlay = overlay_record(row, workspace_root)
-if overlay is not None and overlay.get("state") != "unknown":
-    return overlay
-# else keep the vault fallback (Patrick profile)
-```
-
-Empty workspace: overlay is `unknown` ("No receipts yet.") so the badge stays
-unknown. A prose-only finish is `claimed`. A failed check is `failed`.
-Check-backed GREEN is `verified`.
-
-The overlay never calls `start_session`, `record_claim`, or `finish_session`.
-
-## Dispatch env and prompt
-
-In `build_agent_prompt` / `launch_agent_session`, export:
-
-```python
-from showwork.receipts import agent_environ, agent_prompt_block
-
-env = os.environ.copy()
-env.update(agent_environ(workspace, task_id, interpreter=python_executable))
-prompt = existing_prompt + "\n" + agent_prompt_block(
-    task_id, interpreter=python_executable, agent=agent,
-)
-```
-
-Pass `env` into the PTY spawn. Set `python_executable` to a provisioned Python
-interpreter with showwork installed. A frozen sidecar is not a Python CLI.
-`sidecar_interpreter()` works only in an unfrozen Python process.
-
-Do not wrap with `showwork run --gate` on the first slice.
-
-## States to assert in Playwright
-
-- Empty workspace Home: UNKNOWN, copy "No receipts yet.", no VERIFIED badge.
-- GREEN fixture: VERIFIED; click opens the claim text.
-- Prose-only fixture: CLAIMED, not VERIFIED.
-- Activity uses the same four states.
+This handoff adds no showwork installation, source changes or UI to BMD. Any
+rendered BMD implementation has its own task and Playwright acceptance on the
+designated test machine. Source-built validation wheels are described in the
+matrix; the newer reader/exclusion features are pending package publication.

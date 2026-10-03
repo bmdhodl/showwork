@@ -40,7 +40,8 @@ recovery in an empty directory.
 
 - [Evidence scope and failure case](evidence-scope.md)
 - [Process-free receipt readers and capability limits](readers.md)
-- [Pending suite reference contract and BMD handoff boundary](suite-contract-proposal.md)
+- [Offline suite references, installed-package proof and BMD handoff](suite-evidence.md)
+- [Historical suite reference proposal](suite-contract-proposal.md)
 - [Current adoption, competitive replay and remaining roadmap gates](reports/roadmap-readout-20261003.md)
 - [Release-announcement source review and approval packet](release-announcement-review.md)
 - [Case study](case-study.md)
