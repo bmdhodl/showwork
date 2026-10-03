@@ -447,6 +447,12 @@ Acceptance commands MUST [test:
 tests/test_snapshot_exclusions.py::test_command_evidence_uses_frozen_exclusions]
 use this scope for their before/after source comparison and bind it into
 `source_sha256` and command reuse inputs, disclosing it as `source_exclusions`.
+Replay inputs MUST [test:
+tests/test_snapshot_exclusions.py::test_excluded_runner_changes_cannot_reuse_old_pass]
+also bind the command script digest independently, even when the script is
+excluded from the tree snapshot. A script that changes during execution MUST
+[test: tests/test_snapshot_exclusions.py::test_excluded_runner_mutation_during_execution_is_not_cached]
+fail and invalidate replay output.
 An invalid opted-in scope MUST [test:
 tests/test_snapshot_exclusions.py::test_tampered_scope_blocks_command_before_execution]
 prevent command execution. Unexcluded changes during a command still fail.

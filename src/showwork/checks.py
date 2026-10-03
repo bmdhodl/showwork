@@ -649,6 +649,7 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
             "root": str(root.resolve()), "argv": run_argv,
             "environment": env, "timeout": timeout_seconds,
             "source": evidence["source_sha256"],
+            "script": evidence["script_sha256"],
         }, sort_keys=True).encode()).hexdigest()
     try:
         reused = cache_key is not None and cache_key in command_cache
@@ -666,6 +667,15 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
         evidence.update(exit_code=proc.returncode,
                         stdout_sha256=hashlib.sha256(proc.stdout.encode()).hexdigest(),
                         stderr_sha256=hashlib.sha256(proc.stderr.encode()).hexdigest())
+        try:
+            script_changed = (script.resolve() != script or
+                              hashlib.sha256(script.read_bytes()).hexdigest() != evidence["script_sha256"])
+        except OSError:
+            script_changed = True
+        if script_changed:
+            if command_cache is not None:
+                command_cache.clear()
+            return ("fail", "command script changed while the acceptance command was running")
         if capture_tree(root, ignore=scope.get("ignore_patterns")) != before:
             if command_cache is not None:
                 command_cache.clear()

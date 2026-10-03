@@ -240,6 +240,44 @@ def test_command_cache_ignores_background_bytes_but_binds_scope(tmp_path):
     assert first["evidence"]["source_sha256"] != other["evidence"]["source_sha256"]
 
 
+def test_excluded_runner_changes_cannot_reuse_old_pass(tmp_path):
+    """REGRESSION: an excluded runner's new digest accompanied stale output."""
+    from showwork.checks import verify_claim
+    seed(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    runner = tmp_path / "scripts/run_tests.py"
+    runner.write_text("print('passed')\n", encoding="utf-8")
+    start_session(tmp_path, "scope", ignore=["scripts/**"])
+    record = {"session": "scope", "claim": "runner exits zero", "check": {
+        "type": "command", "argv": ["python", "scripts/run_tests.py"], "expect_exit": 0}}
+    cache = {}
+    first = verify_claim(record, tmp_path, command_cache=cache)
+    assert first["status"] == "pass"
+    runner.write_text("raise SystemExit(1)\n", encoding="utf-8")
+    second = verify_claim(record, tmp_path, command_cache=cache)
+    assert second["status"] == "fail"
+    assert second["evidence"]["execution_reused"] is False
+    assert first["evidence"]["source_sha256"] == second["evidence"]["source_sha256"]
+    assert first["evidence"]["script_sha256"] != second["evidence"]["script_sha256"]
+    assert first["evidence"]["execution_input_sha256"] != second["evidence"]["execution_input_sha256"]
+
+
+def test_excluded_runner_mutation_during_execution_is_not_cached(tmp_path):
+    from showwork.checks import verify_claim
+    seed(tmp_path)
+    (tmp_path / "scripts").mkdir()
+    runner = tmp_path / "scripts/run_tests.py"
+    runner.write_text("from pathlib import Path\nPath(__file__).write_text('raise SystemExit(1)\\n')\nprint('passed')\n", encoding="utf-8")
+    start_session(tmp_path, "scope", ignore=["scripts/**"])
+    record = {"session": "scope", "claim": "runner exits zero", "check": {
+        "type": "command", "argv": ["python", "scripts/run_tests.py"], "expect_exit": 0}}
+    cache = {}
+    result = verify_claim(record, tmp_path, command_cache=cache)
+    assert result["status"] == "fail"
+    assert "command script changed" in result["detail"]
+    assert cache == {}
+
+
 def test_appended_start_cannot_weaken_original_scope(tmp_path):
     from showwork.ledger import record_event
     command_session(tmp_path, "from pathlib import Path\nPath('ran.txt').write_text('ran')\n")
