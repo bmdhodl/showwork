@@ -517,9 +517,17 @@ def main(argv: list[str] | None = None) -> int:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")
                 result["notes"].extend(f"acknowledged historical RED: {row['path']} ({row['detail']})"
                                        for row in baseline["acknowledged"])
-        print(json.dumps(result, indent=2) if args.json else
-              "showwork outcome gate: " + result["verdict"] + "\n"
-              + "\n".join([*result.get("notes", []), *result["errors"]]))
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            from .ci_summary import render_summary
+            revision = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+                                      capture_output=True, text=True, timeout=15)
+            print("showwork outcome gate: " + result["verdict"])
+            print(render_summary(
+                result, revision=revision.stdout.strip() if revision.returncode == 0 else "",
+                repository=os.environ.get("SHOWWORK_CI_REPOSITORY", ""),
+                server_url=os.environ.get("SHOWWORK_CI_SERVER_URL", "https://github.com")), end="")
         return 0 if result["verdict"] == "GREEN" else 2
 
     if args.cmd == "doctor":
