@@ -1,0 +1,29 @@
+{
+  "scope": "documentation receipt adequacy; no host activation claim",
+  "session": "codex-cursor-availability-01a1000f",
+  "current_claims_verdict": "GREEN",
+  "current_claims_passed": 5,
+  "historical_claim_bytes_preserved": true,
+  "controls": [
+    {
+      "path": "docs/host-recipes.md",
+      "restored_from_sha": "e2425dc3ea0934ad0e089d26480567084fe8034a",
+      "restored_sha256": "ac95fccb80bcbe4c1fda61bd3d18f5d4339ff328042d4944cdd01ba6eb1ab63a",
+      "old_claims_verdict": "GREEN",
+      "corrected_claims_verdict": "RED",
+      "corrected_failed_claims": [
+        "Cursor recipe states the separately discovered launcher, real trust refusal and unproved task activation"
+      ]
+    },
+    {
+      "path": "docs/reports/native-hosts-20261003.md",
+      "restored_from_sha": "e2425dc3ea0934ad0e089d26480567084fe8034a",
+      "restored_sha256": "13bcb4100f7ec44c5027d646f7e1bb27516798ead5b7931aeb44925c5116df58",
+      "old_claims_verdict": "GREEN",
+      "corrected_claims_verdict": "RED",
+      "corrected_failed_claims": [
+        "Native host follow-up corrects headless availability and retains the real trust refusal and incomplete trial"
+      ]
+    }
+  ]
+}
