@@ -1,0 +1,1 @@
+{"check": {"path": "output.txt", "type": "file_exists"}, "claim": "output exists", "prev": "2db309a4acca327fbb9c186da0ea295ad98c36dd8d8004c2662259dd84795178", "session": "fixture"}

@@ -31,6 +31,7 @@ recovery in an empty directory.
 ## Understand the evidence
 
 - [Evidence scope and failure case](evidence-scope.md)
+- [Process-free receipt readers and capability limits](readers.md)
 - [Case study](case-study.md)
 - [False Done Rate method](false-done-rate.md)
 - [Evidence packs and their limits](compliance.md)

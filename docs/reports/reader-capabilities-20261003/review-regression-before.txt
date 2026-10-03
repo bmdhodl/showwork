@@ -1,0 +1,63 @@
+.............FF                                                          [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+_____________ test_clock_rollback_cannot_hide_a_reopened_session ______________
+
+tmp_path = WindowsPath('E:/tmp/sw-reader-review-01a1000f/test_clock_rollback_cannot_hid0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001A2D46199D0>
+
+    def test_clock_rollback_cannot_hide_a_reopened_session(tmp_path, monkeypatch):
+        """REGRESSION: timestamp sorting moved a newly appended start before finish."""
+        import shutil
+        from showwork.ledger import record_event
+        shutil.copytree(FIXTURES / "closed" / ".showwork", tmp_path / ".showwork")
+        assert inspect_session(tmp_path, "fixture")["recorded_outcome"] == "VERIFIED"
+        monkeypatch.setattr("showwork.ledger._now", lambda: "2000-01-01T00:00:00Z")
+        record_event(tmp_path, "session.start", "fixture")
+        result = inspect_session(tmp_path, "fixture")
+>       assert result["freshness"] == "reopened"
+E       AssertionError: assert 'recorded_close' == 'reopened'
+E         
+E         - reopened
+E         + recorded_close
+
+tests\test_readers.py:95: AssertionError
+_________ test_split_claim_stream_current_path_follows_old_retraction _________
+
+tmp_path = WindowsPath('E:/tmp/sw-reader-review-01a1000f/test_split_claim_stream_curren0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001A2D4838100>
+
+    def test_split_claim_stream_current_path_follows_old_retraction(tmp_path, monkeypatch):
+        """REGRESSION: filename order made an older retraction cancel a newer claim."""
+        from showwork.ledger import _append, record_retraction, finish_session
+        from showwork.outcomes import record_requirement
+        from showwork.reader import load_receipt
+        (tmp_path / "anchor.txt").write_text("real")
+        start_session(tmp_path, "task")
+        (tmp_path / "artifact.txt").write_text("real")
+        check = {"type": "file_exists", "path": "artifact.txt"}
+        record_requirement(tmp_path, "task", "file", "anchor exists", "artifact",
+                           {"type": "file_exists", "path": "anchor.txt"})
+        record_claim(tmp_path, "task", "artifact", check)
+        record_retraction(tmp_path, "task", "artifact", "replaced")
+        current = tmp_path / ".showwork" / "claims" / "task.jsonl"
+        old = current.with_name("z-old.jsonl")
+        # Copying bytes would break the per-filename genesis. Build the remapped
+        # stream with the normal chained writer instead.
+        rows = [json.loads(line) for line in current.read_text().splitlines()]
+        for row in rows:
+            _append(old, row)
+        monkeypatch.setattr("showwork.ledger._now", lambda: "2000-01-01T00:00:00Z")
+        record_claim(tmp_path, "task", "artifact", check)
+        exit_code, _state = finish_session(tmp_path, "task", "ok")
+        assert exit_code == 0
+>       assert load_receipt(tmp_path, "task")["claims"][-1].get("retracted") is not True
+E       AssertionError: assert True is not True
+E        +  where True = <built-in method get of dict object at 0x000001A2D4752E00>('retracted')
+E        +    where <built-in method get of dict object at 0x000001A2D4752E00> = {'prev': '0480b5bbe221e464d6f0ad2b715313c150e1257ad72785410a48e5dee6a237d9', 'retracted': True, 'retraction_reason': 'replaced', 'retracts': {'claim': 'artifact', 'session': 'task'}, ...}.get
+
+tests\test_readers.py:123: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_readers.py::test_clock_rollback_cannot_hide_a_reopened_session
+FAILED tests/test_readers.py::test_split_claim_stream_current_path_follows_old_retraction
+2 failed, 13 passed in 1.33s

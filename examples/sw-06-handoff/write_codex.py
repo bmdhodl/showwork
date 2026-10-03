@@ -93,8 +93,8 @@ def write_tree(root: Path) -> None:
     showwork(root, "start", "--session", "fileonly", "--agent", "codex")
     showwork(
         root, "require", "--session", "fileonly", "--id", "note",
-        "--scope", "artifact", "--description", "note.txt contains ready",
-        "--type", "file_contains", "--path", "note.txt", "--pattern", "ready",
+        "--scope", "artifact", "--description", "note.txt exists",
+        "--type", "file_exists", "--path", "note.txt",
     )
     showwork(
         root, "claim", "--session", "fileonly", "--claim", "note.txt exists",
