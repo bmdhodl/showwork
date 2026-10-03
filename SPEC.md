@@ -207,6 +207,18 @@ escape, and MUST [test:
 tests/test_checks.py::test_command_recursion_guard] reject nested command
 verification.
 
+The locked runner executes the script with showwork's own `sys.executable`;
+the Python name in the claim is declarative and does not select another binary.
+Install and invoke showwork from the project's Python environment when the check
+needs project dependencies. Command execution evidence `argv` names the actual
+interpreter and resolved script that ran, while the claim retains its declared
+arguments. `python` records the executing interpreter's version. This corrects
+execution evidence without changing the claim format.
+
+Failed commands display up to six redacted stderr lines, falling back to stdout
+when stderr is empty, and identify the actual Python version and interpreter.
+The exit code and output hashes remain authoritative; a diagnostic is context.
+
 The runner may set `SHOWWORK_COMMAND_TIMEOUT_SECONDS` to an integer from 1 to
 3600, default 120. Invalid limits MUST [test:
 tests/test_command_timeout.py::test_invalid_command_deadline_never_executes]

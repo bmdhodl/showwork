@@ -41,4 +41,10 @@ between observation, execution and approval rather than removing the failure
 assertion.
 
 Receipt session: `codex-readers-01a1000f`.
+Review follow-up: receipt lifecycle is read in chained append order, including
+when a clock moves backward. Split claim streams place the producer's current
+write path after older streams so a live re-claim follows its older retraction.
+Both defects were reproduced as failing regressions before repair; frozen
+clock-rollback and split-reclaimed cases extend the cross-language corpus.
+
 Sign-off: OpenAI | GPT-6 | auto.
