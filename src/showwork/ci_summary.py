@@ -15,6 +15,29 @@ from .ledger import session_file_stem
 MAX_INPUT = 2_000_000
 MAX_SESSIONS = 256
 MAX_REQUIREMENTS = 80
+MAX_SUMMARY_BYTES = 900_000  # Leave room for the action's heading and gate verdict.
+
+
+class _SummaryLines(list):
+    """Stop on a complete line; retain a visible truncation notice."""
+
+    def __init__(self, values=()):
+        super().__init__()
+        self.bytes = 0
+        self.truncated = False
+        self.extend(values)
+
+    def append(self, value):
+        size = len(value.encode("utf-8")) + 1
+        if self.truncated or self.bytes + size > MAX_SUMMARY_BYTES:
+            self.truncated = True
+            return
+        super().append(value)
+        self.bytes += size
+
+    def extend(self, values):
+        for value in values:
+            self.append(value)
 
 
 def _text(value: object) -> str:
@@ -27,7 +50,7 @@ def _revision(value: object) -> str | None:
     return value if isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{40,64}", value) else None
 
 
-def _base(server_url: str, repository: str, revision: str | None) -> str | None:
+def _base(server_url: str, repository: str, revision: str | None, route="blob") -> str | None:
     try:
         server = urlsplit(server_url)
     except ValueError:
@@ -38,7 +61,7 @@ def _base(server_url: str, repository: str, revision: str | None) -> str | None:
             or server.path not in {"", "/"}
             or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*", repository)):
         return None
-    return f"{server_url.rstrip('/')}/{repository}/blob/{revision}"
+    return f"{server_url.rstrip('/')}/{repository}/{route}/{revision}"
 
 
 def render_summary(result: object, *, revision: str = "", repository: str = "",
@@ -47,8 +70,8 @@ def render_summary(result: object, *, revision: str = "", repository: str = "",
     result = result if isinstance(result, dict) else {}
     revision = _revision(revision)
     base = _base(server_url, repository, revision)
-    lines = [f"Reviewed revision: {revision or 'unknown'}", "",
-             "Limitations: " + "; ".join(LIMITATIONS) + ".", ""]
+    lines = _SummaryLines([f"Reviewed revision: {revision or 'unknown'}", "",
+                           "Limitations: " + "; ".join(LIMITATIONS) + ".", ""])
     sessions = result.get("sessions")
     if not isinstance(sessions, list) or not sessions:
         lines.append("UNVERIFIED: No selected session receipts.")
@@ -77,7 +100,7 @@ def render_summary(result: object, *, revision: str = "", repository: str = "",
                 for row in rows[:MAX_REQUIREMENTS]:
                     evidence = row.get("evidence") if isinstance(row.get("evidence"), dict) else {}
                     observed = _revision(evidence.get("git_commit"))
-                    observed_base = _base(server_url, repository, observed)
+                    observed_base = _base(server_url, repository, observed, route="commit")
                     version = f"[`{observed[:12]}`]({observed_base})" if observed_base else (observed or "unknown")
                     command = (f"exit {_text(evidence['exit_code'])}; "
                                f"stdout SHA256 {_text(evidence.get('stdout_sha256') or 'absent')}"
@@ -99,7 +122,9 @@ def render_summary(result: object, *, revision: str = "", repository: str = "",
     notes = result.get("notes")
     for note in notes[:40] if isinstance(notes, list) else []:
         lines.append(_text(note))
-    return "\n".join(lines) + "\n"
+    notice = ("\n\nSummary truncated at the aggregate display limit; consult full gate JSON. "
+              "The gate still evaluates every selected session and requirement.\n") if lines.truncated else ""
+    return "\n".join(lines) + "\n" + notice
 
 
 def main() -> int:
