@@ -21,6 +21,16 @@ qualifying repeat users. No new qualifying participant or shell-blocker report
 was found in that issue inventory. This is a count of verified reports in these
 sources, not a claim to have inspected private communications or all usage.
 
+The retained inventory contains all 44 public issues (excluding pull requests),
+their full bodies, and all 16 comments available at this read. Fifteen comments
+are owner-authored; the one independent comment is the maintainer's follow-up on
+#64. The only independent issue author is also #64's maintainer. Both that body
+and follow-up describe undeclared damage and the `--absent` flag, rather than a
+shell blocker, export request or provenance consumer. Keyword review of the
+remaining bodies and comments found planning comparisons and owner release
+reports, rather than qualifying outside requests. This classification includes
+bodies and comments; it does not infer demand from issue titles alone.
+
 [Issue #64](https://github.com/bmdhodl/showwork/issues/64), by an outside maintainer,
 is a genuine undeclared-damage report. It does not request an MCP interface,
 standard export or authenticated receipt provenance. Owner-authored planning,
