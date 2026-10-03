@@ -56,6 +56,21 @@ Record elapsed time and unexpected refusals with their actual denominators.
 The installed version and a startup probe cannot substitute for those outcomes.
 The existing #92/#97 dependencies and October 13 owner decision remain visible.
 
+## Receipt adequacy follow-up
+
+The post-merge review of PR151 found that its file-existence claims could pass
+when either pre-existing document lost the correction. Those five claims are
+retained and retracted through the append-only ledger. Their replacements check
+the stated launcher, trust refusal, incomplete activation and marker qualification.
+The previously declared full-suite requirement now exercises the retained
+receipt against five missing or altered facts; each control must produce RED.
+
+[Historical controls](cursor-availability-20261003/document-receipt-controls.json)
+restore each pre-correction document from `e2425dc3ea0934ad0e089d26480567084fe8034a`.
+The old claims remain GREEN, while the corrected claims produce RED for each
+restoration. The current documents satisfy all five replacement checks.
+This tests the documentation receipt; the Cursor task and trust gates remain open.
+
 [Cursor CLI documentation](https://cursor.com/docs/cli/overview) distinguishes
 headless operation and read-only modes. The
 [native hook documentation](https://cursor.com/docs/hooks) requires project trust
