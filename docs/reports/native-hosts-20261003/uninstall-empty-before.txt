@@ -1,0 +1,173 @@
+FFFFFF                                                                   [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+_ test_uninstall_before_install_preserves_untouched_config[False-.claude/settings.json-{ }\n-claude] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_0')
+relative = '.claude/settings.json', content = '{ }\n', host = 'claude'
+preview = False
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['remove gene...ettings.json'] == []
+E         
+E         Left contains one more item: 'remove generated hooks from .claude/settings.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+_ test_uninstall_before_install_preserves_untouched_config[False-.codex/hooks.json-{ }\n-codex] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_1')
+relative = '.codex/hooks.json', content = '{ }\n', host = 'codex'
+preview = False
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['remove gene...x/hooks.json'] == []
+E         
+E         Left contains one more item: 'remove generated hooks from .codex/hooks.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+_ test_uninstall_before_install_preserves_untouched_config[False-.cursor/hooks.json-{ "version": 1 }\n-cursor] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_2')
+relative = '.cursor/hooks.json', content = '{ "version": 1 }\n', host = 'cursor'
+preview = False
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['remove gene...r/hooks.json'] == []
+E         
+E         Left contains one more item: 'remove generated hooks from .cursor/hooks.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+_ test_uninstall_before_install_preserves_untouched_config[True-.claude/settings.json-{ }\n-claude] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_3')
+relative = '.claude/settings.json', content = '{ }\n', host = 'claude'
+preview = True
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['would remov...ettings.json'] == []
+E         
+E         Left contains one more item: 'would remove generated hooks from .claude/settings.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+_ test_uninstall_before_install_preserves_untouched_config[True-.codex/hooks.json-{ }\n-codex] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_4')
+relative = '.codex/hooks.json', content = '{ }\n', host = 'codex'
+preview = True
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['would remov...x/hooks.json'] == []
+E         
+E         Left contains one more item: 'would remove generated hooks from .codex/hooks.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+_ test_uninstall_before_install_preserves_untouched_config[True-.cursor/hooks.json-{ "version": 1 }\n-cursor] _
+
+tmp_path = WindowsPath('E:/tmp/sw-uninstall-before-01a1000f/test_uninstall_before_install_5')
+relative = '.cursor/hooks.json', content = '{ "version": 1 }\n', host = 'cursor'
+preview = True
+
+    @pytest.mark.parametrize("relative,content,host", [
+        (".claude/settings.json", "{ }\n", "claude"),
+        (".codex/hooks.json", "{ }\n", "codex"),
+        (".cursor/hooks.json", '{ "version": 1 }\n', "cursor"),
+    ])
+    @pytest.mark.parametrize("preview", [False, True])
+    def test_uninstall_before_install_preserves_untouched_config(tmp_path, relative, content, host, preview):
+        """REGRESSION: an empty user config is not generated showwork content."""
+        from showwork.scaffold import uninstall_project
+        path = tmp_path / relative
+        path.parent.mkdir()
+        path.write_text(content, encoding="utf-8")
+        before = path.read_bytes()
+        options = {name: name == host for name in ("cursor", "claude", "codex")}
+>       assert uninstall_project(tmp_path, ci=False, preview=preview, **options) == []
+E       AssertionError: assert ['would remov...r/hooks.json'] == []
+E         
+E         Left contains one more item: 'would remove generated hooks from .cursor/hooks.json'
+E         Use -v to get more diff
+
+tests\test_host_recipes.py:65: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[False-.claude/settings.json-{ }\n-claude]
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[False-.codex/hooks.json-{ }\n-codex]
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[False-.cursor/hooks.json-{ "version": 1 }\n-cursor]
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[True-.claude/settings.json-{ }\n-claude]
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[True-.codex/hooks.json-{ }\n-codex]
+FAILED tests/test_host_recipes.py::test_uninstall_before_install_preserves_untouched_config[True-.cursor/hooks.json-{ "version": 1 }\n-cursor]
+6 failed, 10 deselected in 1.05s

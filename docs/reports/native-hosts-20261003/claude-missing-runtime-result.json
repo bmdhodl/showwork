@@ -1,0 +1,7 @@
+{
+  "host": "Claude Code 2.1.238",
+  "host_exit": 0,
+  "missing_runtime_hook_dispatched": true,
+  "recorded_or_current_acceptance": "not established by the missing runtime",
+  "limit": "No native observer executed; host-level missing-command diagnostic only."
+}

@@ -17,7 +17,7 @@ def test_init_writes_cursor_claude_and_docs_ci(tmp_path):
     rule = (tmp_path / ".cursor" / "rules" / "showwork.mdc").read_text(encoding="utf-8")
     assert "python -m showwork finish" in rule
     settings = json.loads((tmp_path / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    assert "python -m showwork stop-hook" in json.dumps(settings)
+    assert "python -m showwork host-stop-hook --host claude" in json.dumps(settings)
     ci = (tmp_path / "docs" / "ci" / "showwork-verify.yml").read_text(encoding="utf-8")
     assert "bmdhodl/showwork/actions/verify@" in ci
     assert not (tmp_path / ".github").exists()

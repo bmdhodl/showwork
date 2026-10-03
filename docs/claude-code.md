@@ -1,5 +1,10 @@
 # Claude Code Stop-hook adapter
 
+For the bounded native recipe, preview/install/uninstall and launch-time binding,
+see [project-local host recipes](host-recipes.md). New scaffold output uses the
+read-only `host-stop-hook --host claude` command. The legacy adapter documented
+below remains available for compatibility; it can execute checks at Stop.
+
 The explicit `showwork finish` command is the exit gate. It can refuse a clean
 close when a claim is false. A Claude Code Stop hook runs after the agent stops,
 so it records the verdict but always exits successfully.
@@ -51,6 +56,9 @@ Add this project instruction:
 Start material work with `showwork start --session <id> --agent claude-code`.
 The Stop hook binds to that session until `showwork finish` closes it.
 After each completed change, record a falsifiable claim with `showwork claim`.
+Before those completion claims, declare named acceptance requirements with
+`showwork require`. Behavior requirements need a real executable acceptance test;
+artifact checks establish only artifact scope. Use a distinct task slug per writer.
 Before reporting success, run `showwork finish --session <id> --status ok`.
 If the finish command refuses, fix the failed claim or retract it truthfully.
 Never use `--no-verify` to manufacture a clean result.

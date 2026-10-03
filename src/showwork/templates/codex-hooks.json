@@ -1,0 +1,5 @@
+{
+  "hooks": {
+    "Stop": [{"hooks": [{"type": "command", "command": "python -m showwork host-stop-hook --host codex", "timeout": 5}]}]
+  }
+}
