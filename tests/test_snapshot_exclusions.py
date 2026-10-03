@@ -12,6 +12,15 @@ from showwork.outcomes import record_requirement
 from showwork.reader import inspect_session
 
 
+def js_inspect(root):
+    reader = (Path(__file__).resolve().parents[1] / "js/showwork-audit/reader.mjs").as_uri()
+    code = f"import {{inspectSession}} from {json.dumps(reader)}; console.log(JSON.stringify(inspectSession(process.argv[1], 'scope')));"
+    proc = subprocess.run(["node", "--input-type=module", "-e", code, str(root)],
+                          capture_output=True, text=True, check=True,
+                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return json.loads(proc.stdout)
+
+
 def seed(root):
     (root / "data.json").write_text("before", encoding="utf-8")
     (root / "source.py").write_text("before", encoding="utf-8")
@@ -187,21 +196,14 @@ def test_python_and_js_readers_disclose_and_validate_same_scope(tmp_path, monkey
     start_session(tmp_path, "scope", ignore=["data.json", "runs/**"])
     proof(tmp_path)
     assert finish_session(tmp_path, "scope")[0] == 0
-    reader = (Path(__file__).resolve().parents[1] / "js/showwork-audit/reader.mjs").as_uri()
-    def js_read():
-        code = f"import {{inspectSession}} from {json.dumps(reader)}; console.log(JSON.stringify(inspectSession(process.argv[1], 'scope')));"
-        proc = subprocess.run(["node", "--input-type=module", "-e", code, str(tmp_path)],
-                              capture_output=True, text=True, check=True,
-                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        return json.loads(proc.stdout)
     python = inspect_session(tmp_path, "scope")
-    js = js_read()
+    js = js_inspect(tmp_path)
     assert python["recorded_outcome"] == js["recorded_outcome"] == "VERIFIED"
     assert python["snapshot_scope"] == js["snapshot_scope"]
     payload = json.loads(sidecar(tmp_path).read_text(encoding="utf-8"))
     payload["ignore_patterns"].append("source.py")
     sidecar(tmp_path).write_text(json.dumps(payload), encoding="utf-8")
-    assert inspect_session(tmp_path, "scope")["recorded_outcome"] == js_read()["recorded_outcome"] == "UNVERIFIED"
+    assert inspect_session(tmp_path, "scope")["recorded_outcome"] == js_inspect(tmp_path)["recorded_outcome"] == "UNVERIFIED"
     def forbidden(*args, **kwargs):
         raise AssertionError("reader executed a process")
     monkeypatch.setattr(subprocess, "run", forbidden)
@@ -294,3 +296,24 @@ def test_malformed_exclusion_capability_fails_visibly(tmp_path, semantics):
     record_event(tmp_path, "session.start", "scope", tree_snapshot=meta, required_semantics=semantics)
     assert verify_session(tmp_path, "scope")["verdict"] == "RED"
     assert inspect_session(tmp_path, "scope")["recorded_outcome"] == "UNVERIFIED"
+
+
+@pytest.mark.parametrize("pattern", [".ſhowwork/**", ".showwork/**", ".GIT/config", ".SHOWWORK/**"])
+def test_both_readers_reject_reserved_casefold_patterns(tmp_path, pattern):
+    """REGRESSION: JavaScript lowercasing accepted a pattern Python rejects."""
+    from showwork.ledger import record_event
+    from showwork.snapshot import capture_tree, snapshot_digest
+    seed(tmp_path)
+    files = capture_tree(tmp_path)
+    scope = {"ignore_format": "relative-glob-v1", "ignore_patterns": [pattern]}
+    meta = {"count": len(files), "sha256": snapshot_digest(files, scope), **scope}
+    snapshot = sidecar(tmp_path)
+    snapshot.parent.mkdir(parents=True)
+    snapshot.write_text(json.dumps({"files": files, **meta}), encoding="utf-8")
+    # Intentionally malformed start only: no fabricated successful close.
+    record_event(tmp_path, "session.start", "scope", tree_snapshot=meta,
+                 required_semantics=["snapshot-exclusions-v1"])
+    for result in (inspect_session(tmp_path, "scope"), js_inspect(tmp_path)):
+        assert result["spec_coverage"] == "unreadable"
+        assert result["recorded_outcome"] == "UNVERIFIED"
+        assert result["snapshot_scope"] is None

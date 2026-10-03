@@ -118,7 +118,8 @@ function exclusionScope(meta) {
     const parts = pattern.split("/");
     if (parts.some(part => ["", ".", ".."].includes(part)) ||
         parts.some((part, i) => part.includes("**") && !(part === "**" && i === parts.length - 1)) ||
-        pattern === "**" || parts.some(part => part !== "**" && [".git", ".showwork"].some(name => componentMatches(name, part.toLowerCase())))) throw new Error("invalid relative glob");
+        // Match Python's long-s case folding when checking reserved names.
+        pattern === "**" || parts.some(part => part !== "**" && [".git", ".showwork"].some(name => componentMatches(name, part.toLowerCase().replaceAll("\u017f", "s"))))) throw new Error("invalid relative glob");
   }
   return { ignore_format: IGNORE_FORMAT, ignore_patterns: patterns };
 }
