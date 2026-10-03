@@ -10,6 +10,12 @@ import tempfile
 import showwork
 
 
+def require(condition, detail):
+    """Keep acceptance predicates active when Python is run with -O."""
+    if not condition:
+        raise AssertionError(detail)
+
+
 def smoke():
     checks = []
     with tempfile.TemporaryDirectory(prefix="showwork-smoke-") as directory:
@@ -22,7 +28,9 @@ def smoke():
             proc = subprocess.run([sys.executable, "-m", "showwork", "--root", str(root), *args],
                                   env=env, cwd=root, capture_output=True, text=True, timeout=30,
                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            assert proc.returncode == expected, (name, proc.returncode, proc.stdout, proc.stderr)
+            require(proc.returncode == expected,
+                    (name, "expected exit", expected, "observed", proc.returncode,
+                     proc.stdout, proc.stderr))
             checks.append(name)
             return proc.stdout
 
@@ -37,13 +45,13 @@ def smoke():
         (root / "output.txt").write_text("real output", encoding="utf-8")
         run("accept real outcome", ["finish", "--session", "smoke"])
         state = json.loads(run("verify", ["verify", "--session", "smoke", "--json", "--no-report"]))
-        assert state["verdict"] == "GREEN"
-        assert state["outcome"]["verdict"] == "VERIFIED"
+        require(state["verdict"] == "GREEN", "verify did not return GREEN")
+        require(state["outcome"]["verdict"] == "VERIFIED", "verify outcome was not VERIFIED")
         run("complete receipt gate", ["gate", "--session", "smoke"])
         run("version identity", ["doctor", "--json"])
         run("chain audit", ["audit"])
         payload = json.loads(run("receipts", ["receipts", "--session", "smoke", "--json"]))
-        assert payload["states"] == ["verified"]
+        require(payload["states"] == ["verified"], "receipt states were not verified")
         run("status", ["status", "--session", "smoke"])
         run("report", ["report"])
         run("wrapper", ["run", "--session", "wrapped", "--keep", "passed", "--",

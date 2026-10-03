@@ -51,6 +51,8 @@ recovery in an empty directory.
 
 ## Keep documentation current
 
+- [Review release candidates without publication](release-candidates.md)
+
 Change the guide with the feature. Link to the specification and package
 metadata instead of repeating versions and defaults. Keep historical
 measurements dated and separate from installation instructions.

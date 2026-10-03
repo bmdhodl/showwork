@@ -1,0 +1,23 @@
+{
+  "version": "0.6.5",
+  "python": "3.13.2",
+  "installed_from": "E:\\tmp\\sw-wheel-py313-01a1000f\\Lib\\site-packages\\showwork\\__init__.py",
+  "passed": [
+    "init",
+    "start",
+    "declare acceptance",
+    "claim missing file",
+    "refuse false done",
+    "accept real outcome",
+    "verify",
+    "complete receipt gate",
+    "version identity",
+    "chain audit",
+    "receipts",
+    "status",
+    "report",
+    "wrapper",
+    "empty wrapper gate",
+    "timeout"
+  ]
+}

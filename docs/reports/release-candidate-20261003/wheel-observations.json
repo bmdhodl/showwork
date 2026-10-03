@@ -1,0 +1,13 @@
+{
+  "source_revision": "fd2a7665eb93e0953c1e57615f74cf0c72468742",
+  "wheel": "showwork-0.6.5-py3-none-any.whl",
+  "sha256": "328118ae0855aa66cda776b04a9d4e27b5c9f8de5f2f927fa9380b15b30c5549",
+  "published": false,
+  "kind": "unpublished local test artifact; not eligible to replace public 0.6.5",
+  "platforms": [
+    "Windows Python 3.10.11",
+    "Windows Python 3.13.2"
+  ],
+  "linux": "unperformed",
+  "smoke_checks_per_install": 16
+}

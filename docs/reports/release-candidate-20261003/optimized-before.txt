@@ -1,0 +1,143 @@
+FFF.                                                                     [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+______ test_optimized_installed_smoke_preserves_fail_closed_checks[exit] ______
+
+tmp_path = WindowsPath('E:/tmp/sw-release-regression-before-01a1000f/test_optimized_installed_smoke0')
+failure = 'exit'
+
+    @pytest.mark.parametrize("failure", ["exit", "verdict", "receipts", "none"])
+    def test_optimized_installed_smoke_preserves_fail_closed_checks(tmp_path, failure):
+        root = Path(__file__).parents[1]
+        runner = tmp_path / "smoke_control.py"
+        runner.write_text(
+            "import importlib.util,json,subprocess\n"
+            "from pathlib import Path\n"
+            "from types import SimpleNamespace\n"
+            f"failure={failure!r}\n"
+            "def controlled(argv,**kwargs):\n"
+            "    code=0\n"
+            "    if 'finish' in argv and not (Path(argv[argv.index('--root')+1])/'output.txt').exists(): code=2\n"
+            "    if '--gate' in argv or '--max-seconds' in argv: code=2\n"
+            "    if 'init' in argv and failure=='exit': code=42\n"
+            "    data={'verdict':'RED' if failure=='verdict' else 'GREEN','outcome':{'verdict':'VERIFIED'}}\n"
+            "    if 'receipts' in argv: data={'states':['unknown' if failure=='receipts' else 'verified']}\n"
+            "    return SimpleNamespace(returncode=code,stdout=json.dumps(data),stderr='')\n"
+            "subprocess.run=controlled\n"
+            f"spec=importlib.util.spec_from_file_location('actual_smoke',{str(root/'scripts/smoke_release.py')!r})\n"
+            "module=importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+            "print(json.dumps(module.smoke()))\n",
+            encoding="utf-8",
+        )
+        env = {**os.environ, "PYTHONPATH": str(root / "src")}
+        result = subprocess.run(
+            [sys.executable, "-O", str(runner)], cwd=tmp_path, env=env,
+            capture_output=True, text=True, timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if failure == "none":
+            assert result.returncode == 0, result.stderr
+            assert '"passed"' in result.stdout
+        else:
+>           assert result.returncode != 0, "optimized smoke silently accepted broken evidence"
+E           AssertionError: optimized smoke silently accepted broken evidence
+E           assert 0 != 0
+E            +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\tmp\\sw-release-regression-before-01a1000f\\test_optimi...n identity", "chain audit", "receipts", "status", "report", "wrapper", "empty wrapper gate", "timeout"]}\n', stderr='').returncode
+
+tests\test_release_smoke.py:45: AssertionError
+____ test_optimized_installed_smoke_preserves_fail_closed_checks[verdict] _____
+
+tmp_path = WindowsPath('E:/tmp/sw-release-regression-before-01a1000f/test_optimized_installed_smoke1')
+failure = 'verdict'
+
+    @pytest.mark.parametrize("failure", ["exit", "verdict", "receipts", "none"])
+    def test_optimized_installed_smoke_preserves_fail_closed_checks(tmp_path, failure):
+        root = Path(__file__).parents[1]
+        runner = tmp_path / "smoke_control.py"
+        runner.write_text(
+            "import importlib.util,json,subprocess\n"
+            "from pathlib import Path\n"
+            "from types import SimpleNamespace\n"
+            f"failure={failure!r}\n"
+            "def controlled(argv,**kwargs):\n"
+            "    code=0\n"
+            "    if 'finish' in argv and not (Path(argv[argv.index('--root')+1])/'output.txt').exists(): code=2\n"
+            "    if '--gate' in argv or '--max-seconds' in argv: code=2\n"
+            "    if 'init' in argv and failure=='exit': code=42\n"
+            "    data={'verdict':'RED' if failure=='verdict' else 'GREEN','outcome':{'verdict':'VERIFIED'}}\n"
+            "    if 'receipts' in argv: data={'states':['unknown' if failure=='receipts' else 'verified']}\n"
+            "    return SimpleNamespace(returncode=code,stdout=json.dumps(data),stderr='')\n"
+            "subprocess.run=controlled\n"
+            f"spec=importlib.util.spec_from_file_location('actual_smoke',{str(root/'scripts/smoke_release.py')!r})\n"
+            "module=importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+            "print(json.dumps(module.smoke()))\n",
+            encoding="utf-8",
+        )
+        env = {**os.environ, "PYTHONPATH": str(root / "src")}
+        result = subprocess.run(
+            [sys.executable, "-O", str(runner)], cwd=tmp_path, env=env,
+            capture_output=True, text=True, timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if failure == "none":
+            assert result.returncode == 0, result.stderr
+            assert '"passed"' in result.stdout
+        else:
+>           assert result.returncode != 0, "optimized smoke silently accepted broken evidence"
+E           AssertionError: optimized smoke silently accepted broken evidence
+E           assert 0 != 0
+E            +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\tmp\\sw-release-regression-before-01a1000f\\test_optimi...n identity", "chain audit", "receipts", "status", "report", "wrapper", "empty wrapper gate", "timeout"]}\n', stderr='').returncode
+
+tests\test_release_smoke.py:45: AssertionError
+____ test_optimized_installed_smoke_preserves_fail_closed_checks[receipts] ____
+
+tmp_path = WindowsPath('E:/tmp/sw-release-regression-before-01a1000f/test_optimized_installed_smoke2')
+failure = 'receipts'
+
+    @pytest.mark.parametrize("failure", ["exit", "verdict", "receipts", "none"])
+    def test_optimized_installed_smoke_preserves_fail_closed_checks(tmp_path, failure):
+        root = Path(__file__).parents[1]
+        runner = tmp_path / "smoke_control.py"
+        runner.write_text(
+            "import importlib.util,json,subprocess\n"
+            "from pathlib import Path\n"
+            "from types import SimpleNamespace\n"
+            f"failure={failure!r}\n"
+            "def controlled(argv,**kwargs):\n"
+            "    code=0\n"
+            "    if 'finish' in argv and not (Path(argv[argv.index('--root')+1])/'output.txt').exists(): code=2\n"
+            "    if '--gate' in argv or '--max-seconds' in argv: code=2\n"
+            "    if 'init' in argv and failure=='exit': code=42\n"
+            "    data={'verdict':'RED' if failure=='verdict' else 'GREEN','outcome':{'verdict':'VERIFIED'}}\n"
+            "    if 'receipts' in argv: data={'states':['unknown' if failure=='receipts' else 'verified']}\n"
+            "    return SimpleNamespace(returncode=code,stdout=json.dumps(data),stderr='')\n"
+            "subprocess.run=controlled\n"
+            f"spec=importlib.util.spec_from_file_location('actual_smoke',{str(root/'scripts/smoke_release.py')!r})\n"
+            "module=importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+            "print(json.dumps(module.smoke()))\n",
+            encoding="utf-8",
+        )
+        env = {**os.environ, "PYTHONPATH": str(root / "src")}
+        result = subprocess.run(
+            [sys.executable, "-O", str(runner)], cwd=tmp_path, env=env,
+            capture_output=True, text=True, timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if failure == "none":
+            assert result.returncode == 0, result.stderr
+            assert '"passed"' in result.stdout
+        else:
+>           assert result.returncode != 0, "optimized smoke silently accepted broken evidence"
+E           AssertionError: optimized smoke silently accepted broken evidence
+E           assert 0 != 0
+E            +  where 0 = CompletedProcess(args=['C:\\Python313\\python.exe', '-O', 'E:\\tmp\\sw-release-regression-before-01a1000f\\test_optimi...n identity", "chain audit", "receipts", "status", "report", "wrapper", "empty wrapper gate", "timeout"]}\n', stderr='').returncode
+
+tests\test_release_smoke.py:45: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_release_smoke.py::test_optimized_installed_smoke_preserves_fail_closed_checks[exit]
+FAILED tests/test_release_smoke.py::test_optimized_installed_smoke_preserves_fail_closed_checks[verdict]
+FAILED tests/test_release_smoke.py::test_optimized_installed_smoke_preserves_fail_closed_checks[receipts]
+3 failed, 1 passed in 4.13s
