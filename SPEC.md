@@ -464,6 +464,56 @@ tests/test_run.py::test_run_gate_refuses_success_with_no_claims] refuse with
 exit 2 when the wrapped command exits 0 without check-backed claims, matching
 the finish gate.
 
+## Optional pytest observations
+
+The pytest adapter uses existing artifact claims; it adds no ledger record type
+or behavior requirement. Without `--showwork-session` it MUST [test:
+tests/test_pytest_plugin.py::test_default_hooks_do_not_probe_git_or_create_state]
+remain silent, including no Git probe or observer state.
+
+Each opted-in invocation has a UUID. It MUST [test:
+tests/test_pytest_plugin.py::test_attempt_order_retains_history_and_latest_result]
+retain distinct `pytest-<uuid>-started.json` and, when the finish hook runs,
+`pytest-<uuid>.json` files inside that session's artifact directory. Latest
+remains `pytest-last.json`; its existing `session`, `exitstatus`, and `passed`
+fields remain readable. Startup MUST [test:
+tests/test_pytest_plugin.py::test_hard_kill_cannot_leave_previous_pass_current]
+invalidate a previous latest pass with pending status and unknown result before
+tests run. A retry MUST [test:
+tests/test_pytest_plugin.py::test_hard_kill_cannot_leave_previous_pass_current]
+preserve an interrupted invocation's retained start observation. A hard kill
+before that observation is saved may leave only pending latest. Sharing one
+slug between concurrent writers is outside this adapter's supported contract.
+
+Finished observations MUST [test:
+tests/test_pytest_plugin.py::test_exit_modes_report_only_observed_counts]
+distinguish observed exit modes and counts, including skipped tests, errors,
+interruption and no tests. Counts are observed reports, not mutually exclusive
+test outcomes; collection count is null if not observed. Context MUST [test:
+tests/test_pytest_plugin.py::test_context_is_actual_and_arguments_are_hashed]
+include available revision, interpreter and pytest identity, with invocation
+arguments hashed rather than retained as raw text. Unknown metadata is null.
+Start and finish timestamps describe adapter hooks, not task completion.
+
+Strict XPASS MUST [test:
+tests/test_pytest_plugin.py::test_strict_xpass_is_separate_from_ordinary_failed_calls]
+count as xpassed separately from ordinary failed calls, while retaining pytest's
+failing exit status.
+
+A retained observation's content check MUST [test:
+tests/test_pytest_plugin.py::test_completed_attempt_corruption_is_visible]
+fail when its recorded fields change or extra content is appended. The historical
+passing claim still checks latest; a later failing run invalidates it. A pytest artifact pass MUST
+[test: tests/test_pytest_plugin.py::test_artifact_pass_does_not_supply_acceptance_or_close]
+NOT provide behavioral acceptance or authorize an ordinary successful close
+without declared requirements. Separate slugs MUST [test:
+tests/test_pytest_plugin.py::test_pytest_receipts_are_isolated_between_sessions]
+retain independent latest results.
+
+Existing three-field pytest artifacts MUST [test:
+tests/test_pytest_plugin.py::test_legacy_three_field_artifact_and_claim_are_preserved]
+remain readable, and extending a session preserves its original claim bytes.
+
 ## Acceptance requirements (`spec-v0.5`)
 
 A `session.requirement` event adds `requirement_id`, `claim` (description),

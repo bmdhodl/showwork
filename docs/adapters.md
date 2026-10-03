@@ -12,12 +12,43 @@ Walk: [walks/cursor.md](walks/cursor.md).
 ## pytest
 
 If pytest is installed, `pip install showwork` registers a plugin. It is
-silent unless you pass `--showwork-session`. Then a passing run records a
-`file_contains` **artifact** claim on
-`.showwork/artifacts/<session>/pytest-last.json`. That claim proves the plugin
-wrote `"passed": true` after pytest exited 0. It does not prove production
-behavior. Declare behavior acceptance with `require --scope behavior` and a
-`command` check of a project test script.
+silent unless you pass `--showwork-session`. The behavior below describes
+current source; it requires a package release before it is available through
+the published installer.
+
+Each opted-in invocation receives a UUID and writes observations under
+`.showwork/artifacts/<session>/`:
+
+- `pytest-last.json` is replaced atomically at startup with `status: running`
+  and `passed: null`, before snapshot creation or the optional Git probe.
+  A previous pass therefore cannot stay current if the new run is killed.
+- `pytest-<uuid>-started.json` retains the startup observation before tests run.
+  If the finish hook runs, `pytest-<uuid>.json` retains its terminal observation
+  and latest becomes `status: finished`. These UUID files are never overwritten
+  by the plugin. A hard kill may leave only a start observation; retrying does
+  not erase it. A kill during early initialization may leave only pending latest.
+- A finished observation records the hook's exit status, collection count when
+  observed, and counts of observed pass/fail/skip/error/xfail/xpass reports.
+  Setup, teardown and collection failures are errors. Report counts are not
+  disjoint test totals. Strict XPASS counts as xpassed while retaining pytest's
+  failing exit status. A passed call can also have a teardown error. Exit zero
+  can include all-skipped tests; it is not a coverage claim.
+- Context includes UTC start/finish times, Python version and executable, pytest
+  version, a SHA-256 of invocation arguments (not their raw text), and Git HEAD
+  when available. HEAD is a revision observation, not proof of a clean checkout
+  or of what the tests covered. Unavailable context is null.
+
+Retained observations have checks for the complete JSON object, including
+rejection of appended content. The compatible `"pytest session
+passed"` claim still checks latest for `"passed": true`; a later failure or
+pending invocation invalidates that old pass. Existing three-field latest
+reports and ledger claims remain readable without migration. Use distinct
+session slugs for concurrent writers; sharing one slug is unsupported.
+
+These are **artifact** observations. A green pytest report alone does not
+satisfy a behavior requirement or close a task without declared acceptance.
+Declare behavior acceptance with `require --scope behavior` and a `command`
+check of a project test script.
 
 ```bash
 pytest -q --showwork-session cursor-fix-nav
