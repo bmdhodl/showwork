@@ -1,0 +1,88 @@
+FFF.                                                                     [100%]Running teardown with pytest sessionfinish...
+
+================================== FAILURES ===================================
+________________ test_real_store_survives_fresh_process_reopen ________________
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-before-01a1000f/test_real_store_survives_fresh0')
+
+    def test_real_store_survives_fresh_process_reopen(tmp_path):
+        """REGRESSION: no test exercised persisted production writes and reopen."""
+>       module = load_example()
+                 ^^^^^^^^^^^^^^
+
+tests\test_acceptance_review.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_acceptance_review.py:16: in load_example
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:1022: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1159: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x00000246C7459B50>
+path = 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+<frozen importlib._bootstrap_external>:1217: FileNotFoundError
+_______ test_application_mutations_fail_the_same_acceptance[EmptyStore] _______
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-before-01a1000f/test_application_mutations_fai0')
+mutant = 'EmptyStore'
+
+    @pytest.mark.parametrize("mutant", ["EmptyStore", "CacheOnlyStore"])
+    def test_application_mutations_fail_the_same_acceptance(tmp_path, mutant):
+>       module = load_example()
+                 ^^^^^^^^^^^^^^
+
+tests\test_acceptance_review.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_acceptance_review.py:16: in load_example
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:1022: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1159: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x00000246C7459FD0>
+path = 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+<frozen importlib._bootstrap_external>:1217: FileNotFoundError
+_____ test_application_mutations_fail_the_same_acceptance[CacheOnlyStore] _____
+
+tmp_path = WindowsPath('E:/tmp/sw-adequacy-before-01a1000f/test_application_mutations_fai1')
+mutant = 'CacheOnlyStore'
+
+    @pytest.mark.parametrize("mutant", ["EmptyStore", "CacheOnlyStore"])
+    def test_application_mutations_fail_the_same_acceptance(tmp_path, mutant):
+>       module = load_example()
+                 ^^^^^^^^^^^^^^
+
+tests\test_acceptance_review.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_acceptance_review.py:16: in load_example
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:1022: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1159: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x00000246C7545490>
+path = 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'E:\\C-Offload\\github\\showwork-demand-evidence-20261003\\examples\\acceptance-review\\acceptance.py'
+
+<frozen importlib._bootstrap_external>:1217: FileNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_acceptance_review.py::test_real_store_survives_fresh_process_reopen
+FAILED tests/test_acceptance_review.py::test_application_mutations_fail_the_same_acceptance[EmptyStore]
+FAILED tests/test_acceptance_review.py::test_application_mutations_fail_the_same_acceptance[CacheOnlyStore]
+3 failed, 1 passed in 1.52s
