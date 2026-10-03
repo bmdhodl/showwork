@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .audit import audit_file
 from .ledger import split_record_lines, _reject_nonfinite, _merge_record_streams, session_file_stem
+from .snapshot import IGNORE_SEMANTIC, scope_from_events, validate_snapshot
 
 MAX_FILE_BYTES = 4 * 1024 * 1024
 MAX_TOTAL_BYTES = 32 * 1024 * 1024
@@ -22,6 +23,7 @@ CAPABILITIES = {
     "scope": "recorded requirements and receipt manifest",
     "current_execution": "not performed", "processes": False, "network": False,
     "test_adequacy": "not assessed", "origin_authentication": "not established",
+    "required_semantics": [IGNORE_SEMANTIC],
 }
 
 
@@ -105,7 +107,23 @@ def load_receipt(root: Path, session: str) -> dict:
         else:
             others.append(rows)
     claims = _merge_record_streams(others, trailing)
-    return {"claims": claims, "events": events, "files": files, "audit": audits}
+    scope, meta = scope_from_events(events)
+    if scope:
+        data = read_bytes(root, base / "snapshots" / f"{session_file_stem(session)}.json")
+        if total + len(data) > MAX_TOTAL_BYTES:
+            raise ValueError("receipts exceed reader total size limit")
+        payload = json.loads(data.decode("utf-8"), parse_constant=_reject_nonfinite,
+                             object_pairs_hook=_unique_object)
+        validate_snapshot(payload, meta)
+    return {"claims": claims, "events": events, "files": files, "audit": audits,
+            "snapshot_scope": {"ignore_patterns": [], **scope}}
+
+
+def supported_semantics(row: dict, *, event: bool = False) -> bool:
+    semantics = row.get("required_semantics")
+    return not semantics or (event and row.get("event") == "session.start" and
+                            semantics == [IGNORE_SEMANTIC] and
+                            isinstance(row.get("tree_snapshot"), dict))
 
 
 def inspect_loaded(receipt: dict) -> dict:
@@ -117,11 +135,11 @@ def inspect_loaded(receipt: dict) -> dict:
                  else "GREEN")
     unsupported = any(
         row.get("spec_version") not in (None, *VERSIONS) or
-        bool(row.get("required_semantics")) or
+        not supported_semantics(row, event=True) or
         row.get("event") not in EVENTS
         for row in events
     ) or any(row.get("spec_version") not in (None, *VERSIONS) or
-             bool(row.get("required_semantics")) for row in claims)
+             not supported_semantics(row) for row in claims)
     requirements = [row for row in events if row.get("event") == "session.requirement"]
     if any(not isinstance(row.get("check"), dict) or
            row["check"].get("type") not in CHECK_TYPES or
@@ -164,6 +182,7 @@ def inspect_loaded(receipt: dict) -> dict:
         "recorded_outcome": "VERIFIED" if qualified else "UNVERIFIED",
         "current_execution": "not performed", "current_outcome": "UNVERIFIED",
         "requirement_count": len(requirements),
+        "snapshot_scope": receipt.get("snapshot_scope", {"ignore_patterns": []}),
         "capabilities": {**CAPABILITIES, "spec_versions": list(VERSIONS)},
     }
 
@@ -184,5 +203,5 @@ def inspect_session(root: str | Path, session: str) -> dict:
     except (OSError, ValueError, TypeError, AttributeError):
         result = inspect_loaded({"claims": [], "events": [], "files": {}, "audit": []})
         result.update(integrity="unknown", spec_coverage="unreadable",
-                      reason="receipt unreadable or outside reader bounds")
+                      snapshot_scope=None, reason="receipt unreadable or outside reader bounds")
         return result

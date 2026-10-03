@@ -25,6 +25,7 @@ console.log(receipt.integrity, receipt.recorded_outcome, receipt.current_outcome
 | Existing hash chain, forks and legacy layout | Yes | Yes | Yes |
 | Requirement inventory and scope | Recorded | Recorded | Recorded plus allowed observations |
 | Close manifest hashes and count | Compared | Compared | Compared |
+| Frozen snapshot-exclusions-v1 scope and sidecar | Validated and disclosed | Validated and disclosed | Validated and disclosed |
 | Reopened session or missing/changed manifest | UNVERIFIED | UNVERIFIED | Cannot show a verified outcome |
 | Current filesystem checks | None | None | file_exists, path_moved, frontmatter, glob_count |
 | Current snapshot damage check | None | None | Existing Python checker and bounds |
@@ -49,7 +50,12 @@ verifier. A file observation cannot establish behavior.
 The supported reading fields are `session`, `retracts`, `event`, `ts`, requirement
 IDs/scopes/check descriptions, close `status`, `completion_scope`, `outcome`,
 `verify_bypassed`, and `receipt_manifest`. Optional `spec_version` declarations
-outside the listed versions and nonempty `required_semantics` are unsupported.
+outside the listed versions and unknown nonempty `required_semantics` are unsupported.
+The source readers support `snapshot-exclusions-v1` on session starts, validate
+its frozen snapshot sidecar and disclose `snapshot_scope`. This capability is
+pending a package release. Readers that lack it cannot qualify such a receipt.
+See [explicit snapshot exclusions](snapshot-exclusions.md) for the matching
+rules, compatibility boundary and new-file coverage limit.
 Unknown required events are unsupported. Unknown optional prose is not promoted
 to evidence. Malformed JSON and duplicate keys are unreadable. Missing close
 fields leave recorded acceptance UNVERIFIED. Unknown check types and requirement

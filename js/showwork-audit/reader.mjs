@@ -9,11 +9,14 @@ const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const VERSIONS = Object.freeze([1, 2, 3, 4, 5].map(i => `spec-v0.${i}`));
 const EVENTS = new Set(["session.start", "session.requirement", "session.finish", "session.finish.refused"]);
 const CHECK_TYPES = new Set(["file_exists", "file_contains", "path_moved", "frontmatter", "glob_count", "command", "http_probe", "git_state"]);
+const IGNORE_SEMANTIC = "snapshot-exclusions-v1";
+const IGNORE_FORMAT = "relative-glob-v1";
 export const readerCapabilities = Object.freeze({
   spec_versions: VERSIONS, integrity: "hash-chain",
   scope: "recorded requirements and receipt manifest", current_execution: "not performed",
   processes: false, network: false, test_adequacy: "not assessed",
   origin_authentication: "not established",
+  required_semantics: Object.freeze([IGNORE_SEMANTIC]),
 });
 const sha = value => createHash("sha256").update(value).digest("hex");
 
@@ -70,12 +73,100 @@ function pythonJson(value) {
     `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
+function unicodeOrder(a, b) {
+  const left = [...a], right = [...b];
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    const delta = left[i].codePointAt(0) - right[i].codePointAt(0);
+    if (delta) return delta;
+  }
+  return left.length - right.length;
+}
+
+function compactPythonJson(value) {
+  if (Array.isArray(value)) return `[${value.map(compactPythonJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).sort(unicodeOrder).map(k => `${compactPythonJson(k)}:${compactPythonJson(value[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value).replace(/[\u007f-\uffff]/g, c =>
+    `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+function componentMatches(value, pattern) {
+  // Bounded component wildcard matching without backtracking regex execution.
+  const chars = [...value], globs = [...pattern];
+  let i = 0, j = 0, star = -1, retry = 0;
+  while (i < chars.length) {
+    if (j < globs.length && (globs[j] === "?" || globs[j] === chars[i])) { i++; j++; }
+    else if (globs[j] === "*") { star = j++; retry = i; }
+    else if (star >= 0) { j = star + 1; i = ++retry; }
+    else return false;
+  }
+  while (globs[j] === "*") j++;
+  return j === globs.length;
+}
+
+function exclusionScope(meta) {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) throw new Error("snapshot metadata missing");
+  if (!("ignore_format" in meta) && !("ignore_patterns" in meta)) return {};
+  const patterns = meta.ignore_patterns;
+  if (meta.ignore_format !== IGNORE_FORMAT || !Array.isArray(patterns) || !patterns.length || patterns.length > 32 ||
+      !Number.isInteger(meta.count) || meta.count < 0 || meta.count > 50000 ||
+      typeof meta.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(meta.sha256) ||
+      compactPythonJson(patterns) !== compactPythonJson([...new Set(patterns)].sort(unicodeOrder))) throw new Error("snapshot exclusions invalid");
+  for (const pattern of patterns) {
+    if (typeof pattern !== "string" || ![...pattern].length || [...pattern].length > 240 || /[\x00-\x1f\x7f\\:\[\]]/u.test(pattern)) throw new Error("invalid relative glob");
+    const parts = pattern.split("/");
+    if (parts.some(part => ["", ".", ".."].includes(part)) ||
+        parts.some((part, i) => part.includes("**") && !(part === "**" && i === parts.length - 1)) ||
+        // Match Python's long-s case folding when checking reserved names.
+        pattern === "**" || parts.some(part => part !== "**" && [".git", ".showwork"].some(name => componentMatches(name, part.toLowerCase().replaceAll("\u017f", "s"))))) throw new Error("invalid relative glob");
+  }
+  return { ignore_format: IGNORE_FORMAT, ignore_patterns: patterns };
+}
+
+function excludedFile(path, patterns) {
+  const parts = path.split("/");
+  return patterns.some(pattern => {
+    const wanted = pattern.split("/"), recursive = wanted.at(-1) === "**";
+    const prefix = recursive ? wanted.slice(0, -1) : wanted;
+    return (recursive ? parts.length >= prefix.length : parts.length === prefix.length) &&
+      prefix.every((glob, i) => componentMatches(parts[i], glob));
+  });
+}
+
+function readExclusions(root, base, session, events, total) {
+  const starts = events.filter(row => row.event === "session.start");
+  const scoped = starts.some(row => row.required_semantics?.includes?.(IGNORE_SEMANTIC) ||
+    row.tree_snapshot && ("ignore_format" in row.tree_snapshot || "ignore_patterns" in row.tree_snapshot));
+  if (!scoped) return { ignore_patterns: [] };
+  const meta = starts[0]?.tree_snapshot, scope = exclusionScope(meta);
+  if (!scope.ignore_patterns || starts.some(row => compactPythonJson(row.tree_snapshot) !== compactPythonJson(meta) ||
+      compactPythonJson(row.required_semantics) !== compactPythonJson([IGNORE_SEMANTIC]))) throw new Error("snapshot scope changed across starts");
+  const path = confined(root, join(base, "snapshots", `${sessionStem(session)}.json`));
+  if (statSync(path).size > MAX_FILE_BYTES || total + statSync(path).size > MAX_TOTAL_BYTES) throw new Error("snapshot exceeds reader bounds");
+  const bytes = readFileSync(path);
+  if (bytes.length > MAX_FILE_BYTES || total + bytes.length > MAX_TOTAL_BYTES) throw new Error("snapshot exceeds reader bounds");
+  const payload = strictJson(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  const files = payload?.files;
+  if (!files || typeof files !== "object" || Array.isArray(files) || Object.keys(files).length > 50000 ||
+      compactPythonJson(exclusionScope(payload)) !== compactPythonJson(scope) ||
+      !Number.isInteger(meta.count) || !Number.isInteger(payload.count) ||
+      meta.count !== Object.keys(files).length || payload.count !== meta.count ||
+      Object.entries(files).some(([name, digest]) => !name || /[\\:]/u.test(name) ||
+        name.split("/").some(part => ["", ".", ".."].includes(part)) ||
+        typeof digest !== "string" || !/^[0-9a-f]{64}$/.test(digest) || excludedFile(name, scope.ignore_patterns))) throw new Error("snapshot sidecar invalid");
+  const digest = sha(compactPythonJson({ files, ...scope }));
+  if (meta.sha256 !== digest || payload.sha256 !== digest) throw new Error("snapshot digest mismatch");
+  return scope;
+}
+
 export function inspectSession(workspace, session) {
   const result = {
     integrity: "YELLOW", scope: readerCapabilities.scope, spec_coverage: "supported_reading_fields",
     manifest: "absent", freshness: "open_or_absent", historical_outcome: "absent",
     recorded_outcome: "UNVERIFIED", current_execution: "not performed", current_outcome: "UNVERIFIED",
     requirement_count: 0, capabilities: { ...readerCapabilities, spec_versions: [...VERSIONS] },
+    snapshot_scope: { ignore_patterns: [] },
   };
   try {
     if (typeof session !== "string" || !session.trim()) throw new Error("session missing");
@@ -115,12 +206,14 @@ export function inspectSession(workspace, session) {
     const firstTs = stream => String(stream.rows.find(row => typeof row.ts === "string" && row.ts)?.ts || "");
     others.sort((a, b) => firstTs(a) < firstTs(b) ? -1 : firstTs(a) > firstTs(b) ? 1 : 0);
     const claims = [...others.flatMap(stream => stream.rows), ...(streams.find(stream => stream.path === current)?.rows || [])];
+    result.snapshot_scope = readExclusions(root, base, session, events, total);
     result.integrity = audits.some(row => row.verdict === "RED") ? "RED" :
       !audits.length || audits.some(row => row.verdict !== "GREEN") ? "YELLOW" : "GREEN";
     const unsupported = [...events, ...claims].some(row =>
       (row.spec_version != null && !VERSIONS.includes(row.spec_version)) ||
       (row.required_semantics != null && (typeof row.required_semantics === "object" ?
-        Object.keys(row.required_semantics).length > 0 : !!row.required_semantics)));
+        Object.keys(row.required_semantics).length > 0 : !!row.required_semantics) &&
+        !(events.includes(row) && row.event === "session.start" && compactPythonJson(row.required_semantics) === compactPythonJson([IGNORE_SEMANTIC]) && row.tree_snapshot)));
     if (unsupported || events.some(row => !EVENTS.has(row.event))) result.spec_coverage = "unsupported";
     const requirements = events.filter(row => row.event === "session.requirement");
     if (requirements.some(row => !row.check || typeof row.check !== "object" ||
@@ -146,7 +239,7 @@ export function inspectSession(workspace, session) {
         !close.verify_bypassed && result.historical_outcome === "VERIFIED") result.recorded_outcome = "VERIFIED";
     return result;
   } catch {
-    return { ...result, integrity: "unknown", spec_coverage: "unreadable", recorded_outcome: "UNVERIFIED",
+    return { ...result, integrity: "unknown", spec_coverage: "unreadable", recorded_outcome: "UNVERIFIED", snapshot_scope: null,
       reason: "receipt unreadable or outside reader bounds" };
   }
 }
