@@ -1,0 +1,2 @@
+{"session": "fixture", "ts": "2026-10-03T00:00:00Z", "claim": "artifact", "severity": "RED", "check": {"type": "file_exists", "path": "artifact.txt"}, "prev": "cf651cb5cafe8ae681e765e6d816355cea003dd8beb092c025ee500f6fe30c00"}
+{"session": "fixture", "ts": "2026-10-03T00:00:00Z", "retracted": true, "retracts": {"session": "fixture", "claim": "artifact"}, "retraction_reason": "replaced", "prev": "a20dfa9bb093efd7e1fce3c0717a9fd1f5f681be522ed4eec1806779726e384c"}

@@ -81,3 +81,46 @@ def test_cli_receipts_root_resolution_is_process_free(tmp_path, monkeypatch, cap
         AssertionError("receipt CLI launched Git")))
     assert main(["--root", str(tmp_path), "receipts", "--session", "empty", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["empty"] is True
+
+
+def test_clock_rollback_cannot_hide_a_reopened_session(tmp_path, monkeypatch):
+    """REGRESSION: timestamp sorting moved a newly appended start before finish."""
+    import shutil
+    from showwork.ledger import record_event
+    shutil.copytree(FIXTURES / "closed" / ".showwork", tmp_path / ".showwork")
+    assert inspect_session(tmp_path, "fixture")["recorded_outcome"] == "VERIFIED"
+    monkeypatch.setattr("showwork.ledger._now", lambda: "2000-01-01T00:00:00Z")
+    record_event(tmp_path, "session.start", "fixture")
+    result = inspect_session(tmp_path, "fixture")
+    assert result["freshness"] == "reopened"
+    assert result["recorded_outcome"] == "UNVERIFIED"
+
+
+def test_split_claim_stream_current_path_follows_old_retraction(tmp_path, monkeypatch):
+    """REGRESSION: filename order made an older retraction cancel a newer claim."""
+    from showwork.ledger import _append, record_retraction, finish_session
+    from showwork.outcomes import record_requirement
+    from showwork.reader import load_receipt
+    (tmp_path / "anchor.txt").write_text("real")
+    start_session(tmp_path, "task")
+    (tmp_path / "artifact.txt").write_text("real")
+    check = {"type": "file_exists", "path": "artifact.txt"}
+    record_requirement(tmp_path, "task", "file", "anchor exists", "artifact",
+                       {"type": "file_exists", "path": "anchor.txt"})
+    record_claim(tmp_path, "task", "artifact", check)
+    record_retraction(tmp_path, "task", "artifact", "replaced")
+    current = tmp_path / ".showwork" / "claims" / "task.jsonl"
+    old = current.with_name("z-old.jsonl")
+    # Copying bytes would break the per-filename genesis. Build the remapped
+    # stream with the normal chained writer instead.
+    rows = [json.loads(line) for line in current.read_text().splitlines()]
+    for row in rows:
+        _append(old, row)
+    monkeypatch.setattr("showwork.ledger._now", lambda: "2000-01-01T00:00:00Z")
+    record_claim(tmp_path, "task", "artifact", check)
+    exit_code, _state = finish_session(tmp_path, "task", "ok")
+    assert exit_code == 0
+    assert load_receipt(tmp_path, "task")["claims"][-1].get("retracted") is not True
+    assert evidence_for_session(tmp_path, "task")["state"] == "verified"
+    (tmp_path / "artifact.txt").unlink()
+    assert evidence_for_session(tmp_path, "task")["state"] == "failed"

@@ -17,6 +17,22 @@ export const readerCapabilities = Object.freeze({
 });
 const sha = value => createHash("sha256").update(value).digest("hex");
 
+function sessionStem(original) {
+  const raw = original.trim();
+  if (!raw || raw === "." || raw === "..") throw new Error("unsafe session");
+  let cleaned = raw.replace(/[^a-zA-Z0-9_.-]/gu, "-").replace(/^[.-]+|[.-]+$/g, "").replace(/-{2,}/g, "-");
+  const reserved = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
+  if (reserved.test(cleaned.toLowerCase()) || reserved.test(cleaned.split(".")[0].toLowerCase())) cleaned = `sess-${cleaned}`;
+  const lossy = cleaned !== raw || [...raw].length > 120 || original !== raw || cleaned !== cleaned.toLowerCase() || cleaned.toLowerCase().startsWith("h-");
+  if (lossy) {
+    const prefix = `h-${sha(original).slice(0, 10)}-`;
+    const base = cleaned.toLowerCase().slice(0, 120 - prefix.length).replace(/[.-]+$/g, "");
+    cleaned = base ? prefix + base : prefix.slice(0, -1);
+  }
+  if (!cleaned || !/^[a-zA-Z0-9_.-]+$/.test(cleaned)) throw new Error("unsafe session");
+  return cleaned;
+}
+
 function confined(root, path) {
   const actual = existsSync(path) ? realpathSync(path) : resolve(path);
   const rel = relative(root, actual);
@@ -73,7 +89,7 @@ export function inspectSession(workspace, session) {
       if (existsSync(folder)) paths.push(...readdirSync(folder).filter(n => n.endsWith(".jsonl")).sort().map(n => join(folder, n)));
     }
     if (paths.length > 1024) throw new Error("too many receipt files");
-    const claims = [], events = [], audits = [], files = {};
+    const streams = [], events = [], audits = [], files = {};
     let total = 0;
     for (let path of paths) {
       path = confined(root, path);
@@ -88,11 +104,17 @@ export function inspectSession(workspace, session) {
       const selected = rows.filter(row => row.session === session || row.retracts?.session === session);
       if (basename(dirname(path)) === "sessions" || basename(path) === "sessions.jsonl") events.push(...selected);
       else {
-        claims.push(...selected);
+        streams.push({ path, rows: selected });
         if (selected.length) files[relative(root, path).replaceAll("\\", "/")] = sha(Buffer.from(bytes.toString("utf8").replaceAll("\r\n", "\n")));
       }
     }
-    events.sort((a, b) => String(a.ts || "").localeCompare(String(b.ts || "")));
+    let current = join(base, "claims", `${sessionStem(session)}.jsonl`);
+    const candidates = streams.filter(stream => basename(dirname(stream.path)) === "claims" && stream.rows.length);
+    if (!existsSync(current) && candidates.length === 1) current = candidates[0].path;
+    const others = streams.filter(stream => stream.path !== current && stream.rows.length);
+    const firstTs = stream => String(stream.rows.find(row => typeof row.ts === "string" && row.ts)?.ts || "");
+    others.sort((a, b) => firstTs(a) < firstTs(b) ? -1 : firstTs(a) > firstTs(b) ? 1 : 0);
+    const claims = [...others.flatMap(stream => stream.rows), ...(streams.find(stream => stream.path === current)?.rows || [])];
     result.integrity = audits.some(row => row.verdict === "RED") ? "RED" :
       !audits.length || audits.some(row => row.verdict !== "GREEN") ? "YELLOW" : "GREEN";
     const unsupported = [...events, ...claims].some(row =>

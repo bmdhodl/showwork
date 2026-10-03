@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from .audit import audit_file
-from .ledger import split_record_lines, _reject_nonfinite
+from .ledger import split_record_lines, _reject_nonfinite, _merge_record_streams, session_file_stem
 
 MAX_FILE_BYTES = 4 * 1024 * 1024
 MAX_TOTAL_BYTES = 32 * 1024 * 1024
@@ -61,7 +61,7 @@ def load_receipt(root: Path, session: str) -> dict:
             paths.extend(sorted(folder.glob("*.jsonl")))
     if len(paths) > MAX_LEDGER_FILES:
         raise ValueError("too many receipt files for bounded reader")
-    claims, events, files, audits = [], [], {}, []
+    claim_streams, events, files, audits = [], [], {}, []
     total = 0
     for path in paths:
         data = read_bytes(root, path)
@@ -86,11 +86,25 @@ def load_receipt(root: Path, session: str) -> dict:
         if path.parent.name == "sessions" or path.name == "sessions.jsonl":
             events.extend(selected)
         else:
-            claims.extend(selected)
+            claim_streams.append((path, selected))
             if selected:
                 files[path.relative_to(root).as_posix()] = hashlib.sha256(
                     data.replace(b"\r\n", b"\n")).hexdigest()
-    events.sort(key=lambda row: str(row.get("ts", "")))
+    # A file's chained append order is authoritative even if the clock goes
+    # backward. Claim retractions spanning remapped files use the producer's
+    # current-write-path-last convention, computed from already bounded input.
+    current = base / "claims" / f"{session_file_stem(session)}.jsonl"
+    candidates = [(path, rows) for path, rows in claim_streams
+                  if path.parent.name == "claims" and rows]
+    if not current.is_file() and len(candidates) == 1:
+        current = candidates[0][0]
+    others, trailing = [], []
+    for path, rows in claim_streams:
+        if path.resolve() == current.resolve():
+            trailing = rows
+        else:
+            others.append(rows)
+    claims = _merge_record_streams(others, trailing)
     return {"claims": claims, "events": events, "files": files, "audit": audits}
 
 
