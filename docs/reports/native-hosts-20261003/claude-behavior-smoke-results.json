@@ -1,0 +1,160 @@
+{
+  "host": "Claude Code 2.1.238",
+  "tasks": [
+    {
+      "task_slug": "native-claude-behavior-1-01a1000f",
+      "writer": "test driver; host Stop is read-only",
+      "phases": {
+        "failed": {
+          "strict_finish_exit": 2,
+          "host_exit": 0,
+          "host_wall_seconds": 2.754,
+          "observer": {
+            "binding": "SHOWWORK_SESSION",
+            "integrity": "GREEN",
+            "scope": "recorded requirements and receipt manifest",
+            "spec_coverage": "supported_reading_fields",
+            "manifest": "absent",
+            "freshness": "open_or_absent",
+            "historical_outcome": "refused",
+            "recorded_outcome": "UNVERIFIED",
+            "current_execution": "not performed",
+            "current_outcome": "UNVERIFIED",
+            "requirement_count": 1,
+            "capabilities": {
+              "spec_versions": [
+                "spec-v0.1",
+                "spec-v0.2",
+                "spec-v0.3",
+                "spec-v0.4",
+                "spec-v0.5"
+              ],
+              "integrity": "hash-chain",
+              "scope": "recorded requirements and receipt manifest",
+              "current_execution": "not performed",
+              "processes": false,
+              "network": false,
+              "test_adequacy": "not assessed",
+              "origin_authentication": "not established"
+            }
+          },
+          "receipt_bytes_preserved": true
+        },
+        "repaired": {
+          "strict_finish_exit": 0,
+          "host_exit": 0,
+          "host_wall_seconds": 2.74,
+          "observer": {
+            "binding": "SHOWWORK_SESSION",
+            "integrity": "GREEN",
+            "scope": "recorded requirements and receipt manifest",
+            "spec_coverage": "supported_reading_fields",
+            "manifest": "matches",
+            "freshness": "recorded_close",
+            "historical_outcome": "VERIFIED",
+            "recorded_outcome": "VERIFIED",
+            "current_execution": "not performed",
+            "current_outcome": "UNVERIFIED",
+            "requirement_count": 1,
+            "capabilities": {
+              "spec_versions": [
+                "spec-v0.1",
+                "spec-v0.2",
+                "spec-v0.3",
+                "spec-v0.4",
+                "spec-v0.5"
+              ],
+              "integrity": "hash-chain",
+              "scope": "recorded requirements and receipt manifest",
+              "current_execution": "not performed",
+              "processes": false,
+              "network": false,
+              "test_adequacy": "not assessed",
+              "origin_authentication": "not established"
+            }
+          },
+          "receipt_bytes_preserved": true
+        }
+      },
+      "uninstall": "foreign config restored; receipt bytes preserved"
+    },
+    {
+      "task_slug": "native-claude-behavior-2-01a1000f",
+      "writer": "test driver; host Stop is read-only",
+      "phases": {
+        "failed": {
+          "strict_finish_exit": 2,
+          "host_exit": 0,
+          "host_wall_seconds": 3.337,
+          "observer": {
+            "binding": "SHOWWORK_SESSION",
+            "integrity": "GREEN",
+            "scope": "recorded requirements and receipt manifest",
+            "spec_coverage": "supported_reading_fields",
+            "manifest": "absent",
+            "freshness": "open_or_absent",
+            "historical_outcome": "refused",
+            "recorded_outcome": "UNVERIFIED",
+            "current_execution": "not performed",
+            "current_outcome": "UNVERIFIED",
+            "requirement_count": 1,
+            "capabilities": {
+              "spec_versions": [
+                "spec-v0.1",
+                "spec-v0.2",
+                "spec-v0.3",
+                "spec-v0.4",
+                "spec-v0.5"
+              ],
+              "integrity": "hash-chain",
+              "scope": "recorded requirements and receipt manifest",
+              "current_execution": "not performed",
+              "processes": false,
+              "network": false,
+              "test_adequacy": "not assessed",
+              "origin_authentication": "not established"
+            }
+          },
+          "receipt_bytes_preserved": true
+        },
+        "repaired": {
+          "strict_finish_exit": 0,
+          "host_exit": 0,
+          "host_wall_seconds": 3.327,
+          "observer": {
+            "binding": "SHOWWORK_SESSION",
+            "integrity": "GREEN",
+            "scope": "recorded requirements and receipt manifest",
+            "spec_coverage": "supported_reading_fields",
+            "manifest": "matches",
+            "freshness": "recorded_close",
+            "historical_outcome": "VERIFIED",
+            "recorded_outcome": "VERIFIED",
+            "current_execution": "not performed",
+            "current_outcome": "UNVERIFIED",
+            "requirement_count": 1,
+            "capabilities": {
+              "spec_versions": [
+                "spec-v0.1",
+                "spec-v0.2",
+                "spec-v0.3",
+                "spec-v0.4",
+                "spec-v0.5"
+              ],
+              "integrity": "hash-chain",
+              "scope": "recorded requirements and receipt manifest",
+              "current_execution": "not performed",
+              "processes": false,
+              "network": false,
+              "test_adequacy": "not assessed",
+              "origin_authentication": "not established"
+            }
+          },
+          "receipt_bytes_preserved": true
+        }
+      },
+      "uninstall": "foreign config restored; receipt bytes preserved"
+    }
+  ],
+  "limit": "Driver runs acceptance and repairs public toy source; host only performs normal Stop. This is not customer activation or host-authored task completion."
+}

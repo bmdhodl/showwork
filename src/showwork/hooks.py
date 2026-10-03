@@ -14,12 +14,35 @@ from typing import TextIO
 
 from .checks import gaps_payload
 from .ledger import (_read_jsonl, load_all_events, record_event, session_events_path,
-                     verify_session)
+                     verify_session, session_file_stem)
 
 SESSION_ENV = "SHOWWORK_SESSION"
 # Claude Code exports its session id to tool shells; Stop payloads carry it.
 HOST_SESSION_ENV = "CLAUDE_CODE_SESSION_ID"
 HOST_SESSION = "host_session"
+
+
+def observe_native_stop(root: Path, stream: TextIO) -> dict:
+    """Read bounded evidence for an explicitly bound task; never run or write.
+
+    Host payload IDs and messages are untrusted observations, not permission to
+    create a writer. Set SHOWWORK_SESSION before launching the host. The explicit
+    finish/gate remains the only operation that executes acceptance checks.
+    """
+    text = stream.read(32769)
+    if len(text.encode("utf-8")) > 32768:
+        raise ValueError("Stop payload exceeds 32 KiB limit")
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise ValueError("Stop payload must be an object")
+    session = os.environ.get(SESSION_ENV, "").strip()
+    if not session:
+        return {"binding": "absent", "recorded_outcome": "UNVERIFIED",
+                "current_execution": "not performed"}
+    session_file_stem(session)
+    from .reader import inspect_session
+    state = inspect_session(root, session)
+    return {"binding": SESSION_ENV, **state}
 
 
 def read_stop_payload(stream: TextIO) -> dict:

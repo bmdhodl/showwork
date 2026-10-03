@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m showwork stop-hook"
+            "command": "python -m showwork host-stop-hook --host claude",
+            "timeout": 5
           }
         ]
       }

@@ -1,5 +1,8 @@
 # showwork documentation
 
+- [Project-local host recipes](host-recipes.md): Codex skill, bounded native Stop
+  observation, preview/uninstall and explicit actual-host proof limits.
+
 Start with the [README](../README.md). It demonstrates a failed close and
 recovery in an empty directory.
 
