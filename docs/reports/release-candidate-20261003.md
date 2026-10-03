@@ -50,4 +50,11 @@ and [focused controls](release-candidate-20261003/focused.txt) are retained.
 [wheel observations](release-candidate-20261003/wheel-observations.json) are retained separately.
 Current main at preparation start: `d41905b70f1fecf27872bd49c6fa36cee16b74f7`.
 
+After integrating the native-host recipes, the full suite passed 719 tests.
+After the reviewed public-install proof kit was also merged, the combined suite
+passed 724 tests in 300.69 seconds. These are observed suite counts, not a claim
+of complete requirement coverage. Both raw runs are retained as
+[native integration](release-candidate-20261003/integrated-full-suite.txt) and
+[combined source](release-candidate-20261003/combined-full-suite.txt).
+
 Sign-off: OpenAI | GPT-6 | auto.

@@ -36,6 +36,8 @@ recovery in an empty directory.
 
 ## Understand the evidence
 
+- [Run three failure/repair examples](../examples/proof-kit/README.md)
+
 - [Evidence scope and failure case](evidence-scope.md)
 - [Process-free receipt readers and capability limits](readers.md)
 - [Pending suite reference contract and BMD handoff boundary](suite-contract-proposal.md)
