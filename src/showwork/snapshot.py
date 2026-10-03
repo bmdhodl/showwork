@@ -99,7 +99,7 @@ def validate_ignore_patterns(ignore: list[str] | None) -> list[str]:
                for i, part in enumerate(parts)) or parts == ["**"]:
             raise ValueError("ignore supports ** only as a terminal recursive component")
         # A wildcard prefix must not cover the protected ledger or Git state.
-        if any(fnmatch.fnmatchcase(name, part) for part in parts if part != "**"
+        if any(fnmatch.fnmatchcase(name, part.casefold()) for part in parts if part != "**"
                for name in (".git", ".showwork")):
             raise ValueError("ignore cannot target .git, .showwork or the whole workspace")
     return sorted(set(ignore))

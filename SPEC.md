@@ -425,7 +425,7 @@ Patterns are case-sensitive, slash-separated, relative component globs.
 `*` and `?` match within one component. A terminal `/**` matches the named
 directory and its descendants; `**` is unsupported elsewhere. Empty or absolute
 paths, drive prefixes, backslashes, control characters, `.`/`..` components,
-bracket classes, ledger/Git targets and whole-workspace wildcards are rejected.
+bracket classes, ledger/Git targets (including case variants) and whole-workspace wildcards are rejected.
 Writers MUST [test:
 tests/test_snapshot_exclusions.py::test_invalid_patterns_reject_before_any_ledger_write]
 reject invalid patterns before writing any receipt, and MUST [test:

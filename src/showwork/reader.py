@@ -203,5 +203,5 @@ def inspect_session(root: str | Path, session: str) -> dict:
     except (OSError, ValueError, TypeError, AttributeError):
         result = inspect_loaded({"claims": [], "events": [], "files": {}, "audit": []})
         result.update(integrity="unknown", spec_coverage="unreadable",
-                      reason="receipt unreadable or outside reader bounds")
+                      snapshot_scope=None, reason="receipt unreadable or outside reader bounds")
         return result

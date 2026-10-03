@@ -118,7 +118,7 @@ function exclusionScope(meta) {
     const parts = pattern.split("/");
     if (parts.some(part => ["", ".", ".."].includes(part)) ||
         parts.some((part, i) => part.includes("**") && !(part === "**" && i === parts.length - 1)) ||
-        pattern === "**" || parts.some(part => part !== "**" && [".git", ".showwork"].some(name => componentMatches(name, part)))) throw new Error("invalid relative glob");
+        pattern === "**" || parts.some(part => part !== "**" && [".git", ".showwork"].some(name => componentMatches(name, part.toLowerCase())))) throw new Error("invalid relative glob");
   }
   return { ignore_format: IGNORE_FORMAT, ignore_patterns: patterns };
 }
@@ -238,7 +238,7 @@ export function inspectSession(workspace, session) {
         !close.verify_bypassed && result.historical_outcome === "VERIFIED") result.recorded_outcome = "VERIFIED";
     return result;
   } catch {
-    return { ...result, integrity: "unknown", spec_coverage: "unreadable", recorded_outcome: "UNVERIFIED",
+    return { ...result, integrity: "unknown", spec_coverage: "unreadable", recorded_outcome: "UNVERIFIED", snapshot_scope: null,
       reason: "receipt unreadable or outside reader bounds" };
   }
 }

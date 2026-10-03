@@ -64,7 +64,8 @@ def test_reopen_preserves_scope_and_rejects_changes_before_writes(tmp_path):
 
 
 @pytest.mark.parametrize("pattern", ["", "/abs", "C:/abs", "../data", "a/../b",
-    ".git/config", ".showwork/**", "a/.git/x", "*", "**", "*/**", "a/**/b",
+    ".git/config", ".showwork/**", ".GIT/config", ".SHOWWORK/**", "a/.Git/x",
+    "a/.git/x", "*", "**", "*/**", "a/**/b",
     "a/***", "a/[ab]", "a\\b", "a//b", "./data", "a/", "a\x00b", "x" * 241])
 def test_invalid_patterns_reject_before_any_ledger_write(tmp_path, pattern):
     with pytest.raises(ValueError):
@@ -120,6 +121,7 @@ def test_tampered_scope_refuses_and_readers_do_not_verify(tmp_path, mutation):
     assert verify_session(tmp_path, "scope")["verdict"] == "RED"
     assert finish_session(tmp_path, "scope")[0] == 2
     assert inspect_session(tmp_path, "scope")["recorded_outcome"] == "UNVERIFIED"
+    assert inspect_session(tmp_path, "scope")["snapshot_scope"] is None
 
 
 def test_legacy_snapshot_format_and_new_file_limit_stay_explicit(tmp_path):
