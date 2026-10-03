@@ -28,6 +28,13 @@ python -m showwork doctor
 `python -m showwork` is the same CLI after install. Use it if `showwork`
 is not on PATH. Ten minutes is a target for this path. It is not a measured time.
 
+Run these commands with the project's Python environment. Command checks use the
+interpreter running showwork, even when the claim spells a different Python path.
+An isolated pipx/tool environment needs the project's test dependencies, or use
+the project interpreter's `python -m showwork`. Execution evidence records the
+actual interpreter and version. `python -m showwork --version` prints the package
+version without opening a workspace.
+
 Create a new empty directory and save these two files.
 
 `add.py` is wrong on purpose:

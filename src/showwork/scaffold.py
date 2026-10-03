@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import shlex
 from pathlib import Path
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
@@ -73,10 +75,38 @@ def _merge_claude(existing: dict, incoming: dict) -> dict:
     hooks = dict(out.get("hooks") or {}) if isinstance(out.get("hooks"), dict) else {}
     stop = list(hooks.get("Stop") or [])
     incoming_stop = ((incoming.get("hooks") or {}).get("Stop") or [])
-    already = json.dumps(stop)
-    if "python -m showwork stop-hook" not in already:
+    if not any(_is_showwork_stop_hook(group) for group in stop):
         if isinstance(incoming_stop, list):
             stop.extend(incoming_stop)
     hooks["Stop"] = stop
     out["hooks"] = hooks
     return out
+
+
+def _is_showwork_stop_hook(group: object) -> bool:
+    if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+        return False
+    for hook in group["hooks"]:
+        if not isinstance(hook, dict) or hook.get("type") != "command":
+            continue
+        command = hook.get("command")
+        if _is_showwork_command(command):
+            return True
+    return False
+
+
+def _is_showwork_command(command: object, kinds: tuple[str, ...] = ("stop-hook",)) -> bool:
+    if not isinstance(command, str):
+        return False
+    try:
+        argv = [item.strip("\"'") for item in shlex.split(command, posix=False)]
+    except ValueError:
+        return False
+    if not argv:
+        return False
+    launcher = re.split(r"[/\\]", argv[0])[-1]
+    if not re.fullmatch(r"(?:python(?:\d(?:\.\d+)*)?|py)(?:\.exe)?", launcher, re.I):
+        return False
+    if launcher.lower() in {"py", "py.exe"} and len(argv) > 1 and re.fullmatch(r"-3(?:\.\d+)?", argv[1]):
+        argv.pop(1)
+    return len(argv) >= 4 and argv[1] == "-m" and argv[2] in {"showwork", "showwork.cli"} and argv[3] in kinds
