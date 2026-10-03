@@ -31,6 +31,10 @@ recovery in an empty directory.
 ## Understand the evidence
 
 - [Evidence scope and failure case](evidence-scope.md)
+- [Process-free receipt readers and capability limits](readers.md)
+- [Pending suite reference contract and BMD handoff boundary](suite-contract-proposal.md)
+- [Current adoption, competitive replay and remaining roadmap gates](reports/roadmap-readout-20261003.md)
+- [Release-announcement source review and approval packet](release-announcement-review.md)
 - [Case study](case-study.md)
 - [False Done Rate method](false-done-rate.md)
 - [Evidence packs and their limits](compliance.md)

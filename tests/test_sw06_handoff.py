@@ -70,13 +70,29 @@ def test_reader_does_not_execute_the_command(tmp_path):
     assert "changed after the receipt" in card["next_step"]
 
 
-def test_changed_note_is_a_failed_rerun(tmp_path):
+def test_handoff_api_does_not_launch_any_subprocess(tmp_path, monkeypatch):
+    """REGRESSION: the reader called another Python to inspect receipts."""
+    import importlib.util
+    root = build(tmp_path)
+    spec = importlib.util.spec_from_file_location("handoff_reader", READER)
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: (_ for _ in ()).throw(
+        AssertionError("handoff reader started a subprocess")))
+    assert reader.read_handoff(root, "handoff")["approval"] is False
+
+
+def test_changed_note_requires_explicit_active_regex_verification(tmp_path):
     root = build(tmp_path)
     (root / "note.txt").write_bytes(b"nope\n")
     card = read(root, "handoff")
-    assert card["failed_check"] == "file_contains"
-    assert card["receipt_state"] == "failed"
-    assert card["view"] == "failed"
+    assert card["failed_check"] is None
+    assert card["receipt_state"] == "unknown"
+    assert card["requirements"][0]["result"] == "disabled"
+    from showwork.ledger import verify_session
+    active = verify_session(root, "handoff")
+    assert any(row.get("type") == "file_contains" and row["status"] == "fail"
+               for row in active["results"])
     assert card["approval"] is False
 
 

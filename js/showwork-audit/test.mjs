@@ -11,11 +11,64 @@ import * as fsExtra from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditFile } from "./index.mjs";
+import { auditFile, inspectSession } from "./index.mjs";
+import * as childProcess from "node:child_process";
+import * as https from "node:https";
+import { syncBuiltinESMExports } from "node:module";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, "..", "..", "tests", "fixtures", "chain");
 const expected = JSON.parse(readFileSync(join(fixtures, "expected.json"), "utf8"));
+
+const readerFixtures = join(here, "..", "..", "tests", "fixtures", "readers");
+const readerExpected = JSON.parse(readFileSync(join(readerFixtures, "expected.json"), "utf8"));
+for (const [name, want] of Object.entries(readerExpected)) {
+  test(`reader fixture ${name}`, () => {
+    const got = inspectSession(join(readerFixtures, name), "fixture");
+    for (const [key, value] of Object.entries(want)) assert.equal(got[key], value, `${name}: ${key}`);
+  });
+}
+
+test("reader never invokes child processes or network", () => {
+  const processDefault = childProcess.default;
+  const networkDefault = https.default;
+  const saved = { spawn: processDefault.spawn, execFile: processDefault.execFile,
+    spawnSync: processDefault.spawnSync, execFileSync: processDefault.execFileSync,
+    request: networkDefault.request, get: networkDefault.get };
+  const forbidden = () => { throw new Error("reader invoked external execution"); };
+  let calls = 0;
+  const reject = () => { calls++; forbidden(); };
+  try {
+    for (const key of ["spawn", "execFile", "spawnSync", "execFileSync"]) processDefault[key] = reject;
+    networkDefault.request = networkDefault.get = reject;
+    syncBuiltinESMExports();
+    assert.equal(inspectSession(join(readerFixtures, "closed"), "fixture").recorded_outcome, "VERIFIED");
+    assert.equal(calls, 0);
+  } finally {
+    for (const key of ["spawn", "execFile", "spawnSync", "execFileSync"]) processDefault[key] = saved[key];
+    networkDefault.request = saved.request;
+    networkDefault.get = saved.get;
+    syncBuiltinESMExports();
+  }
+});
+
+test("reader rejects workspace escape and oversized files", t => {
+  const dir = fsExtra.mkdtempSync(join(tmpdir(), "swjs-reader-"));
+  const workspace = join(dir, "workspace"), outside = join(dir, "outside");
+  fsExtra.mkdirSync(workspace);
+  fsExtra.mkdirSync(outside);
+  try {
+    fsExtra.symlinkSync(outside, join(workspace, ".showwork"), "junction");
+  } catch (error) {
+    if (["EPERM", "EACCES"].includes(error.code)) return t.skip("host does not permit links");
+    throw error;
+  }
+  assert.equal(inspectSession(workspace, "fixture").integrity, "unknown");
+  const largeRoot = join(dir, "large");
+  fsExtra.mkdirSync(join(largeRoot, ".showwork", "sessions"), { recursive: true });
+  fsExtra.writeFileSync(join(largeRoot, ".showwork", "sessions", "fixture.jsonl"), Buffer.alloc(4 * 1024 * 1024 + 1));
+  assert.equal(inspectSession(largeRoot, "fixture").integrity, "unknown");
+});
 
 for (const [name, want] of Object.entries(expected)) {
   test(`fixture ${name}`, () => {

@@ -1,0 +1,3 @@
+{"session": "fixture", "ts": "2026-10-03T00:00:00Z", "claim": "artifact", "severity": "RED", "check": {"type": "file_exists", "path": "artifact.txt"}, "prev": "2db309a4acca327fbb9c186da0ea295ad98c36dd8d8004c2662259dd84795178"}
+{"session": "fixture", "ts": "2026-10-03T00:00:00Z", "retracted": true, "retracts": {"session": "fixture", "claim": "artifact"}, "retraction_reason": "replaced", "prev": "cbcf107453f890bbbeffdfa377a7f2ab364000d613c3d94f84bdb6837eff39ba"}
+{"session": "fixture", "ts": "2000-01-01T00:00:00Z", "claim": "artifact", "severity": "RED", "check": {"type": "file_exists", "path": "artifact.txt"}, "prev": "14ac4022129f6a8a5b0f0d8ed856aec6e1a1fd4cebbf921197e0d875fd191066"}
