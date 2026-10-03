@@ -88,4 +88,9 @@ The first integrated rerun refused when the new shell omitted the task's existin
 The full suite takes longer than that. The rerun restores the same setting used
 by the earlier task gates and repository CI; it does not change a product default
 or skip tests. This refusal also remains in the session history.
+The first tracked gate after the suite integration passed both behavior commands
+but returned RED because the new native session/claim rows were not staged in
+the integration commit. The follow-up commits those existing append-only rows
+and reruns the tracked gate. The earlier RED is retained locally; it was not
+treated as acceptance or pushed as a completed receipt.
 Sign-off: OpenAI | GPT-6 | auto.
