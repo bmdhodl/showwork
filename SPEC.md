@@ -407,6 +407,23 @@ Reopening a session MUST [test:
 tests/test_snapshot.py::test_restart_preserves_damage_baseline] preserve its
 existing snapshot and anchor. Use a new session id for a new baseline.
 
+Source snapshots MUST [test:
+tests/test_snapshot.py::test_next_typescript_generated_files_are_not_source_damage]
+omit the exact filename `next-env.d.ts` (including nested Next projects) and
+files ending in `.tsbuildinfo`. These are
+[Next-generated declarations](https://nextjs.org/docs/app/api-reference/config/typescript)
+and [TypeScript incremental caches](https://www.typescriptlang.org/tsconfig/tsBuildInfoFile.html).
+Acceptance command source comparisons MUST [test:
+tests/test_replay_commands.py::test_generated_typescript_changes_during_command_preserve_evidence]
+apply the same rules. Ordinary `.ts` files and custom `.d.ts` declarations MUST
+[test: tests/test_snapshot.py::test_real_typescript_source_changes_still_refuse_snapshot]
+remain covered; their mutation during execution MUST [test:
+tests/test_replay_commands.py::test_real_typescript_changes_during_command_cannot_reuse_pass]
+refuse the command and invalidate replay reuse. Existing snapshots MUST [test:
+tests/test_snapshot.py::test_older_next_typescript_snapshot_keeps_its_anchor]
+retain their original sidecar and digest while applying these rules to generated
+paths during comparison. This does not certify the generated files' contents.
+
 ### Optional frozen snapshot exclusions
 
 The source CLI supports repeatable `start --ignore RELATIVE_GLOB` options.
