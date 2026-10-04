@@ -88,6 +88,28 @@ def test_artifact_scope_stays_artifact_scope(workspace):
     assert view["current_execution"] == "not performed"
 
 
+@pytest.mark.parametrize(("expected", "state"), [("ready", "recorded_verified"), ("missing", "failed")])
+def test_artifact_only_close_keeps_unbound_revision_unknown(workspace, expected, state):
+    """REGRESSION: valid artifact-only closes were hidden by a command prerequisite."""
+    root, revision = workspace
+    start_session(root, "artifact-only", ignore=["runtime.jsonl", "runtime-receipt.json"])
+    record_requirement(root, "artifact-only", "artifact", "artifact contains selected text", "artifact",
+                       {"type": "file_contains", "path": "artifact.txt", "pattern": expected})
+    record_claim(root, "artifact-only", "artifact exists", check={"type": "file_exists", "path": "artifact.txt"})
+    code, _ = finish_session(root, "artifact-only", "ok" if expected == "ready" else "blocked")
+    assert code == 0
+    for selected_revision in (revision, "f" * 40):
+        view = example.read_evidence(root, "artifact-only", "artifact", selected_revision)
+        assert view["acceptance"]["state"] == state
+        assert view["acceptance"]["requirement"]["scope"] == "artifact"
+        assert view["acceptance"]["command_evidence"] is None
+        assert view["acceptance"]["reference_bound"] is False
+        assert view["reference_status"] == "unknown"
+        assert view["current_execution"] == "not performed"
+        assert view["current_outcome"] == "UNVERIFIED"
+        assert view["dispatch_authorized"] is False
+
+
 @pytest.mark.parametrize("change", ["missing", "tampered", "wrong_version", "malformed", "escaping"])
 def test_bad_runtime_reference_never_becomes_permission(workspace, change):
     root, _ = workspace

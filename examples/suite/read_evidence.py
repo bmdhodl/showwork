@@ -121,7 +121,11 @@ def acceptance_observation(root, session, requirement_id, revision):
         if inspection["manifest"] != "matches" or inspection["freshness"] != "recorded_close":
             return result
         commands = close.get("command_evidence")
-        if not isinstance(commands, list) or not commands:
+        if not isinstance(commands, list):
+            return result
+        if not commands and any(row.get("scope") != "artifact"
+                                or not isinstance(row.get("check"), dict)
+                                or row["check"].get("type") == "command" for row in requirements):
             return result
         definitions = {row["requirement_id"]: row for row in requirements}
         seen_commands = set()
@@ -149,7 +153,9 @@ def acceptance_observation(root, session, requirement_id, revision):
             outcome = close.get("outcome") or {}
             failed = type(outcome.get("passed")) is int and type(outcome.get("total")) is int and outcome["passed"] < outcome["total"]
             result.update(state="failed" if failed else "incomplete", reason="recorded close does not establish declared completion")
-        result["reference_bound"] = True
+        result["reference_bound"] = bool(commands)
+        if not commands:
+            result["reason"] += "; revision reference is unbound without command evidence"
         return result
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         result.update(state="unknown", reference_bound=False, command_evidence=None)

@@ -232,6 +232,11 @@ def build_and_check(base):
 fixed = commit("corrected production fixture")
 start("corrected")
 require(finish_session(root, "corrected", "ok")[0] == 0, "corrected acceptance failed")
+start_session(root, "artifact-only", ignore=["runtime-*"])
+record_requirement(root, "artifact-only", "artifact", "artifact is ready", "artifact",
+    {"type": "file_contains", "path": "artifact.txt", "pattern": "ready"})
+record_claim(root, "artifact-only", "artifact exists", check={"type": "file_exists", "path": "artifact.txt"})
+require(finish_session(root, "artifact-only", "ok")[0] == 0, "artifact-only acceptance failed")
 print(json.dumps({"corrected_revision": fixed}))
 '''
     writer_script.write_text(correction, encoding="utf-8")
@@ -260,6 +265,15 @@ print(json.dumps({"corrected_revision": fixed}))
     for name in ("missing_runtime", "incompatible_runtime"):
         require(cases[name]["runtime"]["state"] == "unknown" and cases[name]["reference_status"] == "unknown",
                 f"{name} did not refuse")
+    cases["artifact_only"] = read("artifact-only", "artifact", revisions["corrected_revision"], "corrected")
+    cases["artifact_only_unbound_revision"] = read("artifact-only", "artifact", "f" * 40, "corrected")
+    for name in ("artifact_only", "artifact_only_unbound_revision"):
+        view = cases[name]
+        require(view["acceptance"]["state"] == "recorded_verified"
+                and view["acceptance"]["requirement"]["scope"] == "artifact"
+                and view["acceptance"]["command_evidence"] is None
+                and view["acceptance"]["reference_bound"] is False
+                and view["reference_status"] == "unknown", f"{name} lost artifact scope or invented revision binding")
     for name, view in cases.items():
         require(view["current_execution"] == "not performed" and view["current_outcome"] == "UNVERIFIED"
                 and view["dispatch_authorized"] is False, f"{name} inherited authority")

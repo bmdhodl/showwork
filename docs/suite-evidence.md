@@ -45,6 +45,7 @@ from the example display.
 | Exhausted budget, unfinished requirements | Stopped | Incomplete; reference unbound |
 | One passing artifact with unfinished work | Stopped if recorded | Remaining completion unverified |
 | Intact matching close, artifact scope | Independent | Recorded verified artifact scope only |
+| Artifact-only close without command metadata | Independent | Recorded artifact result; revision reference remains unknown |
 | Intact matching close, behavior scope | Independent | Recorded verified declared behavior scope only |
 | Reopen, source change or wrong revision/root | Independent | Incomplete or unknown; reference unknown |
 | Missing, changed or incompatible runtime receipt | Unknown | Reference unknown even if acceptance has independent historical proof |
@@ -54,6 +55,10 @@ For every case, `current_execution` remains `not performed`, `current_outcome`
 remains `UNVERIFIED`, and `dispatch_authorized` is false. The display invokes no
 checks, provider, network operation or ledger writer. An explicit active gate
 belongs to a separately authorized operation.
+
+Artifact-only checks do not record a command revision. Their intact historical
+artifact result remains visible, while `reference_bound` is false and the join
+stays unknown. Supplying a revision does not manufacture that missing binding.
 
 ## Compatibility and reproduction
 
