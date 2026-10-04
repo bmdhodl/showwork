@@ -313,3 +313,66 @@ def test_baseline_from_an_older_tool_is_judged_by_todays_skip_list(tmp_path, mon
     state = verify_session(tmp_path, "older-baseline")
     assert state["verdict"] == "GREEN", [r["claim"] for r in state["results"]]
     assert all(r["type"] != "undeclared_change" for r in state["results"])
+
+
+@pytest.mark.parametrize("generated", [
+    "next-env.d.ts", "packages/web/next-env.d.ts", "tsconfig.tsbuildinfo",
+])
+@pytest.mark.parametrize("operation", ["rewrite", "delete"])
+def test_next_typescript_generated_files_are_not_source_damage(tmp_path, generated, operation):
+    """REGRESSION: typecheck and Next builds rewrite files outside .next/."""
+    (tmp_path / "app.ts").write_text("export const ready = true;\n", encoding="utf-8")
+    output = tmp_path / generated
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("old generated output", encoding="utf-8")
+    start_session(tmp_path, "generated")
+    if operation == "rewrite":
+        output.write_text("new generated output", encoding="utf-8")
+    else:
+        output.unlink()
+    record_claim(tmp_path, "generated", "app.ts exists",
+                 check={"type": "file_exists", "path": "app.ts"})
+    assert verify_session(tmp_path, "generated")["verdict"] == "GREEN"
+    assert generated not in capture_tree(tmp_path)
+
+
+@pytest.mark.parametrize("source", ["app.ts", "custom.d.ts", "next-env-custom.d.ts"])
+def test_real_typescript_source_changes_still_refuse_snapshot(tmp_path, source):
+    target = tmp_path / source
+    target.write_text("export const ready = true;\n", encoding="utf-8")
+    (tmp_path / "keep.txt").write_text("kept", encoding="utf-8")
+    start_session(tmp_path, "typescript-source")
+    target.write_text("export const ready = false;\n", encoding="utf-8")
+    record_claim(tmp_path, "typescript-source", "keep.txt exists",
+                 check={"type": "file_exists", "path": "keep.txt"})
+    state = verify_session(tmp_path, "typescript-source")
+    assert state["verdict"] == "RED"
+    assert any(r["type"] == "undeclared_change" and source in r["claim"]
+               for r in state["results"])
+
+
+def test_older_next_typescript_snapshot_keeps_its_anchor(tmp_path, monkeypatch):
+    from showwork import snapshot as snap
+
+    (tmp_path / "app.ts").write_text("export const ready = true;\n", encoding="utf-8")
+    (tmp_path / "keep.txt").write_text("kept", encoding="utf-8")
+    for generated in ("next-env.d.ts", "tsconfig.tsbuildinfo"):
+        (tmp_path / generated).write_text("old generated output", encoding="utf-8")
+    monkeypatch.setattr(snap, "SKIP_FILES", snap.SKIP_FILES - {"next-env.d.ts"})
+    monkeypatch.setattr(snap, "SKIP_SUFFIXES", tuple(
+        suffix for suffix in snap.SKIP_SUFFIXES if suffix != ".tsbuildinfo"))
+    start_session(tmp_path, "older-typescript")
+    sidecar = tmp_path / ".showwork/snapshots/older-typescript.json"
+    original = sidecar.read_bytes()
+    assert _events(tmp_path, "older-typescript")[0]["tree_snapshot"]["count"] == 4
+    monkeypatch.undo()
+
+    (tmp_path / "next-env.d.ts").write_text("new generated output", encoding="utf-8")
+    (tmp_path / "tsconfig.tsbuildinfo").unlink()
+    record_claim(tmp_path, "older-typescript", "keep.txt exists",
+                 check={"type": "file_exists", "path": "keep.txt"})
+    assert verify_session(tmp_path, "older-typescript")["verdict"] == "GREEN"
+    assert sidecar.read_bytes() == original
+    (tmp_path / "app.ts").write_text("export const ready = false;\n", encoding="utf-8")
+    assert verify_session(tmp_path, "older-typescript")["verdict"] == "RED"
+    assert sidecar.read_bytes() == original

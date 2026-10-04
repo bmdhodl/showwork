@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .checks import apply_append_retractions, gaps_payload
 
-# Generated output is never evidence. A build or a browser run rewrites
+# Generated output is outside the source snapshot. A build or a browser run rewrites
 # thousands of files under these directories, and a session that ran one
 # would drown in "undeclared change" gaps that name nothing a person wrote.
 SKIP_DIRS = frozenset({
@@ -57,11 +57,12 @@ SKIP_FILES = frozenset({
     ".git",  # Worktrees use a pointer file where ordinary clones use a directory.
     ".env.local",  # Machine-local configuration is absent from CI checkouts.
     ".coverage",
+    "next-env.d.ts",  # Next regenerates this file during dev, build and typegen.
     ".DS_Store",
     "Thumbs.db",
     "desktop.ini",
 })
-SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo", ".log")
+SKIP_SUFFIXES = (".pyc", ".pyo", ".swp", ".swo", ".log", ".tsbuildinfo")
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_FILES = 50_000
 IGNORE_FORMAT = "relative-glob-v1"

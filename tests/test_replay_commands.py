@@ -1,6 +1,8 @@
 """Historical replay shares execution, never assertion verdicts."""
 import json
 
+import pytest
+
 from showwork.checks import verify_claim
 
 
@@ -119,3 +121,40 @@ def test_source_mutation_during_execution_is_not_cached(tmp_path):
     assert result['status'] == 'fail'
     assert 'source tree changed' in result['detail']
     assert cache == {}
+
+
+@pytest.mark.parametrize("generated", [
+    "next-env.d.ts", "packages/web/next-env.d.ts", "tsconfig.tsbuildinfo",
+])
+def test_generated_typescript_changes_during_command_preserve_evidence(tmp_path, generated):
+    """REGRESSION: successful typecheck/build commands were refused as source edits."""
+    root, counter, script = fixture_command(tmp_path)
+    output = root / generated
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("old generated output", encoding="utf-8")
+    script.write_text(script.read_text() +
+                      f'Path({generated!r}).write_text("new generated output")\n',
+                      encoding="utf-8")
+    cache = {}
+    result = verify_claim(record(), root, command_cache=cache)
+    assert result["status"] == "pass", result["detail"]
+    assert result["evidence"]["execution_reused"] is False
+    reused = verify_claim(record(), root, command_cache=cache)
+    assert reused["status"] == "pass"
+    assert reused["evidence"]["execution_reused"] is True
+    assert counter.read_text() == "1"
+
+
+@pytest.mark.parametrize("source", ["app.ts", "custom.d.ts", "next-env-custom.d.ts"])
+def test_real_typescript_changes_during_command_cannot_reuse_pass(tmp_path, source):
+    root, counter, script = fixture_command(tmp_path)
+    (root / source).write_text("export const ready = true;\n", encoding="utf-8")
+    script.write_text(script.read_text() +
+                      f'Path({source!r}).write_text("export const ready = false;\\n")\n',
+                      encoding="utf-8")
+    cache = {}
+    result = verify_claim(record(), root, command_cache=cache)
+    assert result["status"] == "fail"
+    assert "source tree changed" in result["detail"]
+    assert cache == {}
+    assert counter.read_text() == "1"
