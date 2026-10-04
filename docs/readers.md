@@ -71,3 +71,10 @@ Frozen bytes and expected shared labels live in `tests/fixtures/readers/`.
 Run `python -m pytest tests/test_readers.py -q` and
 `python scripts/check_reader_conformance.py`. Browser verification is
 `python scripts/check_receipts_ui.py` at 375, 768 and 1440 pixels.
+
+The [offline suite example](suite-evidence.md) reads the same fields beside an
+AgentGuard JSON receipt. It additionally compares supplied revision, runner and
+bounded source identities, without discovering Git HEAD or running a check. Its
+ephemeral display grants no dispatch authority and introduces no SDK API or
+persisted join. Installed source-built wheel proof is reproduced with
+`python scripts/check_suite_installed.py`; package publication remains separate.
