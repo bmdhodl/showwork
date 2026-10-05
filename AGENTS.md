@@ -7,9 +7,14 @@ model and `SPEC.md` for the ledger format before changing anything.
 
 ## Ground rules
 
-- **Tests are the gate.** `python -m pytest tests/ -q` must be green before any
-  commit. No exceptions. (If pytest crashes on a temp-dir permission error,
-  pass `--basetemp` pointing at a fresh directory — do not skip the suite.)
+- **Tests are the gate.** `python scripts/run_tests.py` must be green before any
+  commit. No exceptions. It runs `pytest tests/ -q` in a fresh system temp dir.
+  If you run pytest directly, pass `--basetemp=.showwork/pytest-tmp/<slug>`.
+  Keep temp dirs under that folder, because step 5 commits the rest of
+  `.showwork/`. Do not skip the suite.
+- **UI changes need the browser check.** After a change to the rendered
+  receipts, run `python scripts/check_receipts_ui.py` (needs
+  `requirements-ui.txt`). CI runs it too.
 - **Zero dependencies is a feature.** stdlib only. Do not add runtime deps.
 - **Publishing is owner-gated.** Never publish to PyPI, tag a release, or
   change repo visibility. Those steps belong to the owner.
