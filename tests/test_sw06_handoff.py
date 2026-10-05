@@ -16,13 +16,16 @@ ROOT = Path(__file__).resolve().parents[1]
 WRITER = ROOT / "examples" / "sw-06-handoff" / "write_codex.py"
 READER = ROOT / "examples" / "sw-06-handoff" / "read_claude.py"
 TOKEN = "INHERIT-APPROVAL-TOKEN"
+# A hang guard, not a speed test. The writer starts about a dozen child
+# interpreters, and under `showwork finish` it took longer than 60 s.
+HANG_GUARD_S = 300
 
 
 def build(tmp_path: Path) -> Path:
     root = tmp_path / "demo"
     proc = subprocess.run(
         [sys.executable, str(WRITER), str(root)],
-        text=True, capture_output=True, timeout=60, check=False,
+        text=True, capture_output=True, timeout=HANG_GUARD_S, check=False,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     return root
@@ -31,7 +34,7 @@ def build(tmp_path: Path) -> Path:
 def read(root: Path, session: str) -> dict:
     proc = subprocess.run(
         [sys.executable, str(READER), str(root), "--session", session],
-        text=True, capture_output=True, timeout=30, check=False,
+        text=True, capture_output=True, timeout=HANG_GUARD_S, check=False,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     return json.loads(proc.stdout)
