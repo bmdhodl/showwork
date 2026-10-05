@@ -189,41 +189,13 @@ def test_behavior_powershell_flags_match_bash():
     assert "cp -a" in BEHAVIOR
 
 
-def _host_wheel(dest: Path) -> Path:
-    """Build a local wheel without an isolated setuptools download when possible.
-
-    CI's test venv has `build` but often no importable setuptools. A host with
-    setuptools can stay offline (`pip wheel --no-build-isolation --no-index`).
-    """
-    dest.mkdir(parents=True, exist_ok=True)
-    pip_env = os.environ.copy()
-    pip_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
-    pip_env.pop("PYTHONPATH", None)
-    pip_env.pop("PYTHONHOME", None)
-    try:
-        import setuptools  # noqa: F401
-    except ImportError:
-        built = subprocess.run(
-            [sys.executable, "-m", "build", "--wheel", "--outdir", str(dest)],
-            cwd=ROOT, capture_output=True, text=True, timeout=120, env=pip_env,
-        )
-    else:
-        built = subprocess.run(
-            [
-                sys.executable, "-m", "pip", "wheel", "--no-deps",
-                "--no-build-isolation", "--no-index",
-                "--wheel-dir", str(dest), str(ROOT),
-            ],
-            capture_output=True, text=True, timeout=120, env=pip_env,
-        )
-    assert built.returncode == 0, built.stdout + built.stderr
-    return next(dest.glob("showwork-*.whl"))
-
-
-def test_behavior_walk_on_installed_package(tmp_path):
+def test_behavior_walk_on_installed_package(tmp_path, build_dist):
+    # A clean venv without pip: ensurepip writes about a thousand files, which
+    # took 14 s alone and over 60 s under `showwork finish`. The host pip
+    # installs the wheel into the venv instead. No src path reaches the walk.
     venv = tmp_path / "venv"
     created = subprocess.run(
-        [sys.executable, "-m", "venv", str(venv)],
+        [sys.executable, "-m", "venv", "--without-pip", str(venv)],
         capture_output=True, text=True, timeout=60,
     )
     assert created.returncode == 0, created.stderr
@@ -234,15 +206,21 @@ def test_behavior_walk_on_installed_package(tmp_path):
     pip_env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     pip_env.pop("PYTHONPATH", None)
     pip_env.pop("PYTHONHOME", None)
-    wheel = _host_wheel(tmp_path / "wheels")
+    wheel = build_dist("wheel", tmp_path / "wheels")
     install = subprocess.run(
         [
-            str(py), "-m", "pip", "install", "--quiet", "--no-deps",
-            "--no-index", "--force-reinstall", str(wheel),
+            sys.executable, "-m", "pip", "--python", str(py), "install",
+            "--quiet", "--no-deps", "--no-index", "--force-reinstall", str(wheel),
         ],
         capture_output=True, text=True, timeout=60, env=pip_env,
     )
     assert install.returncode == 0, install.stdout + install.stderr
+    installed = subprocess.run(
+        [str(py), "-c", "import showwork; print(showwork.__file__)"],
+        capture_output=True, text=True, timeout=60, env=pip_env,
+    )
+    assert installed.returncode == 0, installed.stderr
+    assert Path(installed.stdout.strip()).resolve().is_relative_to(venv.resolve())
     work = tmp_path / "work"
     work.mkdir()
     broken, runner, repaired = _python_fences(BEHAVIOR)[:3]
