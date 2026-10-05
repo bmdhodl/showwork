@@ -63,7 +63,9 @@ your own exit gate is the first thing that will tell you.
    rewrite history in it. Run
    `SHOWWORK_COMMAND_TIMEOUT_SECONDS=1800 showwork gate --session <slug> --require-tracked`
    against the committed tree. The gate also reruns the suite, so it needs the
-   same limit as `finish`. Check the required GitHub receipt job too.
+   same limit as `finish`. If you merged `main` after `start`, run
+   `git fetch origin` and add `--base origin/main`. The gate then excuses files
+   that equal `origin/main` exactly. Check the required GitHub receipt job too.
 6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 

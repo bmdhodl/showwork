@@ -27,6 +27,7 @@ from .snapshot import (
     escape_result,
     merge_undeclared,
     snapshot_file,
+    split_base_matches,
     undeclared_results,
     unreferenced_artifacts,
     write_tree_snapshot,
@@ -673,7 +674,10 @@ def verify_date(root: str | Path | None = None, date_str: str | None = None) -> 
 
 
 def verify_session(root: str | Path | None = None, session: str = "", *,
-                   allowed_check_types: frozenset[str] | None = None) -> dict:
+                   allowed_check_types: frozenset[str] | None = None,
+                   base_revision: str | None = None) -> dict:
+    """Verify one session. `base_revision` is a resolved commit the caller
+    trusts; undeclared changes that now equal it are the base's, not the session's."""
     rt = resolve_root(root)
     claims = claims_for_session(rt, session)
     from .outcomes import evaluate_requirements, outcome_summary, requirement_records
@@ -710,7 +714,11 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
     except ValueError as exc:
         extra.append(escape_result("snapshot path escapes the ledger", str(exc)))
     else:
-        extra += undeclared_results(rt, declared, start, snap_path)
+        undeclared = undeclared_results(rt, declared, start, snap_path)
+        if base_revision is not None:
+            undeclared, matched = split_base_matches(rt, undeclared, base_revision)
+            state["base_matches"] = {"revision": base_revision, "paths": matched}
+        extra += undeclared
     state = merge_undeclared(state, extra)
     state["outcome"] = outcome_summary(state)
     return state

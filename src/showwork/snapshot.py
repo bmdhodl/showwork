@@ -5,6 +5,7 @@ Claims only cover what the agent declared. A start snapshot is prior state
 the ledger can compare at verify/finish time.
 
 Old sessions with no tree_snapshot on session.start skip this check.
+Only the release gate's optional base comparison reads Git.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 
 from .checks import apply_append_retractions, gaps_payload
@@ -338,14 +340,79 @@ def undeclared_results(
                 f"undeclared deletion: {rel}",
                 f"{rel} existed at session.start and is gone; "
                 "no active claim named that path",
+                path=rel,
             ))
         elif current[rel] != old_hash and not _git_line_endings_only(root / rel, old_hash):
             results.append(_fail(
                 f"undeclared change: {rel}",
                 f"{rel} changed since session.start; "
                 "no active claim named that path",
+                path=rel,
             ))
     return results
+
+
+def split_base_matches(root: Path, rows: list[dict], revision: str) -> tuple[list[dict], list[str]]:
+    """Separate undeclared changes that a trusted base revision already holds.
+
+    A branch that merges its base after session.start takes the base's edits,
+    and the start snapshot reads them as damage. A path is the base's change,
+    not the session's, only when it now equals `revision`: the same bytes, or
+    UTF-8 text that differs only by LF/CRLF. A deletion counts only when the
+    base's history once tracked the file. Any byte the session or a merge added
+    keeps the row RED. The caller must trust `revision`; a local ref an agent
+    can move proves nothing.
+    """
+    kept: list[dict] = []
+    matched: list[str] = []
+    for row in rows:
+        path = row.get("path")
+        if (row.get("type") == "undeclared_change" and isinstance(path, str)
+                and _matches_revision(root.resolve(), revision, path)):
+            matched.append(path)
+        else:
+            kept.append(row)
+    return kept, matched
+
+
+def _matches_revision(root: Path, revision: str, rel: str) -> bool:
+    current = root / rel
+    listing = _git(root, "ls-tree", "-z", "-l", revision, "--", rel)
+    entry = listing.split(b"\0", 1)[0]
+    if not entry:
+        # An untracked file was never the base's to delete; its absence there proves nothing.
+        return (not current.exists() and not current.is_symlink()
+                and bool(_git(root, "log", "-1", "--format=%H", revision, "--", rel).strip()))
+    mode, kind, oid, size = entry.partition(b"\t")[0].split()
+    if (kind != b"blob" or mode not in (b"100644", b"100755") or int(size) > MAX_FILE_BYTES
+            or current.is_symlink() or not current.is_file()
+            or current.stat().st_size > MAX_FILE_BYTES):
+        return False
+    return _same_content(current.read_bytes(), _git(root, "cat-file", "blob", oid.decode("ascii")))
+
+
+def _same_content(current: bytes, base: bytes) -> bool:
+    """Equal bytes, or UTF-8 text that differs only by Git's LF/CRLF conversion."""
+    if current == base:
+        return True
+    if b"\x00" in current or b"\x00" in base:
+        return False
+    try:
+        current.decode("utf-8")
+        base.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return current.replace(b"\r\n", b"\n") == base.replace(b"\r\n", b"\n")
+
+
+def _git(root: Path, *args: str) -> bytes:
+    # Snapshot paths are file names, never pathspec globs.
+    result = subprocess.run(["git", "--literal-pathspecs", "-C", str(root), *args],
+                            capture_output=True, timeout=15)
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", "replace").strip()
+        raise ValueError(f"cannot compare with the base revision: git {args[0]} failed: {detail}")
+    return result.stdout
 
 
 def _git_line_endings_only(path: Path, expected: str) -> bool:
@@ -423,8 +490,8 @@ def merge_undeclared(state: dict, extra: list[dict]) -> dict:
     return merged
 
 
-def _fail(claim: str, detail: str) -> dict:
-    return {
+def _fail(claim: str, detail: str, *, path: str | None = None) -> dict:
+    row = {
         "claim": claim,
         "session": "",
         "severity": "RED",
@@ -436,6 +503,9 @@ def _fail(claim: str, detail: str) -> dict:
         # stray file would close clean.
         "synthetic": True,
     }
+    if path is not None:
+        row["path"] = path
+    return row
 
 
 def escape_result(claim: str, detail: str) -> dict:

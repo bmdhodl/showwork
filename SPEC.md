@@ -686,6 +686,39 @@ occur after all acceptance commands have run.
 The operator is responsible for reviewing and protecting the baseline choice.
 It establishes an explicit boundary for new work, not authentic past records.
 
+### Optional base-revision policy
+
+This is a release-gate policy option, not a change to record framing. A branch
+that merges its base after `session.start` takes the base's edits, and the
+start snapshot reads them as undeclared changes.
+
+Given a base revision, the gate MUST [test:
+tests/test_gate_base.py::test_gate_base_excuses_a_file_that_only_main_changed]
+excuse an undeclared change or deletion only when the path now equals that
+revision: the same bytes, or UTF-8 text that differs only by LF/CRLF. The gate
+MUST [test: tests/test_gate_base.py::test_gate_base_excuses_a_file_that_main_deleted]
+excuse a deletion that the base made too. It MUST [test:
+tests/test_gate_base.py::test_gate_base_accepts_a_crlf_checkout_of_the_base_file]
+accept a CRLF checkout of an LF base file. It MUST [test:
+tests/test_gate_base.py::test_gate_base_excuses_a_file_that_only_main_changed]
+list each excused path separately from the failures. A path that the session
+or the merge changed MUST [test:
+tests/test_gate_base.py::test_gate_base_still_flags_an_edit_made_inside_the_merge]
+stay RED. The comparison MUST [test:
+tests/test_gate_base.py::test_branch_forked_before_main_changed_cannot_excuse_reverting_it]
+use the base revision itself, not its merge base with HEAD, so a stale fork
+cannot excuse a revert. A deletion MUST [test:
+tests/test_gate_base.py::test_gate_base_does_not_excuse_deleting_an_untracked_file]
+count only when the base's history once tracked the path. The gate MUST [test:
+tests/test_gate_base.py::test_gate_base_must_not_contain_head] refuse a base
+that already contains HEAD. `--changed-since` MUST [test:
+tests/test_gate_base.py::test_changed_since_uses_its_revision_as_the_base]
+use its revision as the base. `finish` takes no base.
+
+The operator is responsible for a trustworthy base. In CI, use the pull
+request's base SHA from the event; a local ref that an agent can move proves
+nothing.
+
 ### Check verdicts
 
 - `RED`: at least one active failed claim has RED severity.
