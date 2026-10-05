@@ -140,6 +140,12 @@ Current source excuses that file only when it now equals the base revision
 exactly, and lists it as a note. An edit by the session or inside the merge
 still fails. Take the base from the event, never from a ref the branch can move.
 
+The same rule applies before the receipt is committed. A session that merged
+main and must close again, for example after it adds a claim, runs
+`showwork finish --session <slug> --base origin/main`. `showwork verify
+--session <slug> --base origin/main` shows the same result without a close.
+Plain `finish` has no base and still refuses main's files.
+
 ```yaml
 jobs:
   receipts:
