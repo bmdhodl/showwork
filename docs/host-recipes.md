@@ -1,7 +1,7 @@
 # Project-local host recipes
 
-Use the project Python environment containing the reviewed showwork source. The
-published 0.6.5 package does not contain `host-stop-hook`, previews or uninstall.
+Use the project Python environment with showwork 0.6.6 or later. Version 0.6.5
+and earlier lack `host-stop-hook`, previews and uninstall.
 
 ```text
 python -m showwork init --codex --preview

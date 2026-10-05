@@ -64,11 +64,11 @@ stays unknown. Supplying a revision does not manufacture that missing binding.
 
 | Consumer / producer | Pinned input | Tested boundary |
 | --- | --- | --- |
-| Python example | Source-built showwork wheel, metadata 0.6.5, with the reader and `snapshot-exclusions-v1` capability | Bounded loaded receipts, revision/runner/source matching, unknown references, no execution/write/network |
+| Python example | Source-built showwork wheel, metadata 0.6.6, with the reader and `snapshot-exclusions-v1` capability | Bounded loaded receipts, revision/runner/source matching, unknown references, no execution/write/network |
 | AgentGuard producer | Source-built SDK wheel, metadata 1.4.1, source `45c4d54824319888abe67e3e437c38294c92a306` | `BudgetGuard.check` before a local provider stub, exported `build_receipt` JSON |
 | Python and JavaScript readers | Same ten frozen fixtures in `tests/fixtures/readers` | Recorded fields, missing/reopened/tampered/incompatible evidence, no current execution |
 | BMD display | Existing vault/frontmatter `verified`, `claimed`, `failed`, `unknown` contract; receipt owner BMD-008 | Interface review only; no showwork overlay is installed |
-| Released PyPI showwork 0.6.5 | Earlier published artifact | Does not supply these newer reader/exclusion features; package publication is pending |
+| PyPI showwork 0.6.5 and earlier | Earlier published artifacts | Do not supply these reader/exclusion features; 0.6.6 adds them |
 
 The validation wheels are source-pinned and SHA-256 identified by the generated
 proof. Their unchanged version metadata does not turn them into published

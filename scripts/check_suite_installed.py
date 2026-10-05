@@ -146,7 +146,7 @@ def require(ok, message):
 
 root = Path(sys.argv[1])
 require(importlib.util.find_spec("agentguard") is None, "showwork unexpectedly requires SDK")
-require(metadata.version("showwork") == "0.6.5", "wrong showwork version")
+require(metadata.version("showwork") == "0.6.6", "wrong showwork version")
 require(not metadata.requires("showwork"), "showwork runtime dependency growth")
 def git(*args):
     return subprocess.check_output(["git", *args], cwd=root, text=True,
