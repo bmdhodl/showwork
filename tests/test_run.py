@@ -255,12 +255,14 @@ def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
     assert code == 0
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
     assert kept.read_text(encoding="utf-8").splitlines() == ["path-command-output"]
+
+
 def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys, monkeypatch):
     """--max-seconds bounded only the child; a catastrophic regex ran unbounded."""
     import showwork.cli as cli
 
     # (a+)+$ against a's followed by a non-a backtracks exponentially: ~3.5s
-    # here, well past the 1s budget. The daemon thread unwinds on its own.
+    # here, well past the 1s budget. The filter child's watchdog stops it.
     payload = ("a" * 26) + "!"
     # The wrapped command is not under test. A real one spent the whole 1 s
     # budget on interpreter start-up under load, so the command timed out
@@ -287,6 +289,161 @@ def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
     assert "Tests 3 passed" in out
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
     assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+
+
+def _command_returns(output):
+    return lambda argv, **_: subprocess.CompletedProcess(argv, 0, output, "")
+
+
+def _command_times_out(partial):
+    def run(argv, **_):
+        raise subprocess.TimeoutExpired(argv, 3, output=partial, stderr="")
+    return run
+
+
+def test_keep_budget_starts_after_filter_child_start(
+        tmp_path, capsys, monkeypatch, slow_child_start):
+    """REGRESSION: the --keep deadline also paid for the filter child's
+    start-up. Under `showwork finish` a child took more than 5 s to start, so
+    an ordinary pattern was reported as "did not finish" and no receipt was
+    written, although the pattern never ran.
+
+    Filter start-up is now outside the --max-seconds budget.
+    """
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process", _command_returns("noise\nTests 3 passed\n"))
+    slow_child_start(3)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "2", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 0
+    assert "BUDGET" not in capsys.readouterr().err
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert kept.read_text(encoding="utf-8").splitlines() == ["Tests 3 passed"]
+    finish = _sessions(tmp_path)[-1]
+    assert (finish["status"], finish["command_exit"]) == ("ok", 0)
+    # The record still observes the whole wall clock, start-up included.
+    assert finish["budget_elapsed_seconds"] > 2
+
+
+def test_keep_says_a_spent_budget_left_the_pattern_no_time(
+        tmp_path, capsys, monkeypatch):
+    """When the wrapped command spends the whole budget, the run still halts.
+    The message must not say the pattern did not finish: it never ran."""
+    import showwork.cli as cli
+
+    def slow_command(argv, **_):
+        time.sleep(0.3)
+        return subprocess.CompletedProcess(argv, 0, "Tests 3 passed\n", "")
+
+    monkeypatch.setattr(cli, "run_process", slow_command)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "0.1", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "the --keep pattern did not run" in err
+    assert "did not finish" not in err
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+
+
+def test_timeout_keeps_its_line_when_the_filter_starts_slowly(
+        tmp_path, capsys, monkeypatch, slow_child_start):
+    """REGRESSION: after a command timeout, the filter's deadline for the
+    partial output also paid for its own start-up. A slow start lost the race
+    and the wrapper wrote "kept 0 line(s)", so the line the command printed
+    was lost."""
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process", _command_times_out("Tests 3 passed\n"))
+    monkeypatch.setattr(cli, "KEEP_PARTIAL_TIMEOUT_S", 1)
+    slow_child_start(2)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "3", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 2
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert kept.read_text(encoding="utf-8").splitlines() == ["Tests 3 passed"]
+
+
+def test_timeout_writes_no_receipt_when_the_filter_fails(
+        tmp_path, capsys, monkeypatch):
+    """REGRESSION: when the filter on the partial output failed, the wrapper
+    wrote an empty receipt, as if no line had matched. A failed filter judged
+    nothing, so it must say so and write nothing."""
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process", _command_times_out("a" * 30 + "!\n"))
+    monkeypatch.setattr(cli, "KEEP_PARTIAL_TIMEOUT_S", 1)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "3", "--keep", "(a+)+$",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 2
+    captured = capsys.readouterr()
+    assert "kept 0 line(s)" not in captured.out
+    assert "did not finish in 1s" in captured.err
+    assert "no receipt was written" in captured.err
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+
+
+def test_stalled_keep_filter_is_not_blamed_on_the_pattern(
+        tmp_path, capsys, monkeypatch, slow_child_start):
+    """A filter child that never starts still has a backstop. Nothing was
+    kept, so the run fails and writes no receipt, but the message names the
+    stall. It is not a budget overrun and the pattern is not called slow."""
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process", _command_returns("Tests 3 passed\n"))
+    monkeypatch.setattr(cli, "KEEP_CHILD_START_BUDGET_S", 0.5)
+    slow_child_start(30)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "1", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "did not start in 0.5s" in err and "no receipt was written" in err
+    assert "did not finish" not in err and "BUDGET" not in err
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+    finish = _sessions(tmp_path)[-1]
+    assert (finish["event"], finish["status"]) == ("session.finish", "error")
+    assert finish["note"].startswith("the --keep filter did not start")
+
+
+def test_timeout_writes_no_receipt_when_the_filter_stalls(
+        tmp_path, capsys, monkeypatch, slow_child_start):
+    """After a command timeout, a stalled filter also writes no receipt and
+    names the stall."""
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process", _command_times_out("Tests 3 passed\n"))
+    monkeypatch.setattr(cli, "KEEP_PARTIAL_TIMEOUT_S", 1)
+    monkeypatch.setattr(cli, "KEEP_CHILD_START_BUDGET_S", 0.5)
+    slow_child_start(30)
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "3", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "on the partial output, the --keep filter did not start" in err
+    assert "no receipt was written" in err
+    assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
+
+
+def test_keep_writes_a_non_ascii_line_unchanged(tmp_path, monkeypatch):
+    """The receipt holds the line the command printed. Text that crossed to
+    the filter child in the console code page came back with '?' for a
+    check mark."""
+    import showwork.cli as cli
+
+    monkeypatch.setattr(cli, "run_process",
+                        _command_returns("noise\n✓ Tests 3 passed\n"))
+    code = main(["--root", str(tmp_path), "run", "--session", "w",
+                 "--max-seconds", "60", "--keep", "Tests .* passed",
+                 "--", sys.executable, "-c", "print('not run')"])
+    assert code == 0
+    kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
+    assert kept.read_text(encoding="utf-8").splitlines() == ["✓ Tests 3 passed"]
 
 
 def test_gate_refuses_a_session_whose_only_row_is_an_artifact(tmp_path):

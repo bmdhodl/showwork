@@ -2,6 +2,26 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- `run --keep` starts the pattern's deadline after the filter's interpreter
+  is up. Under `showwork finish` a child took more than 5 s to start. The
+  wrapper then said the pattern did not finish, and wrote no receipt. The
+  pattern never ran.
+- `--max-seconds` bounds the wrapped command and the `--keep` pattern's own
+  run. It does not count the filter's start-up. A 60 s start-up backstop
+  bounds a filter that never starts, so a run can take `--max-seconds` plus
+  60 s. A stalled filter fails the run with its own message (exit 1 when the
+  command passed), and the wrapper does not blame the pattern. The finish
+  record still reports the full wall clock.
+- After a command timeout, a filter that fails writes no receipt and says so.
+  It used to write an empty receipt ("kept 0 line(s)"), so a line the command
+  had printed was lost.
+- When the command spends the whole budget, the wrapper says the pattern did
+  not run. It no longer says the pattern did not finish.
+- A kept line now matches the printed line. The filter child got its text in
+  the console code page, so a check mark came back as `?` on Windows.
+
 ## 0.6.5 - 2026-09-27
 
 - The Claude Code Stop hook no longer appends the same `session.finish` on
