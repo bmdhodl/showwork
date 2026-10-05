@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import tarfile
 try:
     import tomllib
@@ -15,20 +13,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_sdist_contains_readme_targets(tmp_path):
-    out = tmp_path / "dist"
-    out.mkdir()
-    subprocess.run(
-        [sys.executable, "-m", "build", "--sdist", "--outdir", str(out)],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    archives = sorted(out.glob("showwork-*.tar.gz"))
-    assert len(archives) == 1
-    with tarfile.open(archives[0], "r:gz") as archive:
+def test_sdist_contains_readme_targets(tmp_path, build_dist):
+    sdist = build_dist("sdist", tmp_path / "dist")
+    with tarfile.open(sdist, "r:gz") as archive:
         version = tomllib.loads(
             (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         )["project"]["version"]

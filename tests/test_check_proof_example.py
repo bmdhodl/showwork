@@ -100,11 +100,21 @@ def test_redirects_are_not_followed():
     assert client.NoRedirect().redirect_request(None, None, 307, "redirect", {}, "https://other.example") is None
 
 
+TRICKLE_SECONDS = 8  # Several exchange budgets: only the deadline can end it early.
+
+
+@pytest.mark.parametrize("start_delay", [0, 3])
 @pytest.mark.parametrize("mode", ["trickle", "bad_chunk"])
-def test_failed_http_exchange_is_bounded_and_redacted(mode, monkeypatch, capsys):
+def test_failed_http_exchange_is_bounded_and_redacted(mode, start_delay, monkeypatch, capsys,
+                                                      slow_child_start):
     # REGRESSION: trickling bodies reset socket timeouts; invalid chunks escaped
     # as IncompleteRead tracebacks instead of the documented redacted exit 2.
+    # REGRESSION: the deadline also paid for the worker's interpreter start-up.
+    # On a loaded host the worker was killed before it sent the request, and
+    # the client blamed an endpoint it never contacted. start_delay=3 starts
+    # the worker slower than the whole 2 s exchange budget.
     received = threading.Event()
+    cut_off = threading.Event()
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
             self.rfile.read(int(self.headers["Content-Length"]))
@@ -118,32 +128,37 @@ def test_failed_http_exchange_is_bounded_and_redacted(mode, monkeypatch, capsys)
                     self.wfile.write(b"PRIVATE_INVALID_CHUNK\r\n")
                     self.wfile.flush()
                 else:
-                    for _ in range(100):
+                    for _ in range(int(TRICKLE_SECONDS / 0.05)):
                         self.wfile.write(b"x")
                         self.wfile.flush()
                         time.sleep(0.05)
             except OSError:
-                pass
+                cut_off.set()
             self.close_connection = True
         def log_message(self, *_args):
             pass
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    monkeypatch.setattr(client, "TIMEOUT_SECONDS", 1)
-    started = time.monotonic()
+    monkeypatch.setattr(client, "TIMEOUT_SECONDS", 2)
+    slow_child_start(start_delay)
     try:
         assert client.main(["--input", str(ROOT / "examples/check_proof_input.json"),
                             "--endpoint", f"http://127.0.0.1:{server.server_port}/proof"]) == 2
-        assert time.monotonic() - started < 3
         assert received.is_set()
+        if mode == "trickle":
+            # The client gave up while the server still had bytes to send.
+            assert cut_off.wait(TRICKLE_SECONDS)
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
     output = capsys.readouterr()
     assert not output.out
-    assert "Endpoint" in output.err
+    assert output.err.strip() == {
+        "trickle": "Endpoint timed out; no assessment was obtained.",
+        "bad_chunk": "Endpoint was unavailable or returned an invalid assessment.",
+    }[mode]
     assert "PRIVATE" not in output.err
     assert "Traceback" not in output.err
 

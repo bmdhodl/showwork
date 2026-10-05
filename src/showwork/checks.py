@@ -142,12 +142,22 @@ def chk_file_exists(c: dict, root: Path) -> tuple[str, str]:
 REGEX_TIMEOUT_S = 5
 MAX_SCAN_BYTES = 4 * 1024 * 1024
 
+# The pattern's budget starts after the child is up. Interpreter start-up is
+# not the pattern's fault: under `showwork finish` a child took longer than
+# REGEX_TIMEOUT_S to start, and the pattern `beta` was reported as unbounded.
+# This start-up budget is only a backstop for a child that never gets going.
+REGEX_CHILD_START_BUDGET_S = 60
+
 # Runs in a bare child. It imports nothing from showwork on purpose: with the
 # spawn start method a child re-imports __main__, and re-entering our own CLI
 # to evaluate a regex is a trap. Pattern and text go over stdin, never argv.
+# `re` holds the GIL for the whole search, so a Python timer thread could not
+# stop it. faulthandler's watchdog is a C thread: it fires anyway, writes
+# "Timeout (" to stderr and exits the child with status 1.
 _SEARCH_CHILD = """\
-import json, re, sys
+import faulthandler, json, re, sys
 d = json.loads(sys.stdin.read())
+faulthandler.dump_traceback_later(d["s"], exit=True)
 try:
     sys.stdout.write(json.dumps({"found": re.search(d["p"], d["t"]) is not None}))
 except re.error as e:
@@ -156,20 +166,25 @@ except re.error as e:
 
 
 def _search_bounded(pattern: str, text: str) -> tuple[str, object]:
-    """`re.search` with a hard wall-clock bound.
+    """`re.search` with a hard wall-clock bound that starts after start-up.
 
     Returns ("ok", bool) | ("error", msg) | ("timeout", None).
     """
-    payload = json.dumps({"p": pattern, "t": text})
+    payload = json.dumps({"p": pattern, "t": text, "s": REGEX_TIMEOUT_S})
+    backstop = REGEX_CHILD_START_BUDGET_S + REGEX_TIMEOUT_S
     try:
         proc = subprocess.run(
             [sys.executable, "-c", _SEARCH_CHILD],
             input=payload, capture_output=True, text=True,
-            timeout=REGEX_TIMEOUT_S,
+            timeout=backstop,
         )
     except subprocess.TimeoutExpired:
-        return ("timeout", None)
+        return ("error",
+                f"regex child did not start in {REGEX_CHILD_START_BUDGET_S}s; "
+                "the host stalled, so the pattern was not judged")
     if proc.returncode != 0:
+        if proc.stderr.startswith("Timeout ("):
+            return ("timeout", None)
         return ("error", f"regex evaluation failed: {proc.stderr.strip()[:200]}")
     try:
         out = json.loads(proc.stdout)

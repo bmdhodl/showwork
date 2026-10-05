@@ -1141,6 +1141,45 @@ def test_file_contains_still_matches_normal_patterns(tmp_path):
     assert multiline["status"] == "pass"
 
 
+def test_file_contains_regex_budget_starts_after_child_start(
+        tmp_path, monkeypatch, slow_child_start):
+    """REGRESSION: the regex budget also paid for the child interpreter's
+    start-up. Under `showwork finish` a child took longer than 5 s to start,
+    so the pattern `beta` came back as "did not finish ... unbounded pattern",
+    the claim became an error, and a GREEN session read YELLOW.
+
+    Start-up is now outside the budget, and the budget still stops a
+    catastrophic pattern after start-up.
+    """
+    monkeypatch.setattr(checks, "REGEX_TIMEOUT_S", 1)
+    slow_child_start(2)
+    (tmp_path / "a.md").write_text("alpha beta\n" + "a" * 40 + "!",
+                                   encoding="utf-8")
+    normal = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                 "pattern": "beta"}), tmp_path)
+    catastrophic = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                                       "pattern": "(a+)+$"}), tmp_path)
+    assert (normal["status"], normal["detail"]) == ("pass", "/beta/ found in a.md")
+    assert catastrophic["status"] == "error"
+    assert "did not finish in 1s" in catastrophic["detail"]
+
+
+def test_file_contains_stalled_child_is_not_blamed_on_the_pattern(
+        tmp_path, monkeypatch, slow_child_start):
+    """A child that never starts still has a backstop. That result is an
+    error, because nothing was verified, but it must name the stall and not
+    call an ordinary pattern unbounded."""
+    monkeypatch.setattr(checks, "REGEX_TIMEOUT_S", 1)
+    monkeypatch.setattr(checks, "REGEX_CHILD_START_BUDGET_S", 0.5)
+    slow_child_start(30)
+    (tmp_path / "a.md").write_text("alpha beta", encoding="utf-8")
+    r = verify_claim(claim({"type": "file_contains", "path": "a.md",
+                            "pattern": "beta"}), tmp_path)
+    assert r["status"] == "error"
+    assert "did not start" in r["detail"]
+    assert "unbounded" not in r["detail"]
+
+
 def test_file_contains_reports_invalid_regex_not_timeout(tmp_path):
     """A malformed pattern must still read as a regex error. The child process
     reports `re.error` back rather than dying and looking like a hang."""

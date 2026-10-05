@@ -97,11 +97,14 @@ def test_run_missing_command_errors(tmp_path):
 
 
 def test_run_records_wall_clock_budget(tmp_path):
+    # The budget includes the wrapped interpreter's start-up, which took more
+    # than 2 s under `showwork finish`. This test checks the record, so the
+    # budget is a hang guard; expiry is tested with an observed deadline below.
     code = main(["--root", str(tmp_path), "run", "--session", "w",
-                 "--max-seconds", "2", "--", sys.executable, "-c", "print('ok')"])
+                 "--max-seconds", "60", "--", sys.executable, "-c", "print('ok')"])
     assert code == 0
     finish = _sessions(tmp_path)[-1]
-    assert finish["budget_max_seconds"] == 2.0
+    assert finish["budget_max_seconds"] == 60.0
     assert finish["budget_exceeded"] is False
     assert finish["budget_elapsed_seconds"] >= 0
 
@@ -252,11 +255,18 @@ def test_run_resolves_a_bare_command_name_on_path(tmp_path, monkeypatch):
     assert code == 0
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
     assert kept.read_text(encoding="utf-8").splitlines() == ["path-command-output"]
-def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys):
+def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys, monkeypatch):
     """--max-seconds bounded only the child; a catastrophic regex ran unbounded."""
+    import showwork.cli as cli
+
     # (a+)+$ against a's followed by a non-a backtracks exponentially: ~3.5s
     # here, well past the 1s budget. The daemon thread unwinds on its own.
     payload = ("a" * 26) + "!"
+    # The wrapped command is not under test. A real one spent the whole 1 s
+    # budget on interpreter start-up under load, so the command timed out
+    # instead and the filter never ran. This one returns its output at once.
+    monkeypatch.setattr(cli, "run_process", lambda argv, **_: subprocess.CompletedProcess(
+        argv, 0, payload + "\n", ""))
     code = main(["--root", str(tmp_path), "run", "--session", "w",
                  "--max-seconds", "1", "--keep", "(a+)+$",
                  "--", sys.executable, "-c", f"print({payload!r})"])

@@ -6,6 +6,7 @@ It uses only Python's standard library. No model judgment is verification.
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import json
 import math
 import subprocess
@@ -19,6 +20,9 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 DEFAULT_ENDPOINT = "https://bmdpat.com/api/showwork/check-proof"
 MAX_BYTES = 32 * 1024
 TIMEOUT_SECONDS = 10
+# Only a backstop for a worker that never starts. Start-up is not the endpoint's
+# fault, so it does not count against TIMEOUT_SECONDS.
+WORKER_START_SECONDS = 30
 FIELDS = {"requested_outcome", "claim", "check", "evidence"}
 VERDICTS = {"appears_supported", "scope_gap", "contradicted", "insufficient_context"}
 
@@ -108,8 +112,9 @@ def _submit_once(value: dict, endpoint: str) -> dict:
 def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
     """Bound the entire exchange, including DNS and trickling response bodies.
 
-    A disposable stdlib worker makes the one HTTP request. communicate's timeout
-    kills and reaps it, so no network thread can outlive a failed assessment.
+    A disposable stdlib worker makes the one HTTP request. Its watchdog starts
+    the TIMEOUT_SECONDS deadline once the worker runs, and ends the process when
+    the deadline passes, so no network thread can outlive a failed assessment.
     Text travels through stdin, never command-line arguments or a scratch file.
     """
     body = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -117,11 +122,15 @@ def submit(value: dict, endpoint: str = DEFAULT_ENDPOINT) -> dict:
         raise ValueError("Encoded request exceeds 32 KiB.")
     try:
         worker = subprocess.run(
-            [sys.executable, str(Path(__file__).resolve()), "--transport-worker", endpoint],
-            input=body, capture_output=True, timeout=TIMEOUT_SECONDS, check=False,
+            [sys.executable, str(Path(__file__).resolve()), "--transport-worker", endpoint,
+             str(TIMEOUT_SECONDS)],
+            input=body, capture_output=True, timeout=WORKER_START_SECONDS + TIMEOUT_SECONDS,
+            check=False,
         )
     except subprocess.TimeoutExpired:
-        raise ValueError("Endpoint timed out; no assessment was obtained.") from None
+        raise ValueError("The request worker did not start; no assessment was obtained.") from None
+    if worker.stderr.startswith(b"Timeout ("):
+        raise ValueError("Endpoint timed out; no assessment was obtained.")
     if worker.returncode:
         raise ValueError("Endpoint was unavailable or returned an invalid assessment.")
     return validate_result(json.loads(worker.stdout))
@@ -146,7 +155,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--transport-worker":
+    if len(sys.argv) == 4 and sys.argv[1] == "--transport-worker":
+        # The deadline starts here, after interpreter start-up. faulthandler's
+        # watchdog is a C thread: it fires during a blocked DNS lookup or read,
+        # writes "Timeout (" to stderr and exits with status 1.
+        faulthandler.dump_traceback_later(float(sys.argv[3]), exit=True)
         try:
             selected = parse_input(sys.stdin.buffer.read(MAX_BYTES + 1))
             print(json.dumps(_submit_once(selected, sys.argv[2])))
