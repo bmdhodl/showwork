@@ -580,7 +580,7 @@ def main(argv: list[str] | None = None) -> int:
             if matches:
                 result["notes"].extend(
                     f"{session_result['session']}: {path} changed since session.start and equals "
-                    f"base {matches['revision'][:12]}; counted as the base's change, not this session's"
+                    f"base {matches['revision'][:12]}; counted as a change from the base, not from this session"
                     for path in matches["paths"])
         if args.json:
             print(json.dumps(result, indent=2))
