@@ -4,6 +4,14 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- `gate` text output and the CI step summary show each error once. The gate
+  copies every session error to the top level, so a RED session printed each
+  error twice. The top-level list now shows only the errors that no displayed
+  session showed, such as a selection or Git error.
+- The note for a file that equals the base now ends "counted as a change from
+  the base, not from this session". The summary escapes an apostrophe as an
+  HTML entity, so the terminal printed `the base&#x27;s change`. The terminal
+  output stays identical to the step summary, and the escape stays.
 - `run --keep` starts the pattern's deadline after the filter's interpreter
   is up. Under `showwork finish` a child took more than 5 s to start. The
   wrapper then said the pattern did not finish, and wrote no receipt. The
