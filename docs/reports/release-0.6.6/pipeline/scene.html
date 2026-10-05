@@ -1,0 +1,293 @@
+<!doctype html>
+<!--
+  showwork 0.6.6 release video. Deterministic and frame-addressable.
+
+  Story, from a real run on 2026-10-05 (PyPI 0.6.5 against the 0.6.6 source):
+  an agent closes its task GREEN on a branch, a teammate's README.md change
+  lands on main, the branch merges main, and the CI gate runs with the PR base.
+  0.6.5 reports "undeclared change: README.md" (RED). 0.6.6 finds that the file
+  equals main and passes. An agent edit inside the merge stays RED.
+
+  Every visual is a pure function of time t, set by window.seek(frame).
+  No Date.now(), no Math.random(), no CSS transitions. Open without ?render=1
+  for a live preview. House style: config/visuals (near-black, #FF8200,
+  Inter and JetBrains Mono, the circuit ambient at 40% brightness).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>showwork 0.6.6 video scene</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("assets/fonts/Inter-Regular.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 500; src: url("assets/fonts/Inter-Medium.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 700; src: url("assets/fonts/Inter-Bold.ttf"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url("assets/fonts/JetBrainsMono-Regular.ttf"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("assets/fonts/JetBrainsMono-Bold.ttf"); }
+  :root {
+    --bg: #0a0a0a;
+    --panel: #161616;
+    --border: #2a2a2a;
+    --fg: #f5f5f5;
+    --body: #d4d4d4;
+    --muted: #a3a3a3;
+    --accent: #FF8200;
+    --red: #ff4d4d;
+    --green: #3ddc84;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  #stage {
+    position: relative; width: 1280px; height: 720px; overflow: hidden;
+    background: var(--bg); color: var(--body);
+    font-family: "Inter", "Segoe UI", sans-serif;
+  }
+  #ambient {
+    position: absolute; inset: 0;
+    background: url("assets/ambients/circuit.jpg") center / cover no-repeat;
+    filter: brightness(0.4);
+  }
+  #scrim {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 45%, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.8) 70%, rgba(10,10,10,0.92) 100%);
+  }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+  .kicker {
+    position: absolute; left: 64px; top: 48px;
+    font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 20px;
+    color: var(--accent); letter-spacing: 0.06em;
+  }
+  .title {
+    position: absolute; left: 64px; top: 82px; width: 1150px;
+    font-weight: 700; font-size: 38px; line-height: 1.2; color: var(--fg);
+  }
+  .caption {
+    position: absolute; left: 64px; top: 600px; width: 1150px;
+    font-size: 26px; line-height: 1.35; color: var(--body);
+  }
+  .chip {
+    position: absolute; display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", monospace; font-weight: 700; letter-spacing: 0.08em;
+    border-radius: 14px; border: 3px solid currentColor; background: rgba(10,10,10,0.85);
+  }
+  .card {
+    position: absolute; width: 470px; height: 170px; box-sizing: border-box;
+    background: var(--panel); border: 2px solid var(--border); border-radius: 16px;
+    padding: 22px 26px;
+  }
+  .card .head { font-family: "JetBrains Mono", monospace; font-size: 19px; color: var(--muted); }
+  .card .body { margin-top: 26px; font-size: 30px; font-weight: 500; color: var(--fg); }
+  .term {
+    position: absolute; font-family: "JetBrains Mono", monospace; font-size: 22px;
+    color: var(--body); white-space: pre;
+  }
+
+  /* Scene A: the outcome */
+  #a-title { top: 128px; left: 0; width: 1280px; text-align: center; font-size: 48px; }
+  #a-chip { left: 340px; top: 270px; width: 600px; height: 132px; font-size: 64px; }
+  #a-chip .ver { color: var(--muted); font-size: 40px; margin-right: 34px; letter-spacing: 0.02em; }
+  #a-sub { top: 470px; left: 0; width: 1280px; text-align: center; font-size: 30px; color: var(--body); }
+
+  /* Scene E: end card */
+  #e-name { top: 210px; left: 0; width: 1280px; text-align: center; font-size: 76px; font-weight: 700; color: var(--fg); }
+  #e-pip {
+    top: 340px; left: 390px; width: 500px; height: 74px; border-radius: 14px;
+    border: 2px solid var(--accent); background: var(--panel);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; color: var(--fg);
+  }
+  #e-url { top: 456px; left: 0; width: 1280px; text-align: center; font-size: 28px; color: var(--accent); }
+  #e-pin { top: 520px; left: 0; width: 1280px; text-align: center; font-size: 24px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="ambient"></div>
+  <div id="scrim"></div>
+
+  <!-- A: 0.0-5.0 s. The result lands first. -->
+  <div class="scene" id="sA">
+    <div class="kicker">SHOWWORK 0.6.6</div>
+    <div class="title" id="a-title">Merging main no longer fails your agent's check.</div>
+    <div class="chip" id="a-chip"><span class="ver" id="a-ver">0.6.5</span><span id="a-verdict">RED</span></div>
+    <div class="abs" id="a-sub">Same branch. Same merge from main. Only the version changed.</div>
+  </div>
+
+  <!-- B: 5.0-11.0 s. The false alarm in 0.6.5. -->
+  <div class="scene" id="sB">
+    <div class="kicker">0.6.5</div>
+    <div class="title">Your branch must be up to date, so you merge main.</div>
+    <svg class="abs" style="left:0;top:0" width="1280" height="720" viewBox="0 0 1280 720">
+      <path id="b-main" d="M 90 470 L 1190 470" stroke="#6b6b6b" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path id="b-branch" d="M 200 470 C 260 470 260 330 330 330 L 1010 330" stroke="#FF8200" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <path id="b-merge" d="M 650 470 C 730 470 730 330 810 330" stroke="#d4d4d4" stroke-width="4" stroke-dasharray="10 9" fill="none"/>
+      <circle id="b-agent" cx="420" cy="330" r="15" fill="#FF8200"/>
+      <circle id="b-mate" cx="560" cy="470" r="15" fill="#f5f5f5"/>
+      <circle id="b-mnode" cx="810" cy="330" r="12" fill="#0a0a0a" stroke="#d4d4d4" stroke-width="4"/>
+      <text x="90" y="510" fill="#a3a3a3" font-family="JetBrains Mono" font-size="20">main</text>
+      <text x="300" y="300" fill="#FF8200" font-family="JetBrains Mono" font-size="20" id="b-branchlabel">fix-login</text>
+    </svg>
+    <div class="abs" id="b-agentlabel" style="left:330px;top:216px;width:300px;font-size:22px;color:var(--fg)">Agent: 2 of 2 checks pass</div>
+    <div class="abs" id="b-matelabel" style="left:440px;top:500px;width:340px;font-size:22px;color:var(--fg)">Teammate edits README.md</div>
+    <div class="abs" id="b-mergelabel" style="left:720px;top:258px;width:200px;font-size:22px;color:var(--fg)">Merge main</div>
+    <div class="chip" id="b-chip" style="left:1040px;top:298px;width:150px;height:64px;font-size:30px;color:var(--red)">RED</div>
+    <div class="term" id="b-term" style="left:850px;top:384px;color:var(--red)">undeclared change: README.md</div>
+    <div class="caption" id="b-cap">Your agent never touched README.md. 0.6.5 counted it against the agent anyway.</div>
+  </div>
+
+  <!-- C: 11.0-17.0 s. 0.6.6 compares the file with main. -->
+  <div class="scene" id="sC">
+    <div class="kicker">0.6.6</div>
+    <div class="title">showwork 0.6.6 compares the file with main.</div>
+    <div class="card" id="c-left" style="left:64px;top:220px"><div class="head">README.md on your branch</div><div class="body">Login guide, reviewed.</div></div>
+    <div class="card" id="c-right" style="left:746px;top:220px"><div class="head">README.md on main</div><div class="body">Login guide, reviewed.</div></div>
+    <div class="abs mono" id="c-eq" style="left:540px;top:236px;width:200px;text-align:center;font-size:96px;font-weight:700;color:var(--accent)">=</div>
+    <div class="abs" id="c-same" style="left:540px;top:356px;width:200px;text-align:center;font-size:22px;color:var(--fg)">Same bytes</div>
+    <div class="chip" id="c-chip" style="left:64px;top:440px;width:190px;height:64px;font-size:30px;color:var(--green)">GREEN</div>
+    <div class="term" id="c-term" style="left:290px;top:457px">showwork outcome gate: GREEN</div>
+    <div class="caption" id="c-cap">It counts the change as main's, not your agent's, and lists it in a note.</div>
+  </div>
+
+  <!-- D: 17.0-21.5 s. An edit inside the merge still fails. -->
+  <div class="scene" id="sD">
+    <div class="kicker">0.6.6</div>
+    <div class="title">Now the agent edits README.md during the merge.</div>
+    <div class="card" id="d-left" style="left:64px;top:220px;border-color:#5a2020"><div class="head">README.md on your branch</div><div class="body" style="font-size:27px">Login guide, edited by the agent.</div></div>
+    <div class="card" id="d-right" style="left:746px;top:220px"><div class="head">README.md on main</div><div class="body">Login guide, reviewed.</div></div>
+    <div class="abs mono" id="d-ne" style="left:540px;top:236px;width:200px;text-align:center;font-size:96px;font-weight:700;color:var(--red)">&#8800;</div>
+    <div class="abs" id="d-diff" style="left:540px;top:356px;width:200px;text-align:center;font-size:22px;color:var(--fg)">Different</div>
+    <div class="chip" id="d-chip" style="left:64px;top:440px;width:150px;height:64px;font-size:30px;color:var(--red)">RED</div>
+    <div class="term" id="d-term" style="left:250px;top:457px;color:var(--red)">undeclared change: README.md</div>
+    <div class="caption" id="d-cap">The file no longer matches main, so the check fails.</div>
+  </div>
+
+  <!-- E: 21.5-24.0 s. One action. -->
+  <div class="scene" id="sE">
+    <div class="abs" id="e-name">showwork 0.6.6</div>
+    <div class="abs mono" id="e-pip">pip install -U showwork</div>
+    <div class="abs mono" id="e-url">github.com/bmdhodl/showwork</div>
+    <div class="abs" id="e-pin">GitHub Action users: pin v0.6.6.</div>
+  </div>
+</div>
+
+<script>
+  const FPS = 60;
+  const DURATION = 24;
+  window.TOTAL_FRAMES = FPS * DURATION;
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
+  // 0 before start, eased to 1 over dur seconds.
+  const rise = (t, start, dur = 0.45) => easeOut((t - start) / dur);
+  const XFADE = 0.25;
+  // Scene visibility: fade in after a, fade out before b. Titles share one
+  // position, so scenes never overlap; the frame dips to the background between.
+  const window_ = (t, a, b) => Math.min(clamp((t - a) / XFADE), clamp((b - t) / XFADE));
+
+  function show(id, t, start, dy = 14, dur = 0.45) {
+    const k = rise(t, start, dur);
+    const el = $(id);
+    el.style.opacity = k;
+    el.style.transform = `translateY(${(1 - k) * dy}px)`;
+    return k;
+  }
+
+  function drawPath(id, t, start, dur) {
+    const el = $(id);
+    const len = el.getTotalLength();
+    const k = easeOut((t - start) / dur);
+    el.style.strokeDasharray = el.id === "b-merge" ? (k >= 1 ? "10 9" : `${len}`) : `${len}`;
+    el.style.strokeDashoffset = `${(1 - k) * len}`;
+  }
+
+  // Verdict chip pop: a short overshoot when the chip lands.
+  function pop(id, t, start) {
+    const x = (t - start) / 0.5;
+    const k = clamp(x);
+    const s = x <= 0 ? 0.8 : 1 + 0.08 * Math.sin(Math.PI * k) * (1 - k);
+    const el = $(id);
+    el.style.opacity = clamp(x * 3);
+    el.style.transform = `scale(${0.8 + (s - 0.8) * Math.min(1, x * 4)})`;
+    // Glow fades in with the chip and settles.
+    const color = getComputedStyle(el).color;
+    el.style.boxShadow = `0 0 ${18 + 22 * (1 - k)}px ${color.replace("rgb", "rgba").replace(")", `, ${0.45 * clamp(x * 3)})`)}`;
+  }
+
+  function seek(frame) {
+    const t = frame / FPS;
+
+    // ---- A: 0.0-5.0 ----
+    $("sA").style.opacity = t < 5 + XFADE ? window_(t, -1, 5) : 0;
+    show("a-title", t, 0.1);
+    // The chip shows 0.6.5 RED, then flips to 0.6.6 GREEN at 2.0 s.
+    const flip = clamp((t - 2.0) / 0.4);
+    const chip = $("a-chip");
+    const squash = Math.abs(Math.cos(Math.PI * flip));
+    const after = flip >= 0.5;
+    $("a-ver").textContent = after ? "0.6.6" : "0.6.5";
+    $("a-verdict").textContent = after ? "GREEN" : "RED";
+    chip.style.color = after ? "var(--green)" : "var(--red)";
+    const enter = rise(t, 0.5, 0.5);
+    chip.style.opacity = enter;
+    chip.style.transform = `scale(${0.9 + 0.1 * enter}) scaleY(${flip > 0 && flip < 1 ? Math.max(0.05, squash) : 1})`;
+    const glow = after ? 0.55 * rise(t, 2.2, 0.4) : 0.35 * enter;
+    chip.style.boxShadow = `0 0 ${after ? 46 : 26}px ${after ? `rgba(61,220,132,${glow})` : `rgba(255,77,77,${glow})`}`;
+    show("a-sub", t, 2.8);
+
+    // ---- B: 5.0-11.0 ----
+    $("sB").style.opacity = t > 5 - XFADE && t < 11 + XFADE ? window_(t, 5, 11) : 0;
+    drawPath("b-main", t, 5.0, 0.8);
+    drawPath("b-branch", t, 5.2, 0.9);
+    $("b-branchlabel").style.opacity = rise(t, 5.6);
+    $("b-agent").style.opacity = rise(t, 5.8, 0.3);
+    show("b-agentlabel", t, 5.9);
+    $("b-mate").style.opacity = rise(t, 6.8, 0.3);
+    show("b-matelabel", t, 6.9);
+    drawPath("b-merge", t, 7.8, 0.7);
+    $("b-mnode").style.opacity = rise(t, 8.4, 0.3);
+    show("b-mergelabel", t, 8.4);
+    pop("b-chip", t, 9.1);
+    show("b-term", t, 9.4, 8);
+    show("b-cap", t, 9.8);
+
+    // ---- C: 11.0-17.0 ----
+    $("sC").style.opacity = t > 11 - XFADE && t < 17 + XFADE ? window_(t, 11, 17) : 0;
+    show("c-left", t, 11.3);
+    show("c-right", t, 11.6);
+    show("c-eq", t, 12.4, 0);
+    show("c-same", t, 12.8);
+    pop("c-chip", t, 13.6);
+    show("c-term", t, 13.9, 8);
+    show("c-cap", t, 14.5);
+
+    // ---- D: 17.0-21.5 ----
+    $("sD").style.opacity = t > 17 - XFADE && t < 21.5 + XFADE ? window_(t, 17, 21.5) : 0;
+    show("d-right", t, 17.2);
+    show("d-left", t, 17.4);
+    show("d-ne", t, 17.9, 0);
+    show("d-diff", t, 18.2);
+    pop("d-chip", t, 18.7);
+    show("d-term", t, 19.0, 8);
+    show("d-cap", t, 19.5);
+
+    // ---- E: 21.5-24.0 ----
+    $("sE").style.opacity = t > 21.5 - XFADE ? window_(t, 21.5, 99) : 0;
+    show("e-name", t, 21.6);
+    show("e-pip", t, 21.9);
+    show("e-url", t, 22.2);
+    show("e-pin", t, 22.5);
+  }
+  window.seek = seek;
+
+  if (!new URLSearchParams(location.search).has("render")) {
+    // Live preview only. The renderer never runs this loop.
+    let frame = 0;
+    const tick = () => { seek(frame); frame = (frame + 1) % window.TOTAL_FRAMES; requestAnimationFrame(tick); };
+    document.fonts.ready.then(tick);
+  } else {
+    seek(0);
+  }
+</script>
+</body>
+</html>
