@@ -711,6 +711,8 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
         extra.append(escape_result("snapshot path escapes the ledger", str(exc)))
     else:
         extra += undeclared_results(rt, declared, start, snap_path)
+    from .recovery import recovery_results
+    extra += recovery_results(rt, session)
     state = merge_undeclared(state, extra)
     state["outcome"] = outcome_summary(state)
     return state

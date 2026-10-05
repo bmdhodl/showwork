@@ -102,7 +102,7 @@ def outcome_summary(state: dict) -> dict:
             "artifact_checks": sum(r.get("scope") == "artifact" for r in rows)}
 
 
-def receipt_manifest(root: Path, session: str) -> dict:
+def receipt_manifest(root: Path, session: str, *, include_recovery: bool = True) -> dict:
     from .ledger import iter_claim_paths, _read_jsonl
     # Ledger paths are canonicalized; normalize the root to the same spelling
     # before computing portable names (macOS /var and Windows short paths).
@@ -115,16 +115,21 @@ def receipt_manifest(root: Path, session: str) -> dict:
     requirements = requirement_records(root, session)
     digest = hashlib.sha256(json.dumps(requirements, sort_keys=True,
                                       ensure_ascii=True).encode()).hexdigest()
-    return {"claims": files, "requirements_sha256": digest,
-            "requirement_count": len(requirements)}
+    manifest = {"claims": files, "requirements_sha256": digest,
+                "requirement_count": len(requirements)}
+    if include_recovery:
+        from .recovery import recovery_manifest
+        manifest.update(recovery_manifest(root, session))
+    return manifest
 
 
-def release_gate(root: Path, session: str, *, require_tracked: bool = False,
-                 legacy_integrity_baseline: str | None = None) -> dict:
+def _release_gate(root: Path, session: str, *, require_tracked: bool = False,
+                  legacy_integrity_baseline: str | None = None) -> dict:
     from .audit import audit_root
     from .ledger import load_all_events, session_events_path, session_file_stem, verify_session
     from .snapshot import snapshot_file
     from .ledger import ledger_dir, _read_jsonl
+    from .recovery import canonical_bytes
     root = root.resolve()
     errors = []
     # Commands are trusted project code, but their ledger mutations still need
@@ -167,19 +172,76 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False,
     if require_tracked:
         paths = [*manifest["claims"],
                  session_events_path(root, session).relative_to(root).as_posix(),
-                 snapshot_file(ledger_dir(root), session_file_stem(session)).relative_to(root).as_posix()]
+                 snapshot_file(ledger_dir(root), session_file_stem(session)).relative_to(root).as_posix(),
+                 *manifest.get("recovery_work", {})]
         for rel in paths:
             result = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
                                     capture_output=True, timeout=15)
             path = root / rel
+            if rel in manifest.get("recovery_work", {}) and manifest["recovery_work"][rel] is None:
+                if result.returncode == 0 or path.exists():
+                    errors.append(f"covered deletion is not committed exactly at HEAD: {rel}")
+                continue
             if (result.returncode or not path.is_file()
-                    or result.stdout.replace(b"\r\n", b"\n") != path.read_bytes().replace(b"\r\n", b"\n")):
+                    or canonical_bytes(result.stdout) != canonical_bytes(path.read_bytes())):
                 errors.append(f"receipt is not committed exactly at HEAD: {rel}")
-    return {"verdict": "RED" if errors else "GREEN", "session": session,
+    result = {"verdict": "RED" if errors else "GREEN", "session": session,
             "errors": errors, "checks": state, "historical_integrity": audit["verdict"],
             "legacy_baseline": baseline,
             "integrity_scope": ("selected session; pinned legacy history remains unverified"
                                 if baseline else "selected session; unrelated RED findings still fail")}
+    return result
+
+
+def release_gate(root: Path, session: str, *, require_tracked: bool = False,
+                 legacy_integrity_baseline: str | None = None) -> dict:
+    """Verify a selected session and its recovery dependency, in either direction."""
+    from .recovery import (recovery_records, incoming_recovery, _validate,
+                           _evidence, canonical_bytes)
+    root = root.resolve()
+    own = recovery_records(root, session)
+    incoming = incoming_recovery(root, session)
+    options = dict(require_tracked=require_tracked,
+                   legacy_integrity_baseline=legacy_integrity_baseline)
+    if not own and not incoming:
+        return _release_gate(root, session, **options)
+    result = None
+    try:
+        if (own and incoming) or len(own or incoming) != 1:
+            raise ValueError("ambiguous or cyclic recovery links")
+        recovery = (own or incoming)[0]
+        original, replacement = recovery["supersedes"], recovery["session"]
+        _validate(root, replacement, recovery, claims_required=True)
+        # Evaluate original first. Fresh verification and its final manifest
+        # must observe any effects of the original's command claims.
+        old = _release_gate(root, original, **options)
+        fresh = _release_gate(root, replacement, **options)
+        result = dict(fresh if session == replacement else old)
+        result["errors"] = list(result["errors"])
+        result.update(original_errors=old["errors"],
+                      recovery={"original": original, "replacement": replacement,
+                                "original_outcome": old["checks"]["outcome"],
+                                "original_gate": old, "reason": recovery["reason"],
+                                "coverage": recovery["coverage"], "replacement_gate": fresh})
+        # Commands cannot mutate preserved history. Tracking is independent
+        # of which end of the recovery relationship the caller selected.
+        _validate(root, replacement, recovery, claims_required=True)
+        if require_tracked:
+            for rel in _evidence(root, original):
+                committed = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"],
+                                           capture_output=True, timeout=15)
+                if (committed.returncode or canonical_bytes(committed.stdout)
+                        != canonical_bytes((root / rel).read_bytes())):
+                    raise ValueError(f"superseded evidence is not committed exactly at HEAD: {rel}")
+        if fresh["verdict"] != "GREEN":
+            raise ValueError("replacement outcome is not verified: " + "; ".join(fresh["errors"]))
+        result.update(verdict="GREEN", errors=[])
+    except (ValueError, OSError, TypeError, KeyError) as exc:
+        if result is None:
+            result = _release_gate(root, session, **options)
+        result["errors"].append(f"recovery rejected: {exc}")
+        result["verdict"] = "RED"
+    return result
 
 
 def changed_sessions(root: Path, base: str) -> list[str]:
@@ -225,6 +287,20 @@ def changed_sessions(root: Path, base: str) -> list[str]:
             sessions.add(session)
     if not sessions:
         raise ValueError("no changed session receipt found; this change has no outcome close")
+    # Recovery evidence is a dependency even when its unchanged receipt is
+    # already in the PR base. Selection never filters that failure away.
+    pending = list(sessions)
+    while pending:
+        selected = pending.pop()
+        for event in events:
+            if event.get("session") != selected or event.get("event") != "session.recovery":
+                continue
+            original = event.get("supersedes")
+            if not isinstance(original, str) or not original:
+                raise ValueError("invalid recovery dependency")
+            if original not in sessions:
+                sessions.add(original)
+                pending.append(original)
     return sorted(sessions)
 
 
