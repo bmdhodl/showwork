@@ -136,7 +136,7 @@ or moved by the PR still get checked. No changed receipts remains UNVERIFIED.
 
 The same revision is the trusted base. When a branch merges main after its
 session started, a file that main changed differs from the start snapshot.
-Current source excuses that file only when it now equals the base revision
+showwork 0.6.6 excuses that file only when it now equals the base revision
 exactly, and lists it as a note. An edit by the session or inside the merge
 still fails. Take the base from the event, never from a ref the branch can move.
 
@@ -189,8 +189,8 @@ summary. Installation failures, invalid mode/selection, and unexpected verifier
 exit codes still fail the job. A gate refusal (exit 2), including a missing
 receipt or unresolved revision, is reported as unverified in advisory mode.
 
-Current source displays one section per selected session in the existing check
-summary. Each section names the declared requirement, its scope and observed
+From v0.6.6 the summary shows one section per selected session in the existing
+check summary. Each section names the declared requirement, its scope and observed
 result, and links to the committed session receipt at the reviewed HEAD. Command
 rows show their observed revision, exit code and stdout hash. A disabled command
 has no executed test evidence; an empty receipt has no declared acceptance.
@@ -200,8 +200,8 @@ and missing definitions remain visible even when advisory policy lets the job pa
 The summary formats the gate result already obtained; it does not execute checks
 again. It never assesses test adequacy or fills undeclared requirements. Display
 limits are explicit, and the verifier still uses every selected row. These summary
-improvements are available only when the action is pinned to a reviewed commit
-containing them. The published 0.6.5 action retains its original text summary.
+improvements need the action pinned to v0.6.6 or a later reviewed commit.
+Actions pinned to v0.6.5 or earlier keep the original text summary.
 
 Command and network checks remain disabled unless explicitly enabled. Disabled
 checks do not certify behavior. Never enable repository commands in a privileged

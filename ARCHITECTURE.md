@@ -60,7 +60,7 @@ Three rules drive every design decision below:
 | `actions/verify/action.yml` | Composite GitHub Action that gates a job on receipts |
 
 `src/showwork/__init__.py` re-exports the public Python API and pins
-`__version__ = "0.6.5"`, matching `pyproject.toml`.
+`__version__ = "0.6.6"`, matching `pyproject.toml`.
 
 ## Data model
 
@@ -516,7 +516,7 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 
 ## Public surface
 
-- PyPI package `showwork`, version 0.6.5, `requires-python >= 3.10`, zero
+- PyPI package `showwork`, version 0.6.6, `requires-python >= 3.10`, zero
   runtime dependencies, MIT licensed. The console script `showwork` maps to
   `showwork.cli:main` (`pyproject.toml`).
 - The Python API re-exported from `showwork/__init__.py`. `record_claim`,

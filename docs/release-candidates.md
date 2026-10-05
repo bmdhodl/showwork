@@ -37,10 +37,9 @@ JS reader conformance and the installed negative smoke: broken acceptance
 must refuse, repair must pass, empty completion and timeout must fail. The
 smoke's explicit predicates remain active with `python -O`.
 
-The current source metadata remains 0.6.5. A locally built 0.6.5 wheel is a test
-artifact and must not replace the already published 0.6.5 distribution. A
-compatible new version needs a separate owner-reviewed change. Recent bounded
-reader and native-host capabilities are source changes until that publication.
+The current source metadata is 0.6.6. A locally built 0.6.6 wheel is a test
+artifact and must not replace the published 0.6.6 distribution. A new version
+needs a separate owner-reviewed change.
 
 ## No release and retry
 

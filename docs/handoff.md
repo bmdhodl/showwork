@@ -3,12 +3,10 @@
 A later session can read a receipt. It cannot inherit a close. The writer
 and the reader are two processes. They share files, not memory.
 
-This walk uses showwork 0.6.5. Check that pin before you trust a checkout:
+This walk uses showwork 0.6.6. Check that pin before you trust a checkout:
 
-The process-free reader behavior below requires a reviewed source commit with
-the reader capability update. Published 0.6.5 predates that update and may start
-regex workers for receipt observations. The package version alone does not
-identify an unreleased checkout. No new package release is implied.
+The process-free reader below ships in showwork 0.6.6. Version 0.6.5 and
+earlier may start regex workers for receipt observations.
 
 ```bash
 python -m showwork doctor
