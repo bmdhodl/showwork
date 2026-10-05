@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: bmdhodl/showwork/actions/verify@b4fd8a5648c4d2bdddd287993ed02621ac8af3ec # merge-base selector, trusted-base excusal, advisory mode
+      - uses: bmdhodl/showwork/actions/verify@19f249f09b7b13f5577fbd1d2420caa3be9c76ee # merge-base selector, trusted-base excusal, deduplicated summary, advisory mode
         with:
           changed-since: ${{ github.event.pull_request.base.sha }}
           allow-commands: "true"

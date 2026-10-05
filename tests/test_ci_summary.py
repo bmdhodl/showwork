@@ -85,6 +85,32 @@ def test_malformed_rows_and_links_stay_bounded_and_unknown():
         assert "[receipt](" not in summary
 
 
+def test_each_error_is_shown_once_where_it_belongs():
+    """REGRESSION: the gate copies session errors to the top level, so each printed twice."""
+    one = receipt("one", status="fail", verdict="RED")
+    one["errors"] = ["declared acceptance checks are not verified", "undeclared change: shared.py"]
+    two = receipt("two", status="fail", verdict="RED")
+    two["errors"] = ["declared acceptance checks are not verified"]
+    result = {"verdict": "RED", "sessions": [one, two],
+              "errors": [*one["errors"], *two["errors"], "cannot resolve base"]}
+    summary = render_summary(result, revision=SHA)
+    assert summary.count("- declared acceptance checks are not verified") == 2
+    assert summary.count("- undeclared change: shared.py") == 1
+    assert summary.index("- undeclared change: shared.py") < summary.index("### Session two")
+    assert summary.count("- cannot resolve base") == 1
+
+
+def test_errors_no_displayed_session_reports_stay_visible():
+    summary = render_summary({"verdict": "RED", "errors": ["cannot resolve base"]}, revision=SHA)
+    assert summary.count("- cannot resolve base") == 1
+    hidden = receipt("hidden", verdict="RED")
+    hidden["errors"] = ["undeclared change: hidden.py"]
+    summary = render_summary({"verdict": "RED", "sessions": [receipt()] * 256 + [hidden],
+                              "errors": hidden["errors"]}, revision=SHA)
+    assert "1 selected sessions omitted from display" in summary
+    assert summary.count("- undeclared change: hidden.py") == 1
+
+
 def test_large_summary_discloses_omitted_rows_instead_of_hiding_coverage():
     row = receipt()
     row["checks"]["results"] *= 81

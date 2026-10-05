@@ -14,15 +14,24 @@ All notable changes to showwork are recorded here.
   inside the merge, a revert to an older version, and the deletion of a file
   the base never tracked all stay RED. A base that already contains HEAD is
   refused. Without a base, the gate and `finish` behave as before.
-- `init --ci` writes a workflow that pins `actions/verify` to `b4fd8a5`, which
-  has the trusted-base excusal. The old pin, `0c1e527`, still read RED on
-  `main`'s edits after a merge. The Action runs the showwork code at its pin,
-  so an existing workflow keeps the old behavior until its pin changes.
+- `init --ci` writes a workflow that pins `actions/verify` to `19f249f`, which
+  has the trusted-base excusal and the summary fixes below. The old pin,
+  `0c1e527`, still read RED on `main`'s edits after a merge. The Action runs
+  the showwork code at its pin, so an existing workflow keeps the old
+  behavior until its pin changes.
 - `gate` text output is a Markdown summary. The first line still reads
   `showwork outcome gate: <verdict>`. Each session shows its requirements,
   scope, result, observed revision, exit code, stdout hash and a receipt link.
   `actions/verify` shows it as Markdown, not as a code block. The summary
   formats the gate result and runs no check again. `--json` is unchanged.
+- `gate` text output and the CI step summary show each error once. The gate
+  copies every session error to the top level, so a RED session printed each
+  error twice. The top-level list now shows only the errors that no displayed
+  session showed, such as a selection or Git error.
+- The note for a file that equals the base now ends "counted as a change from
+  the base, not from this session". The summary escapes an apostrophe as an
+  HTML entity, so the terminal printed `the base&#x27;s change`. The terminal
+  output stays identical to the step summary, and the escape stays.
 - `start --ignore GLOB` freezes a snapshot exclusion for a file that a
   background writer changes. Repeat it per glob, up to 32. The first `start`
   binds the patterns into the snapshot digest, and a reopen with other

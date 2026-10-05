@@ -7,6 +7,7 @@ the gate excuses a changed file only when it now equals that base exactly.
 """
 
 import json
+import re
 import subprocess
 
 import pytest
@@ -70,6 +71,11 @@ def gate(root, capsys, *args):
     return code, json.loads(capsys.readouterr().out)
 
 
+def gate_text(root, capsys, *args):
+    code = main(["--root", str(root), "gate", "--require-tracked", *args])
+    return code, capsys.readouterr().out
+
+
 def test_gate_base_excuses_a_file_that_only_main_changed(repo, capsys):
     root, git = repo
     close_session(root, git)
@@ -96,6 +102,42 @@ def test_changed_since_uses_its_revision_as_the_base(repo, capsys):
     code, result = gate(root, capsys, "--changed-since", git("rev-parse", "main"))
     assert code == 0, result["errors"]
     assert result["sessions"][0]["base_matches"]["paths"] == ["shared.py"]
+
+
+def test_text_gate_prints_the_base_note_without_html_entities(repo, capsys):
+    """REGRESSION: the terminal showed `the base&#x27;s change` in the base note."""
+    root, git = repo
+    close_session(root, git)
+    change_on_main(root, git, "shared.py", "value = 2\n")
+    git("merge", "-q", "--no-edit", "main")
+    base = git("rev-parse", "main")
+    code, output = gate_text(root, capsys, "--changed-since", base)
+    assert code == 0, output
+    assert f"shared.py changed since session.start and equals base {base[:12]}" in output
+    assert not re.search(r"&#?\w+;", output), output
+
+
+def test_text_gate_prints_each_session_error_once(repo, capsys):
+    """REGRESSION: the text gate printed every session error again at the top level."""
+    root, git = repo
+    close_session(root, git)
+    change_on_main(root, git, "shared.py", "value = 2\n")
+    git("merge", "-q", "--no-edit", "main")
+    (root / "shared.py").write_text("value = 3\n")
+    git("commit", "-q", "-am", "topic edits shared.py after the merge")
+    code, output = gate_text(root, capsys, "--changed-since", git("rev-parse", "main"))
+    assert code == 2
+    assert output.count("- declared acceptance checks are not verified") == 1, output
+    assert output.count("- undeclared change: shared.py") == 1, output
+
+
+def test_text_gate_keeps_an_error_that_no_session_reports(repo, capsys):
+    root, git = repo
+    close_session(root, git)
+    code, output = gate_text(root, capsys, "--changed-since", "no-such-revision")
+    assert code == 2
+    assert "No selected session receipts" in output
+    assert output.count("- cannot resolve a common receipt base") == 1, output
 
 
 def test_gate_base_excuses_a_file_that_main_deleted(repo, capsys):

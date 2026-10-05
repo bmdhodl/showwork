@@ -7,6 +7,7 @@ import html
 import json
 import re
 import sys
+from collections import Counter
 from urllib.parse import quote, urlsplit
 
 from .explain import LIMITATIONS, redact, row_class
@@ -72,6 +73,7 @@ def render_summary(result: object, *, revision: str = "", repository: str = "",
     base = _base(server_url, repository, revision)
     lines = _SummaryLines([f"Reviewed revision: {revision or 'unknown'}", "",
                            "Limitations: " + "; ".join(LIMITATIONS) + ".", ""])
+    shown = Counter()
     sessions = result.get("sessions")
     if not isinstance(sessions, list) or not sessions:
         lines.append("UNVERIFIED: No selected session receipts.")
@@ -113,12 +115,21 @@ def render_summary(result: object, *, revision: str = "", repository: str = "",
                 lines.append("")
             errors = item.get("errors")
             for error in errors[:40] if isinstance(errors, list) else []:
-                lines.append(f"- {_text(error)}")
+                line = f"- {_text(error)}"
+                lines.append(line)
+                shown[line] += 1
         if len(sessions) > MAX_SESSIONS:
             lines.append(f"{len(sessions) - MAX_SESSIONS} selected sessions omitted from display; consult full gate JSON.")
+    # The gate copies every session error to the top level; list only the errors not shown above.
     errors = result.get("errors")
-    for error in errors[:40] if isinstance(errors, list) else []:
-        lines.append(f"- {_text(error)}")
+    rest = []
+    for error in errors if isinstance(errors, list) else []:
+        line = f"- {_text(error)}"
+        if shown[line]:
+            shown[line] -= 1
+        else:
+            rest.append(line)
+    lines.extend(rest[:40])
     notes = result.get("notes")
     for note in notes[:40] if isinstance(notes, list) else []:
         lines.append(_text(note))
