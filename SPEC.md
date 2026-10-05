@@ -3,7 +3,8 @@
 **Specification version:** `spec-v0.5`
 
 This document defines a portable, append-only format for falsifiable agent
-claims, deterministic verification, retractions, session lifecycle events, and
+claims, deterministic verification, retractions, supersessions, session
+lifecycle events, and
 exit-gate verdicts. Normative terms follow RFC 2119.
 
 An implementation can target this specification without using the Python
@@ -32,7 +33,7 @@ The reference layout is:
 ```text
 .showwork/
   sessions/<session-stem>.jsonl   one session's start / finish events
-  claims/<session-stem>.jsonl     that session's claims and retractions
+  claims/<session-stem>.jsonl     that session's claims, retractions and supersessions
   snapshots/<session-stem>.json   tree snapshot taken at session.start
   claims-YYYY-MM-DD.jsonl         legacy shared day file (read, not written)
   sessions.jsonl                  legacy shared session file (read, not written)
@@ -372,6 +373,50 @@ A later referencing retraction MUST [test:
 tests/test_checks.py::test_append_only_retraction] suppress the target from the
 active verdict without removing the original record. Inline `retracted: true`
 claims MAY be read for compatibility.
+
+## Supersessions
+
+A later session can legitimately change what another session claimed, for
+example a release that moves a version line another session claimed the same
+day. A retraction says a claim was wrong when made, and it belongs to the
+claim's own session. A supersession says a later change replaced the claim.
+The superseding session appends it to its own claims file:
+
+```json
+{
+  "session":"release-0-6-6",
+  "ts":"2026-10-05T18:02:00",
+  "supersedes":{"session":"docs-version","claim":"ARCHITECTURE.md names 0.6.5",
+                "ts":"2026-10-05T09:14:00"},
+  "supersession_reason":"the release moves ARCHITECTURE.md to 0.6.6"
+}
+```
+
+`supersedes.ts` pins one exact claim record. A verifier MUST [test:
+tests/test_supersede.py::test_same_day_supersession_keeps_verify_and_both_receipts_green]
+honor a sound marker from any claims file wherever the pinned claim is
+verified, for a day or for a session: the claim is skipped and not scored, and
+its result names the superseding session and the reason. The target session's
+files do not change, so its receipt manifest still matches. A record appended
+to another session's own claims file still MUST [test:
+tests/test_supersede.py::test_writing_into_another_sessions_claims_file_still_breaks_its_receipt]
+make that session's manifest differ. A claim that no marker pins, including the
+same text claimed again after the marker, MUST [test:
+tests/test_supersede.py::test_unacknowledged_contradiction_stays_red] still be
+checked.
+
+A writer MUST [test:
+tests/test_supersede.py::test_supersede_refuses_targets_it_cannot_name] refuse
+a supersession from a session that has not started, of the session's own claim
+(retract it instead), of a claim it cannot find, of a retracted claim, or
+without a reason. A marker with a missing field, its own session as the target,
+or claim or retraction fields MUST [test:
+tests/test_supersede.py::test_malformed_supersession_is_visible] be reported as
+a checker error, not honored and not dropped. A supersession MUST [test:
+tests/test_supersede.py::test_supersession_is_not_a_false_done] not count as a
+retraction in the False Done Rate. A reader written before this section does
+not honor the marker, so the superseded claim stays RED there: the safe
+failure.
 
 ## Session lifecycle and exit gate
 
@@ -737,7 +782,7 @@ An implementation conforms to `spec-v0.4` when:
 
 - every normative requirement has a behavioral test named beside it;
 - new writes use per-session files and leftover shared files remain readable;
-- claims and retractions remain append-only;
+- claims, retractions and supersessions remain append-only;
 - every appended record extends the integrity chain, and audits detect
   tampering, deletion, and unchained appends while accepting concurrent forks
   (a `prev` re-anchored to an earlier line) as GREEN and reporting them;

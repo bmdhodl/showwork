@@ -4,6 +4,19 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- New `showwork supersede` records that a later session's change replaced
+  another session's claim. On 2026-10-05 the 0.6.6 release changed a line that
+  an earlier session had claimed the same day, so CI's `verify` went RED. A
+  retraction appended to the earlier session's claims file, and its receipt
+  then failed the gate with "receipt manifest differs". The supersession goes
+  to the superseding session's own claims file and pins one claim record by
+  `ts`. `verify` for the day or for the earlier session skips that record and
+  shows the superseding session and the reason; `gate` prints it as a note.
+  The earlier receipt stays byte-identical. A contradiction with no
+  supersession, or the same claim made again later, stays RED. A broken marker
+  is a checker error. A supersession does not count as a false done. SPEC.md
+  adds a Supersessions section; older readers keep such claims RED.
+
 - `gate` text output and the CI step summary show each error once. The gate
   copies every session error to the top level, so a RED session printed each
   error twice. The top-level list now shows only the errors that no displayed

@@ -66,6 +66,11 @@ your own exit gate is the first thing that will tell you.
    same limit as `finish`. If you merged `main` after `start`, run
    `git fetch origin` and add `--base origin/main`. The gate then excuses files
    that equal `origin/main` exactly. Check the required GitHub receipt job too.
+   If CI's `verify` goes RED because your change broke another session's claim
+   from the same day, do not retract that claim: a retraction changes that
+   session's closed receipt. Record
+   `showwork supersede --session <slug> --target-session <other> --claim "<exact text>" --reason "<why>"`
+   before `finish`.
 6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 

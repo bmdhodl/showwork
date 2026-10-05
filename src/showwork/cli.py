@@ -5,6 +5,7 @@
                      --type file_exists --path F
     showwork claim  --session S --claim TEXT --type file_contains --path F --pattern P
     showwork retract --session S --claim TEXT --reason R
+    showwork supersede --session S --target-session T --claim TEXT --reason R
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
     showwork status [--session S] [--json]
@@ -56,6 +57,7 @@ from .ledger import (
     record_claim,
     record_event,
     record_retraction,
+    record_supersession,
     resolve_root,
     session_artifacts_dir,
     session_file_stem,
@@ -411,6 +413,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--claim", required=True, help="exact text of the claim being retracted")
     p.add_argument("--reason", required=True)
 
+    p = sub.add_parser("supersede",
+                       help="record that this session's change replaced another session's claim")
+    p.add_argument("--session", required=True, help="the session whose change replaced the claim")
+    p.add_argument("--target-session", required=True, help="the session that made the claim")
+    p.add_argument("--claim", required=True, help="exact text of the claim being superseded")
+    p.add_argument("--reason", required=True)
+
     p = sub.add_parser("verify", help="verify claims; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--date", help="verify one day's ledger (default: today)")
     p.add_argument("--session", help="verify one session's claims across all days")
@@ -582,6 +591,10 @@ def main(argv: list[str] | None = None) -> int:
                     f"{session_result['session']}: {path} changed since session.start and equals "
                     f"base {matches['revision'][:12]}; counted as a change from the base, not from this session"
                     for path in matches["paths"])
+            result["notes"].extend(
+                f"{session_result['session']}: supersedes {row['session']} claim "
+                f"{row['claim']!r}: {row['reason']}"
+                for row in session_result.get("supersedes", []))
         if args.json:
             print(json.dumps(result, indent=2))
         else:
@@ -623,6 +636,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "retract":
         record_retraction(root, args.session, args.claim, args.reason)
         print("retraction recorded")
+        return 0
+
+    if args.cmd == "supersede":
+        try:
+            record_supersession(root, args.session, args.target_session, args.claim, args.reason)
+        except (ValueError, OSError) as exc:
+            print(f"supersede rejected: {exc}", file=sys.stderr)
+            return 2
+        print("supersession recorded")
         return 0
 
     if args.cmd == "verify":
