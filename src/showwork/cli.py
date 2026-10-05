@@ -283,38 +283,68 @@ def _decode(raw: object) -> str:
     return str(raw)
 
 
+# The pattern's deadline starts after the filter child is up, as in
+# checks._search_bounded. Interpreter start-up is not the pattern's fault:
+# under `showwork finish` a child took more than 5 s to start, and an ordinary
+# pattern was reported as "did not finish". So --max-seconds bounds the
+# wrapped command plus the pattern's own run, not the filter's start-up. This
+# start-up budget is only a backstop for a child that never gets going, so a
+# run can take up to --max-seconds plus this backstop. The finish record still
+# reports the full wall clock in budget_elapsed_seconds and budget_exceeded.
+KEEP_CHILD_START_BUDGET_S = 60
+# After the command times out, the budget is spent. The pattern then gets
+# this long on the partial output.
+KEEP_PARTIAL_TIMEOUT_S = 10
+
 # Filtering runs in a child so a deadline can actually kill it. A daemon
 # thread cannot: CPython holds the GIL through a single re.search, so join()
-# with a timeout still blocks until the match finishes.
-_FILTER_SRC = (
-    "import re, sys\n"
-    "pattern = re.compile(sys.argv[1])\n"
-    "lines = sys.stdin.read().splitlines()\n"
-    "sys.stdout.write(''.join(l + '\\n' for l in lines if pattern.search(l)))\n"
-)
+# with a timeout still blocks until the match finishes. faulthandler's
+# watchdog is a C thread: it fires anyway, writes "Timeout (" to stderr and
+# exits the child with status 1. Pattern, text and kept lines cross as JSON,
+# which is ASCII, so the console code page cannot change a kept line.
+_FILTER_SRC = """\
+import faulthandler, json, re, sys
+d = json.loads(sys.stdin.read())
+faulthandler.dump_traceback_later(d["s"], exit=True)
+pattern = re.compile(d["p"])
+sys.stdout.write(json.dumps([l for l in d["t"].splitlines() if pattern.search(l)]))
+"""
 
 
 def _keep_lines(pattern_text: str, compiled, text: str,
-                deadline: float | None) -> list[str] | None:
+                deadline: float | None) -> tuple[str, object]:
     """Filter `text` by the pattern without outliving the run budget.
 
     A caller-supplied pattern can backtrack catastrophically, and
     `--max-seconds` otherwise bounds only the wrapped command. With a deadline
-    the match runs in a killable child. None means the deadline passed first.
+    the match runs in a killable child, and the deadline starts after the
+    child's start-up.
+
+    Returns ("ok", lines) | ("timeout", None) | ("error", reason).
     """
     if deadline is None:
-        return [ln for ln in text.splitlines() if compiled.search(ln)]
+        return ("ok", [ln for ln in text.splitlines() if compiled.search(ln)])
+    payload = json.dumps({"p": pattern_text, "t": text, "s": deadline})
     try:
         proc = subprocess.run(
-            [sys.executable, "-c", _FILTER_SRC, pattern_text],
-            input=text, capture_output=True, text=True,
-            errors="replace", timeout=deadline,
+            [sys.executable, "-c", _FILTER_SRC],
+            input=payload, capture_output=True, text=True,
+            timeout=KEEP_CHILD_START_BUDGET_S + deadline,
         )
-    except (subprocess.TimeoutExpired, OSError):
-        return None
+    except subprocess.TimeoutExpired:
+        return ("error",
+                f"the --keep filter did not start in {KEEP_CHILD_START_BUDGET_S}s; "
+                "the host stalled, so the pattern was not judged")
+    except OSError as exc:
+        return ("error", f"the --keep filter could not start: {exc}")
     if proc.returncode != 0:
-        return None
-    return proc.stdout.splitlines()
+        if proc.stderr.startswith("Timeout ("):
+            return ("timeout", None)
+        return ("error", f"the --keep filter failed: {proc.stderr.strip()[:200]}")
+    try:
+        return ("ok", json.loads(proc.stdout))
+    except ValueError:
+        return ("error", "the --keep filter returned no verdict")
 
 
 def _write_kept(keep_path: Path, kept: list[str], root: Path) -> None:
@@ -424,7 +454,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--gate", action="store_true",
                    help="exit 2 when the command succeeds but this session's claims are RED")
     p.add_argument("--max-seconds", type=float,
-                   help="halt the wrapped command after this wall-clock budget")
+                   help="halt the wrapped command after this wall-clock budget; "
+                        "a --keep pattern gets what the command leaves (the "
+                        "filter's interpreter start-up is not charged)")
     p.add_argument("--keep", metavar="REGEX",
                    help="write only the output lines matching REGEX to a session "
                         "artifact, so a claim cites one line instead of a whole log "
@@ -702,18 +734,33 @@ def main(argv: list[str] | None = None) -> int:
                 proc_code = proc.returncode
                 output = (proc.stdout or "") + (proc.stderr or "")
                 sys.stdout.write(output)
+                # The pattern gets what the command left of the budget. Its
+                # filter's start-up is not charged: see KEEP_CHILD_START_BUDGET_S.
                 remaining = (None if args.max_seconds is None
-                             else max(0.0, args.max_seconds - budget.elapsed))
-                kept = _keep_lines(args.keep, keep_re, output, remaining)
-                if kept is None:
-                    print("BUDGET: the --keep pattern did not finish inside "
-                          f"{args.max_seconds:g}s; no receipt was written.",
-                          file=sys.stderr)
+                             else args.max_seconds - budget.elapsed)
+                if remaining is not None and remaining <= 0:
+                    print("BUDGET: the wrapped command used the whole "
+                          f"{args.max_seconds:g}s, so the --keep pattern did "
+                          "not run; no receipt was written.", file=sys.stderr)
+                    keep_re = None
+                    raise subprocess.TimeoutExpired(cmd, args.max_seconds)
+                status, result = _keep_lines(args.keep, keep_re, output, remaining)
+                if status == "timeout":
+                    print("BUDGET: the --keep pattern did not finish in the "
+                          f"{remaining:.1f}s left of the {args.max_seconds:g}s "
+                          "budget; no receipt was written.", file=sys.stderr)
                     # Say what happened and mean it: clear the pattern so the
                     # handler below does not then write an empty receipt.
                     keep_re = None
                     raise subprocess.TimeoutExpired(cmd, args.max_seconds)
-                _write_kept(keep_path, kept, root)
+                if status == "error":
+                    # Not a budget overrun: the pattern was never judged.
+                    print(f"KEEP: {result}; no receipt was written.", file=sys.stderr)
+                    record_event(root, "session.finish", args.session,
+                                 status="error", command_exit=proc_code,
+                                 observed_by="run-wrapper", note=result)
+                    return proc_code or 1
+                _write_kept(keep_path, result, root)
         except subprocess.TimeoutExpired as timeout_exc:
             # capture_output holds the child's output until it returns, so a
             # timeout would otherwise lose both the diagnostics the user used
@@ -722,10 +769,17 @@ def main(argv: list[str] | None = None) -> int:
             if partial:
                 sys.stdout.write(partial)
             if keep_re is not None and keep_path is not None:
-                _write_kept(
-                    keep_path,
-                    _keep_lines(args.keep, keep_re, partial, 10.0) or [],
-                    root)
+                status, result = _keep_lines(args.keep, keep_re, partial,
+                                             KEEP_PARTIAL_TIMEOUT_S)
+                if status == "ok":
+                    _write_kept(keep_path, result, root)
+                else:
+                    # An empty receipt would read as "no line matched". The
+                    # filter judged nothing, so write nothing and say so.
+                    why = (f"the --keep pattern did not finish in {KEEP_PARTIAL_TIMEOUT_S}s"
+                           if status == "timeout" else result)
+                    print(f"KEEP: on the partial output, {why}; "
+                          "no receipt was written.", file=sys.stderr)
             verdict = budget.check()
             state = verify_session(root, args.session)
             record_event(
