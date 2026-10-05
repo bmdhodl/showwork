@@ -278,9 +278,64 @@ def test_keep_pattern_cannot_outlive_the_budget(tmp_path, capsys, monkeypatch):
     assert not (tmp_path / ".showwork" / "artifacts" / "w" / "run.txt").exists()
 
 
-def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
+def test_process_timeout_returns_what_the_child_printed(tmp_path, monkeypatch,
+                                                      slow_child_start):
+    """TimeoutExpired carries the output read from the temp files after the kill.
+
+    REGRESSION: run_process starts its deadline at Popen, so the deadline
+    includes interpreter start-up. A child that started slower than its
+    deadline was killed before it printed. Here start-up is slower than the
+    deadline on purpose, and the deadline starts only after the child printed.
+    """
+    import showwork.process as process
+
+    slow_child_start(1.5)
+    printed = tmp_path / "printed"
+    children = []
+
+    class DeadlineAfterPrint(subprocess.Popen):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            children.append(self)
+
+        def wait(self, timeout=None):
+            # run_process's first wait() is its deadline. Hold it until the
+            # child has printed; start-up time is not under test.
+            give_up = time.monotonic() + 60
+            while not printed.exists() and self.poll() is None:
+                assert time.monotonic() < give_up, "the child never printed"
+                time.sleep(0.01)
+            return super().wait(timeout=timeout)
+
+    # Global, so Windows taskkill gets it too; the marker exists by then.
+    monkeypatch.setattr(subprocess, "Popen", DeadlineAfterPrint)
+    script = ("import pathlib, sys, time; print('Tests 3 passed', flush=True); "
+              "pathlib.Path(sys.argv[1]).touch(); time.sleep(60)")
+    with pytest.raises(subprocess.TimeoutExpired) as caught:
+        process.run_process([sys.executable, "-c", script, str(printed)],
+                            cwd=str(tmp_path), env=dict(os.environ),
+                            timeout=0.5, capture_output=True)
+    assert caught.value.timeout == 0.5
+    assert "Tests 3 passed" in caught.value.output
+    # The output was read after the kill, so the child is no longer running.
+    assert children[0].returncode is not None
+
+
+def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys, monkeypatch):
     """capture_output hides the child until it returns; a timeout must not eat it."""
-    script = ("import time; print('Tests 3 passed', flush=True); time.sleep(30)")
+    import showwork.cli as cli
+
+    # The test above proves run_process returns what a real child printed
+    # before its deadline. A real child here spent the whole 3 s budget on
+    # interpreter start-up under load and was killed before it printed. This
+    # one times out after it printed, every time.
+    def times_out_after_printing(argv, *, timeout, capture_output, **_):
+        assert capture_output, "without captured output there is nothing to replay"
+        raise subprocess.TimeoutExpired(argv, timeout,
+                                        output="Tests 3 passed\n", stderr="")
+
+    monkeypatch.setattr(cli, "run_process", times_out_after_printing)
+    script = "import time; print('Tests 3 passed', flush=True); time.sleep(30)"
     code = main(["--root", str(tmp_path), "run", "--session", "w",
                  "--max-seconds", "3", "--keep", "Tests .* passed",
                  "--", sys.executable, "-c", script])
@@ -288,7 +343,7 @@ def test_timeout_replays_partial_output_and_keeps_its_line(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "Tests 3 passed" in out
     kept = tmp_path / ".showwork" / "artifacts" / "w" / "run.txt"
-    assert "Tests 3 passed" in kept.read_text(encoding="utf-8")
+    assert kept.read_text(encoding="utf-8").splitlines() == ["Tests 3 passed"]
 
 
 def _command_returns(output):
