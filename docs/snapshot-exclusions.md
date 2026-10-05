@@ -1,7 +1,7 @@
 # Explicit snapshot exclusions
 
-This source feature is pending a package release. Installed showwork 0.6.5 does
-not have `start --ignore`.
+This feature ships in showwork 0.6.6. Version 0.6.5 and earlier have no
+`start --ignore`.
 
 A dashboard or a queue writer can change files while an agent works. Freeze
 specific exclusions when you start a new session:

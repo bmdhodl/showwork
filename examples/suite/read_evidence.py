@@ -77,7 +77,7 @@ def bound_command(root, command, requirement, revision, frozen_scope):
     recorded_argv = evidence.get("argv")
     if (check.get("type") != "command" or not isinstance(argv, list) or len(argv) < 2
             or not isinstance(recorded_argv, list) or len(recorded_argv) < 2
-            or evidence.get("git_commit") != revision or evidence.get("showwork_version") != "0.6.5"):
+            or evidence.get("git_commit") != revision or evidence.get("showwork_version") != "0.6.6"):
         return False
     script = (root / argv[1]).resolve()
     if not script.is_relative_to(root) or Path(recorded_argv[1]).resolve() != script:

@@ -13,6 +13,29 @@ All notable changes to showwork are recorded here.
   edit inside the merge, a revert, and the deletion of a file the base never
   tracked stay RED. A base that already contains HEAD is rejected, and the
   rejected `finish` writes no event. `verify --base` needs `--session`.
+
+## 0.6.6 - 2026-10-05
+
+- `gate --base REV` takes a trusted base revision. `--changed-since` sets it,
+  and passing both is refused. A file that changed since session start but now
+  equals the base is the base's change, so the gate no longer calls it an
+  undeclared change. Branch protection that needs an up-to-date branch made
+  every such PR merge `main` after its session started, and the receipt job
+  then read RED on `main`'s edits. The gate lists each excused file as a note.
+- The base excuses only exact matches. An edit by the session, an edit made
+  inside the merge, a revert to an older version, and the deletion of a file
+  the base never tracked all stay RED. A base that already contains HEAD is
+  refused. Without a base, the gate and `finish` behave as before.
+- `init --ci` writes a workflow that pins `actions/verify` to `19f249f`, which
+  has the trusted-base excusal and the summary fixes below. The old pin,
+  `0c1e527`, still read RED on `main`'s edits after a merge. The Action runs
+  the showwork code at its pin, so an existing workflow keeps the old
+  behavior until its pin changes.
+- `gate` text output is a Markdown summary. The first line still reads
+  `showwork outcome gate: <verdict>`. Each session shows its requirements,
+  scope, result, observed revision, exit code, stdout hash and a receipt link.
+  `actions/verify` shows it as Markdown, not as a code block. The summary
+  formats the gate result and runs no check again. `--json` is unchanged.
 - `gate` text output and the CI step summary show each error once. The gate
   copies every session error to the top level, so a RED session printed each
   error twice. The top-level list now shows only the errors that no displayed
@@ -21,6 +44,53 @@ All notable changes to showwork are recorded here.
   the base, not from this session". The summary escapes an apostrophe as an
   HTML entity, so the terminal printed `the base&#x27;s change`. The terminal
   output stays identical to the step summary, and the escape stays.
+- `start --ignore GLOB` freezes a snapshot exclusion for a file that a
+  background writer changes. Repeat it per glob, up to 32. The first `start`
+  binds the patterns into the snapshot digest, and a reopen with other
+  patterns is refused. A bad pattern exits 2 before any receipt is written.
+  `verify` lists the frozen exclusions, and command source checks use them.
+- The snapshot skips `next-env.d.ts` and `*.tsbuildinfo`. Next and the
+  TypeScript compiler rewrite them on every build, so they showed as
+  undeclared changes. Ordinary `.ts` and custom `.d.ts` files stay covered.
+- New `host-stop-hook --host codex|claude|cursor`. It reads up to 32 KiB of
+  Stop payload and the receipt named by `SHOWWORK_SESSION`, and reports to
+  stderr. It always exits 0 with host-valid JSON. It writes no event and runs
+  no check.
+- `init --claude` installs `host-stop-hook --host claude` with a 5 s timeout.
+  An existing `stop-hook` entry is kept, and the legacy command still works.
+  `init --cursor`, and so plain `init`, also writes `.cursor/hooks.json`. New
+  `init --codex` writes `.codex/hooks.json` and
+  `.agents/skills/showwork-receipts/SKILL.md`.
+- `init --preview` writes nothing. `init --uninstall` removes only unchanged
+  generated files and hook entries. `init` merges into host JSON and refuses
+  malformed JSON, even with `--force`.
+- `init --claude` finds an existing showwork Stop hook by its parsed command
+  (`python3`, `py -3`, a full path, `showwork.cli`). A second `init` no longer
+  adds a duplicate. An `echo` of the arguments does not count as a hook.
+- `showwork --version` (`-V`) prints the version and needs no workspace. A
+  missing subcommand now names `COMMAND`.
+- A failed `command` check shows the Python version, the interpreter and the
+  last six lines of stderr (stdout when stderr is empty), with secrets and
+  paths redacted. The exit code and hashes still decide the result.
+- Command evidence `argv` records the interpreter and script that ran. Command
+  checks run the script with showwork's own interpreter, so install showwork
+  in the project's environment.
+- With `--showwork-session`, the pytest plugin keeps
+  `pytest-<uuid>-started.json` and `pytest-<uuid>.json` for each run. At start
+  it marks `pytest-last.json` as `running` with `passed: null`, so a killed
+  run cannot leave an old pass current. A finished record counts pass, fail,
+  skip, error, xfail and xpass reports and hashes the arguments. Old
+  three-field reports stay readable.
+- New `showwork.reader.inspect_session(workspace, session)` reads a receipt
+  with no Git, child process, network or write. It always reports
+  `current_outcome: UNVERIFIED`. Reads stop at 4 MiB per file, 32 MiB in total
+  and 1,024 files.
+- `showwork receipts` starts no process and uses `--root`, `SHOWWORK_ROOT` or
+  the cwd, with no Git lookup. It no longer observes `file_contains`, so that
+  check stays unknown. A verified badge needs a matching recorded close.
+- The 5 s `file_contains` budget starts after the regex child is up. A slow
+  start was reported as an unbounded pattern. A child that does not start in
+  60 s now gives an error that says the host stalled.
 - `run --keep` starts the pattern's deadline after the filter's interpreter
   is up. Under `showwork finish` a child took more than 5 s to start. The
   wrapper then said the pattern did not finish, and wrote no receipt. The
@@ -38,16 +108,9 @@ All notable changes to showwork are recorded here.
   not run. It no longer says the pattern did not finish.
 - A kept line now matches the printed line. The filter child got its text in
   the console code page, so a check mark came back as `?` on Windows.
-- `gate` takes a trusted base revision, and `--changed-since` sets it. A file
-  that changed since session start but now equals the base is the base's
-  change, so the gate no longer calls it an undeclared change. Branch
-  protection that needs an up-to-date branch made every such PR merge `main`
-  after its session started, and the receipt job then read RED on `main`'s
-  edits. The gate lists each excused file as a note.
-- The base excuses only exact matches. An edit by the session, an edit made
-  inside the merge, a revert to an older version, and the deletion of a file
-  the base never tracked all stay RED. A base that already contains HEAD is
-  refused. Without a base, the gate and `finish` behave as before.
+- The receipt manifest resolves the root before it names files. A Windows
+  short name or macOS `/var` alias made `relative_to` raise. Receipt bytes do
+  not change.
 
 ## 0.6.5 - 2026-09-27
 

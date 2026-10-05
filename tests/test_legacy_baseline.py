@@ -186,6 +186,9 @@ def test_cli_names_acknowledged_red_files(tmp_path, capsys):
 
 def test_init_workflow_uses_merge_base_aware_action(tmp_path):
     # REGRESSION: the old release pin misses the merge-base selection fix.
+    # REGRESSION: 0c1e527 misses the trusted-base excusal (#166), so a PR
+    # that merges main reads RED on main's edits.
+    # b4fd8a5 prints each gate error twice in the step summary (#167).
     assert main(["--root", str(tmp_path), "init"]) == 0
     workflow = (tmp_path / "docs/ci/showwork-verify.yml").read_text()
-    assert "bmdhodl/showwork/actions/verify@0c1e52792a2eb5e7ae5dcc2b46f6bf7262850642" in workflow
+    assert "bmdhodl/showwork/actions/verify@19f249f09b7b13f5577fbd1d2420caa3be9c76ee" in workflow
