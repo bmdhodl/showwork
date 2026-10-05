@@ -119,17 +119,44 @@ def receipt_manifest(root: Path, session: str) -> dict:
             "requirement_count": len(requirements)}
 
 
+def resolve_base(root: Path, base: str) -> str:
+    """Resolve the trusted revision a change merges into to a full commit ID.
+
+    The gate excuses only files that now equal this revision, so the revision
+    must not already contain HEAD: every committed change would match it.
+    """
+    if not base or base.startswith("-"):
+        raise ValueError("base must be a Git revision")
+    resolved = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"],
+        capture_output=True, text=True, timeout=15)
+    if resolved.returncode:
+        raise ValueError(f"cannot resolve base {base!r} to a commit; fetch it with full history")
+    commit = resolved.stdout.strip()
+    contains = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", "HEAD", commit],
+        capture_output=True, timeout=15)
+    if contains.returncode == 0:
+        raise ValueError(f"base {base!r} already contains HEAD, so it cannot tell this change "
+                         "from its base; pass the branch this change merges into")
+    if contains.returncode != 1:
+        raise ValueError(f"cannot compare HEAD with base {base!r}")
+    return commit
+
+
 def release_gate(root: Path, session: str, *, require_tracked: bool = False,
-                 legacy_integrity_baseline: str | None = None) -> dict:
+                 legacy_integrity_baseline: str | None = None,
+                 base: str | None = None) -> dict:
     from .audit import audit_root
     from .ledger import load_all_events, session_events_path, session_file_stem, verify_session
     from .snapshot import snapshot_file
     from .ledger import ledger_dir, _read_jsonl
     root = root.resolve()
     errors = []
+    base_revision = resolve_base(root, base) if base is not None else None
     # Commands are trusted project code, but their ledger mutations still need
     # to be audited. Auditing first left a gap after the last command ran.
-    state = verify_session(root, session)
+    state = verify_session(root, session, base_revision=base_revision)
     audit = audit_root(root)
     baseline = None
     acknowledged = set()
@@ -177,7 +204,7 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False,
                 errors.append(f"receipt is not committed exactly at HEAD: {rel}")
     return {"verdict": "RED" if errors else "GREEN", "session": session,
             "errors": errors, "checks": state, "historical_integrity": audit["verdict"],
-            "legacy_baseline": baseline,
+            "legacy_baseline": baseline, "base_matches": state.get("base_matches"),
             "integrity_scope": ("selected session; pinned legacy history remains unverified"
                                 if baseline else "selected session; unrelated RED findings still fail")}
 

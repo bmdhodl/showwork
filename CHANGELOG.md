@@ -21,6 +21,16 @@ All notable changes to showwork are recorded here.
   not run. It no longer says the pattern did not finish.
 - A kept line now matches the printed line. The filter child got its text in
   the console code page, so a check mark came back as `?` on Windows.
+- `gate` takes a trusted base revision, and `--changed-since` sets it. A file
+  that changed since session start but now equals the base is the base's
+  change, so the gate no longer calls it an undeclared change. Branch
+  protection that needs an up-to-date branch made every such PR merge `main`
+  after its session started, and the receipt job then read RED on `main`'s
+  edits. The gate lists each excused file as a note.
+- The base excuses only exact matches. An edit by the session, an edit made
+  inside the merge, a revert to an older version, and the deletion of a file
+  the base never tracked all stay RED. A base that already contains HEAD is
+  refused. Without a base, the gate and `finish` behave as before.
 
 ## 0.6.5 - 2026-09-27
 

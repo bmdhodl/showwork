@@ -134,6 +134,12 @@ selects receipts from that revision's **merge base with HEAD**, matching a PR's
 Files changed view. Receipts added only on main are excluded. Receipts deleted
 or moved by the PR still get checked. No changed receipts remains UNVERIFIED.
 
+The same revision is the trusted base. When a branch merges main after its
+session started, a file that main changed differs from the start snapshot.
+Current source excuses that file only when it now equals the base revision
+exactly, and lists it as a note. An edit by the session or inside the merge
+still fails. Take the base from the event, never from a ref the branch can move.
+
 ```yaml
 jobs:
   receipts:
@@ -168,7 +174,7 @@ pinning a reviewed commit.
 | `mode` | `enforce` | `advisory` reports refusal without failing the job |
 | `root` | `.` | Project root containing `.showwork/` |
 | `session` | empty | One session; mutually exclusive with `changed-since` |
-| `changed-since` | empty | Compare HEAD against the merge base with this revision |
+| `changed-since` | empty | Select receipts changed from the merge base with this revision; files that equal it are not undeclared changes |
 | `require-tracked` | `true` | Receipt files must match committed HEAD |
 | `python-path` | empty | Prepared interpreter with test dependencies; otherwise an isolated venv |
 | `allow-commands` | `false` | Execute repository Python checks in a trusted context |
@@ -220,8 +226,12 @@ change is needed when the required receipt job itself uses advisory mode.
 ## Diagnose a refusal
 
 - **Unrelated paths changed:** check out the PR head, not `refs/pull/*/merge`.
-  If the branch itself was rebased after recording the snapshot, review the
-  changed paths and record a new session against that tree; do not edit history.
+  A file main changed is excused only when it equals the base exactly; merge
+  main again if the base moved after your last merge. If the branch itself was
+  rebased after recording the snapshot, review the changed paths and record a
+  new session against that tree; do not edit history.
+- **Base already contains HEAD:** pass the branch the change merges into, not
+  the branch itself. Locally: `showwork gate --session <slug> --base origin/main`.
 - **Unrelated session selected:** upgrade to the merge-base selector above.
 - **Cannot resolve a common receipt base:** fetch both revisions with full Git
   history. A shallow checkout cannot reliably identify the PR's changes.

@@ -14,7 +14,7 @@ inputs:
     description: "One session to verify; mutually exclusive with changed-since"
     default: ""
   changed-since:
-    description: "Git base revision; verify receipts changed since its merge base with HEAD"
+    description: "Trusted Git base revision; verify receipts changed since its merge base with HEAD, and treat files that equal it as the base's changes"
     default: ""
   require-tracked:
     description: "Require receipt files to match committed HEAD"

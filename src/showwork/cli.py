@@ -395,6 +395,10 @@ def main(argv: list[str] | None = None) -> int:
     selection.add_argument("--session")
     selection.add_argument("--changed-since", help="gate every receipt changed from a Git revision")
     p.add_argument("--require-tracked", action="store_true")
+    p.add_argument("--base",
+                   help="trusted Git revision this change merges into; a file changed since "
+                        "session start that now equals it is the base's change, not the "
+                        "session's (--changed-since sets it)")
     p.add_argument("--legacy-integrity-baseline",
                    help="explicitly acknowledge unchanged shared legacy history at a full Git commit ID; audit stays RED")
     p.add_argument("--json", action="store_true")
@@ -552,9 +556,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "gate":
         from .outcomes import changed_sessions, release_gate
         try:
+            if args.base is not None and args.changed_since:
+                raise ValueError("--changed-since already sets the base; drop --base")
+            # The pull request base that selects receipts is also the base they merge into.
+            base = args.base if args.base is not None else args.changed_since
             sessions = [args.session] if args.session else changed_sessions(root, args.changed_since)
             results = [release_gate(root, s, require_tracked=args.require_tracked,
-                                    legacy_integrity_baseline=args.legacy_integrity_baseline) for s in sessions]
+                                    legacy_integrity_baseline=args.legacy_integrity_baseline,
+                                    base=base) for s in sessions]
             result = {"verdict": "GREEN" if all(r["verdict"] == "GREEN" for r in results) else "RED",
                       "errors": [error for r in results for error in r["errors"]], "sessions": results,
                       "notes": [f"{r['session']}: historical integrity {r['historical_integrity']}; "
@@ -567,6 +576,12 @@ def main(argv: list[str] | None = None) -> int:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")
                 result["notes"].extend(f"acknowledged historical RED: {row['path']} ({row['detail']})"
                                        for row in baseline["acknowledged"])
+            matches = session_result.get("base_matches")
+            if matches:
+                result["notes"].extend(
+                    f"{session_result['session']}: {path} changed since session.start and equals "
+                    f"base {matches['revision'][:12]}; counted as the base's change, not this session's"
+                    for path in matches["paths"])
         if args.json:
             print(json.dumps(result, indent=2))
         else:
