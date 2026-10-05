@@ -27,4 +27,4 @@ Sharing uses an explicit redacted summary and references.
 This handoff adds no showwork installation, source changes or UI to BMD. Any
 rendered BMD implementation has its own task and Playwright acceptance on the
 designated test machine. Source-built validation wheels are described in the
-matrix; the newer reader/exclusion features are pending package publication.
+matrix; the newer reader/exclusion features ship in showwork 0.6.6.

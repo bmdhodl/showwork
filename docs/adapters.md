@@ -12,9 +12,8 @@ Walk: [walks/cursor.md](walks/cursor.md).
 ## pytest
 
 If pytest is installed, `pip install showwork` registers a plugin. It is
-silent unless you pass `--showwork-session`. The behavior below describes
-current source; it requires a package release before it is available through
-the published installer.
+silent unless you pass `--showwork-session`. The behavior below ships in
+showwork 0.6.6.
 
 Each opted-in invocation receives a UUID and writes observations under
 `.showwork/artifacts/<session>/`:

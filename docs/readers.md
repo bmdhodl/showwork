@@ -52,8 +52,8 @@ IDs/scopes/check descriptions, close `status`, `completion_scope`, `outcome`,
 `verify_bypassed`, and `receipt_manifest`. Optional `spec_version` declarations
 outside the listed versions and unknown nonempty `required_semantics` are unsupported.
 The source readers support `snapshot-exclusions-v1` on session starts, validate
-its frozen snapshot sidecar and disclose `snapshot_scope`. This capability is
-pending a package release. Readers that lack it cannot qualify such a receipt.
+its frozen snapshot sidecar and disclose `snapshot_scope`. This capability ships
+in showwork 0.6.6. Readers that lack it cannot qualify such a receipt.
 See [explicit snapshot exclusions](snapshot-exclusions.md) for the matching
 rules, compatibility boundary and new-file coverage limit.
 Unknown required events are unsupported. Unknown optional prose is not promoted

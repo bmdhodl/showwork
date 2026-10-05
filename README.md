@@ -10,7 +10,7 @@ Check what an AI agent says it completed.
 showwork records an agent's claims and runs deterministic checks. Its exit gate
 refuses a clean outcome close when declared acceptance checks fail.
 Each session keeps its own append-only, hash-chained receipt.
-Version 0.6.5 binds the Claude Code Stop hook to the task you started, and stops it from writing the same verdict on every turn.
+Version 0.6.6 stops `gate --changed-since` from failing a branch for files it got by merging main, adds `start --ignore`, and adds read-only `host-stop-hook` recipes for Codex, Claude Code and Cursor.
 
 Python 3.10 or newer. No runtime dependencies. MIT licensed.
 
@@ -99,8 +99,8 @@ Distinct session slugs write distinct files under `.showwork/sessions/` and
 See [concurrency](docs/concurrency.md) and the
 [`spec-v0.5` ledger specification](SPEC.md).
 
-The source CLI also supports [explicit frozen snapshot exclusions](docs/snapshot-exclusions.md)
-for background writers. That feature is pending a package release.
+The CLI also supports [explicit frozen snapshot exclusions](docs/snapshot-exclusions.md)
+for background writers (showwork 0.6.6 and later).
 
 ## Add it to a repository
 
