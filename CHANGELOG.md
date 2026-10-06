@@ -26,6 +26,12 @@ All notable changes to showwork are recorded here.
   supersession, or the same claim made again later, stays RED. A broken marker
   is a checker error. A supersession does not count as a false done. SPEC.md
   adds a Supersessions section; older readers keep such claims RED.
+- The `gate` supersession note no longer quotes the claim with Python repr.
+  The text gate printed `claim &#x27;...&#x27;:` because the step summary
+  escapes each quote as an HTML entity. The note now reads
+  `supersedes <session> claim: <claim>; reason: <reason>`. The summary escape
+  stays, so claim and reason text still cannot render as HTML or Markdown in
+  the step summary; `--json` keeps the exact text.
 - `finish` and `verify --session` take `--base REV`, resolved as `gate --base`
   resolves it. A session that merged `main` and had to finish again (for
   example after it added a claim, which changes the receipt manifest) read
