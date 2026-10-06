@@ -242,7 +242,9 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
             })
         if reader["spec_coverage"] == "unsupported":
             return _payload("unknown", {**details, "reason": "unsupported required receipt semantics"})
-        state = evaluate_records(claims, workspace, allowed_check_types=READ_ONLY_CHECKS)
+        # Honor a later session's sound marker as `verify` does.
+        state = evaluate_records(claims, workspace, allowed_check_types=READ_ONLY_CHECKS,
+                                 supersessions=receipt["supersessions"])
         requirements = [row for row in events if row.get("event") == "session.requirement"]
         extra = evaluate_requirement_records(workspace, requirements,
                                              allowed_check_types=READ_ONLY_CHECKS)
@@ -288,6 +290,10 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
             None,
         )
         results = [r for r in state.get("results") or [] if isinstance(r, dict)]
+        details["superseded"] = [
+            {"claim": r.get("claim"), "superseded_by": r["superseded_by"], "detail": r.get("detail")}
+            for r in results if r.get("superseded_by")
+        ]
         checked = [r for r in results if r.get("status") != "skipped"]
         failed = [r for r in checked if r.get("status") in {"fail", "error"}
                   and not r.get("policy_disabled")]
@@ -415,6 +421,12 @@ def render_badges_html(
                 "</p>"
             )
         rows_html = "".join(row_lines)
+        superseded_html = "".join(
+            "<p class=\"superseded\">"
+            f"Superseded claim: {_esc(redact(item.get('claim')))}; "
+            f"{_esc(redact(item.get('detail')))}</p>"
+            for item in verification.get("superseded") or [] if isinstance(item, dict)
+        )
         cards[surface].append(
             "<article class=\"card\" data-surface=\""
             f"{surface}\" data-state=\"{state}\">"
@@ -425,6 +437,7 @@ def render_badges_html(
             f"<p class=\"claim\">{claim}</p>"
             f"<p class=\"check\">{check}</p>"
             f"<p class=\"detail\">{detail}</p>"
+            f"{superseded_html}"
             f"<p class=\"scope\">{scope}</p>"
             f"<p class=\"integrity\">Integrity: {integrity}</p>"
             f"<p class=\"observation\">Observation: {observation}. Historical finish: {historical}.</p>"

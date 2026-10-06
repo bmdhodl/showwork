@@ -78,5 +78,13 @@
     "freshness": "recorded_close",
     "recorded_outcome": "VERIFIED",
     "current_execution": "not performed"
+  },
+  "superseded": {
+    "integrity": "GREEN",
+    "spec_coverage": "supported_reading_fields",
+    "manifest": "matches",
+    "freshness": "recorded_close",
+    "recorded_outcome": "VERIFIED",
+    "current_execution": "not performed"
   }
 }

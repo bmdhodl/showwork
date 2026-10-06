@@ -4,6 +4,16 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- The read-only receipts badge now honors a sound supersession as `verify`
+  does. Before, a session that claimed `notes/v1-*.md` and closed GREEN read
+  FAILED on its badge with "count 0 !== 1" after a later session renamed the
+  note and superseded the claim; `verify` skipped the same claim. The badge
+  now skips it and shows "Superseded claim: ...; superseded by session B:
+  <reason>". With no marker the badge still fails the claim, and a broken
+  marker stays a checker error in the superseding session's badge. The Python
+  and JavaScript label readers never check claims again, so their labels do
+  not change; both now disclose `supersessions` (claim, ts, by, reason). The
+  readers still write nothing. SPEC.md states the reader contract.
 - New `showwork supersede` records that a later session's change replaced
   another session's claim. On 2026-10-05 the 0.6.6 release changed a line that
   an earlier session had claimed the same day, so CI's `verify` went RED. A

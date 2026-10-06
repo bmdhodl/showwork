@@ -1,0 +1,2 @@
+{"session": "later", "ts": "2026-10-05T00:00:05", "claim": "the plan note moved to v2", "severity": "RED", "check": {"type": "path_moved", "from": "notes/v1-plan.md", "to": "notes/v2-plan.md"}, "prev": "fae7121e87458e66029021e795a45f12b23737221f512dc195e52c5f36fa0d52"}
+{"session": "later", "ts": "2026-10-05T00:00:06", "supersedes": {"session": "fixture", "claim": "one plan note matches notes/v1-*.md", "ts": "2026-10-05T00:00:02"}, "supersession_reason": "the v2 release renames the plan note", "prev": "4ee61723dca504653b08a4e23c24ab7b8ebf7608185f11c363096152cb8f6b9b"}
