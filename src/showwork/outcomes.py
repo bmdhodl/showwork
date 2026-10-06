@@ -205,6 +205,7 @@ def release_gate(root: Path, session: str, *, require_tracked: bool = False,
     return {"verdict": "RED" if errors else "GREEN", "session": session,
             "errors": errors, "checks": state, "historical_integrity": audit["verdict"],
             "legacy_baseline": baseline, "base_matches": state.get("base_matches"),
+            "supersedes": state.get("supersedes", []),
             "integrity_scope": ("selected session; pinned legacy history remains unverified"
                                 if baseline else "selected session; unrelated RED findings still fail")}
 

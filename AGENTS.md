@@ -70,6 +70,11 @@ your own exit gate is the first thing that will tell you.
    `origin/main` exactly; an edit of your own or inside the merge stays RED.
    Do not add a claim for each file `main` changed. Check the required GitHub
    receipt job too.
+   If CI's `verify` goes RED because your change broke another session's claim
+   from the same day, do not retract that claim: a retraction changes that
+   session's closed receipt. Record
+   `showwork supersede --session <slug> --target-session <other> --claim "<exact text>" --reason "<why>"`
+   before `finish`.
 6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 

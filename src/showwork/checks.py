@@ -906,7 +906,8 @@ CHECKERS = {
 
 def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str] | None = None,
                  acceptance_requirement: bool = False,
-                 command_cache: dict | None = None) -> dict:
+                 command_cache: dict | None = None,
+                 superseded_by: dict | None = None) -> dict:
     claim = record.get("claim", "(no description)")
     # SPEC: severity is RED or YELLOW. Anything else (empty, GREEN, typos)
     # must not demote a failed claim out of the exit gate — default to RED.
@@ -926,6 +927,12 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         # A corrupt ledger line is never harmless: it could be a real claim.
         return {**base, "type": None, "status": "error",
                 "detail": f"unparseable ledger line: {record['_parse_error']}"}
+    if "supersedes" in record:
+        # evaluate_records drops sound markers, so only a broken one gets here.
+        # Test it before retraction: retraction fields must not hide it.
+        problem = supersession_error(record) or "a supersession marker is not a claim"
+        return {**base, "type": None, "status": "error",
+                "detail": f"invalid supersession record: {problem}"}
     if record.get("_append_retraction_reason"):
         return {**base, "type": None, "status": "skipped", "retracted": True,
                 "detail": f"retracted: {record['_append_retraction_reason']}"}
@@ -933,6 +940,13 @@ def verify_claim(record: dict, root: Path, *, allowed_check_types: frozenset[str
         reason = str(record.get("retraction_reason", "claim retracted")).strip()
         return {**base, "type": None, "status": "skipped", "retracted": True,
                 "detail": f"retracted: {reason or 'claim retracted'}"}
+    # Like the acceptance role, only the evaluator grants this, from a sound
+    # marker that pins this exact record. Claim-file fields cannot claim it.
+    if superseded_by is not None:
+        return {**base, "type": None, "status": "skipped",
+                "superseded_by": superseded_by["session"],
+                "detail": f"superseded by session {superseded_by['session']}: "
+                          f"{superseded_by['reason']}"}
     if check is None:
         return {**base, "type": None, "status": "skipped",
                 "detail": "no check spec (non-falsifiable); recorded only"}
@@ -1030,17 +1044,80 @@ def apply_append_retractions(records: list[dict]) -> list[dict]:
     return out
 
 
+def supersession_error(record: dict) -> str | None:
+    """Why a supersession marker cannot be honored, or None when it can.
+
+    A marker records that a later session's change replaced another
+    session's claim. It lives in the superseding session's own file:
+        {"session": "...", "supersedes": {"session": "...", "claim": "...",
+         "ts": "..."}, "supersession_reason": "..."}
+    """
+    target = record.get("supersedes")
+    if not isinstance(target, dict) or not all(
+            isinstance(target.get(key), str) and target[key]
+            for key in ("session", "claim", "ts")):
+        return "supersedes must name the session, claim and ts of one claim record"
+    reason = record.get("supersession_reason")
+    if not isinstance(reason, str) or not reason.strip():
+        return "supersession_reason must not be empty"
+    session = record.get("session")
+    if not isinstance(session, str) or not session:
+        return "the superseding session is missing"
+    if session == target["session"]:
+        return "a session cannot supersede its own claim; retract it instead"
+    # A sound marker is dropped from the claim list, so it must not carry one.
+    if any(key in record for key in ("claim", "check", "retracted", "retracts")):
+        return "a supersession record cannot also be a claim or a retraction"
+    return None
+
+
+def _supersession_targets(markers: list[dict]) -> dict[tuple[str, str, str], dict]:
+    """Map each pinned (session, claim, ts) to the session that superseded it."""
+    targets: dict[tuple[str, str, str], dict] = {}
+    for marker in markers:
+        if "supersedes" in marker and supersession_error(marker) is None:
+            target = marker["supersedes"]
+            targets[(target["session"], target["claim"], target["ts"])] = {
+                "session": marker["session"],
+                "reason": marker["supersession_reason"].strip(),
+            }
+    return targets
+
+
+def is_scored(row: dict) -> bool:
+    """Retracted and superseded rows are rendered, but they are not outstanding."""
+    return not (row.get("retracted") or row.get("superseded_by"))
+
+
 def evaluate_records(records: list[dict], root: Path, label: str = "", *,
+                     supersessions: list[dict] | None = None,
                      allowed_check_types: frozenset[str] | None = None,
                      command_cache: dict | None = None) -> dict:
     """Verify a list of claim records. Verdict: any failed RED claim => RED;
-    any other failure or checker error => YELLOW; else GREEN."""
+    any other failure or checker error => YELLOW; else GREEN.
+
+    `supersessions` adds markers from outside `records`: another session's
+    file or another day can acknowledge a claim listed here.
+    """
     records = apply_append_retractions(records)
-    # Retraction markers are bookkeeping, not claims; do not list them.
-    claims = [r for r in records
-              if not (r.get("retracted") and isinstance(r.get("retracts"), dict))]
-    results = [verify_claim(r, root, allowed_check_types=allowed_check_types,
-                           command_cache=command_cache) for r in claims]
+    superseded = _supersession_targets([*records, *(supersessions or [])])
+    results = []
+    acknowledged = []
+    for r in records:
+        # Sound supersession and retraction markers are bookkeeping, not
+        # claims; do not list them. A broken supersession stays visible.
+        if "supersedes" in r and supersession_error(r) is None:
+            target = r["supersedes"]
+            acknowledged.append({"session": target["session"], "claim": target["claim"],
+                                 "ts": target["ts"], "by": r["session"],
+                                 "reason": r["supersession_reason"].strip()})
+            continue
+        if "supersedes" not in r and r.get("retracted") and isinstance(r.get("retracts"), dict):
+            continue
+        key = (str(r.get("session", "")), str(r.get("claim", "")), str(r.get("ts", "")))
+        results.append(verify_claim(r, root, allowed_check_types=allowed_check_types,
+                                    command_cache=command_cache,
+                                    superseded_by=superseded.get(key)))
     fails = [r for r in results if r["status"] == "fail"]
     errors = [r for r in results if r["status"] == "error"]
     red = [r for r in fails if r["severity"] == "RED"]
@@ -1051,13 +1128,14 @@ def evaluate_records(records: list[dict], root: Path, label: str = "", *,
     else:
         verdict = "GREEN"
     gaps = gaps_payload({"results": results})
-    # A retracted claim is withdrawn, not outstanding. It can never pass, so
-    # counting it in the denominator makes a clean run look incomplete. It is
-    # still rendered; it just is not scored.
-    scored = [r for r in results if not r.get("retracted")]
+    # A retracted or superseded claim is not outstanding. It is never checked,
+    # so counting it in the denominator makes a clean run look incomplete. It
+    # is still rendered; it just is not scored.
+    scored = [r for r in results if is_scored(r)]
     passed = sum(1 for r in scored if r["status"] == "pass")
     return {"label": label, "verdict": verdict, "total": len(scored),
-            "passed": passed, "results": results, "gaps": gaps}
+            "passed": passed, "results": results, "gaps": gaps,
+            "supersedes": acknowledged}
 
 
 def gaps_payload(state: dict) -> list[dict]:

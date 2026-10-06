@@ -45,7 +45,7 @@ Three rules drive every design decision below:
 | File | Role |
 |---|---|
 | `src/showwork/ledger.py` | Append-only storage, record framing, hash chain writes, session lifecycle, the `finish` gate |
-| `src/showwork/checks.py` | The eight deterministic checkers, the verification driver, verdict algebra, retraction resolution |
+| `src/showwork/checks.py` | The eight deterministic checkers, the verification driver, verdict algebra, retraction and supersession resolution |
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
 | `src/showwork/cli.py` | Argument parsing and the subcommands; exit codes |
 | `src/showwork/snapshot.py` | Session-start tree snapshot and undeclared-change detection |
@@ -75,7 +75,7 @@ so two agents in two worktrees write two `.showwork/` trees.
 ```text
 .showwork/
   sessions/<id>.jsonl       session.start / session.finish for one session
-  claims/<id>.jsonl         claims and retractions for that session
+  claims/<id>.jsonl         claims, retractions and supersessions for that session
   snapshots/<id>.json       tree snapshot taken at session.start
   claims-YYYY-MM-DD.jsonl   leftover shared day file (read, not written)
   sessions.jsonl            leftover shared session file (read, not written)
@@ -125,6 +125,28 @@ the ordering rule matters: a retraction suppresses only targets that appear
 live claim, not something an old retraction kills forever. The referencing
 records themselves are bookkeeping and are dropped from the listed claims by
 `evaluate_records()`.
+
+### Supersession record
+
+A retraction belongs to the claim's own session, so it appends to that
+session's claims file. When a later session breaks another session's claim,
+that append changes the other session's closed receipt, and the receipts job
+fails with "receipt manifest differs". The superseding session writes a
+supersession to its own file instead (`showwork supersede`):
+
+```json
+{"session":"release-0-6-6","ts":"...",
+ "supersedes":{"session":"docs-version","claim":"ARCHITECTURE.md names 0.6.5","ts":"..."},
+ "supersession_reason":"the release moves ARCHITECTURE.md to 0.6.6"}
+```
+
+`load_supersessions()` in `ledger.py` reads the markers from every claims file,
+because the marker sits in another session's file and often on another day.
+`evaluate_records()` skips the claim record whose session, claim text and `ts`
+match a sound marker, and the row says which session superseded it and why.
+Pinning `ts` keeps a later re-claim of the same text live. `supersession_error()`
+in `checks.py` reports a broken marker as a checker error. `release_gate()`
+returns the superseding session's markers, and `gate` prints them as notes.
 
 ### Session event
 
@@ -320,6 +342,7 @@ subcommand.
 | `require` | Builds a check spec from the flags (or takes `--check-json`) and appends `session.requirement` | 0 or 2 |
 | `claim` | Builds a check spec from the flags (or takes `--check-json`) and appends the claim | 0, or 2 when the check is rejected |
 | `retract` | Appends a referencing retraction | 0 |
+| `supersede` | Appends a supersession of another session's claim to this session's file | 0 or 2 |
 | `verify` | Verifies a day (`--date`) or a session (`--session`), writes `audit-<label>.md` unless `--no-report` | 0/3/2 |
 | `finish` | The exit gate. See below | 0 or 2 |
 | `audit` | Walks the integrity chain of every ledger file. `--strict` forbids forks | 0/3/2 |
