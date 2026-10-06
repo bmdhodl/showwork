@@ -1,0 +1,10 @@
+## agent session on fix-login
+showwork verify - session fix-login  =>  GREEN  (2/2 checks passed)
+## a teammate's PR lands on main
+## branch protection: merge main into fix-login
+## CI receipt job: gate --changed-since <PR base SHA>
+showwork outcome gate: RED
+fix-login: historical integrity GREEN; selected session; unrelated RED findings still fail
+declared acceptance checks are not verified
+undeclared change: README.md: README.md changed since session.start; no active claim named that path
+exit=2
