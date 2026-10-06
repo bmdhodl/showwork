@@ -15,14 +15,14 @@ python -m venv proof-env
 On Windows:
 
 ```powershell
-.\proof-env\Scripts\python.exe -m pip install --index-url https://pypi.org/simple showwork==0.6.5
+.\proof-env\Scripts\python.exe -m pip install --index-url https://pypi.org/simple showwork==0.6.6
 .\proof-env\Scripts\python.exe -O examples/proof-kit/run.py proof-results
 ```
 
 On Linux/macOS:
 
 ```bash
-proof-env/bin/python -m pip install --index-url https://pypi.org/simple showwork==0.6.5
+proof-env/bin/python -m pip install --index-url https://pypi.org/simple showwork==0.6.6
 proof-env/bin/python -O examples/proof-kit/run.py proof-results
 ```
 
@@ -42,11 +42,11 @@ path. The runner uses explicit predicates under `python -O`; a broken acceptance
 check fails loudly. Toy failures, repairs and reruns are printed as observations,
 not a general detection rate or customer outcome.
 
-Public 0.6.5's receipt overlay disables the recorded behavior command and reports
-unknown in this handoff. Current source has a bounded process-free reader; those
-stronger capability guarantees belong to that source revision until a reviewed
-package release. Neither view performs current behavior acceptance or grants
-permission to merge.
+Public 0.6.6 reads the handoff receipt with the bounded process-free reader. It
+starts no process and runs no inherited command. Version 0.6.5 and earlier
+used a receipt overlay that disabled the recorded behavior command and reported
+unknown. Neither view performs current behavior acceptance or grants permission
+to merge.
 
 ## Report or contribute
 

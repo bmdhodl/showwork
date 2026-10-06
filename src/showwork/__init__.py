@@ -27,6 +27,7 @@ from .ledger import (
     record_claim,
     record_event,
     record_retraction,
+    record_supersession,
     resolve_root,
     start_session,
     verify_date,
@@ -40,7 +41,7 @@ from .receipts import (
     session_for_task,
 )
 
-__version__ = "0.6.5"
+__version__ = "0.6.6"
 
 __all__ = [
     "CHECKERS",
@@ -74,6 +75,7 @@ __all__ = [
     "record_claim",
     "record_event",
     "record_retraction",
+    "record_supersession",
     "read_stop_payload",
     "render_audit",
     "render_report",

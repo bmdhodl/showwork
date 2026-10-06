@@ -47,7 +47,9 @@ your own exit gate is the first thing that will tell you.
    Prefer `git_state` / `glob_count` when they fit. For tests use
    `command` with `scripts/run_tests.py`, `expect_exit=0`, and
    `stdout_contains=passed` — not exact `"N passed"` counts. Invalid check
-   shapes are rejected at claim time.
+   shapes are rejected at claim time. Do not pin a value that a planned
+   change replaces, such as the package version: the next bump makes the
+   claim false. Cite a test that reads the value from its source instead.
 3. Before reporting success: `SHOWWORK_COMMAND_TIMEOUT_SECONDS=1800 python -m showwork.cli finish --session <agent>-<task-slug> --status ok`
    - `finish` reruns the `regression` command, and the full suite takes
      several minutes. Without the variable, the 120 s default stops the
@@ -64,8 +66,19 @@ your own exit gate is the first thing that will tell you.
    `SHOWWORK_COMMAND_TIMEOUT_SECONDS=1800 showwork gate --session <slug> --require-tracked`
    against the committed tree. The gate also reruns the suite, so it needs the
    same limit as `finish`. If you merged `main` after `start`, run
-   `git fetch origin` and add `--base origin/main`. The gate then excuses files
-   that equal `origin/main` exactly. Check the required GitHub receipt job too.
+   `git fetch origin` and add `--base origin/main` to the gate. If you then
+   finish again (for example after you add a claim), add the same
+   `--base origin/main` to `finish`. Both then excuse files that equal
+   `origin/main` exactly; an edit of your own or inside the merge stays RED.
+   Do not add a claim for each file `main` changed. Check the required GitHub
+   receipt job too.
+   If CI's `verify` goes RED because your change broke another session's claim
+   from the same day, do not retract that claim: a retraction changes that
+   session's closed receipt. Record
+   `showwork supersede --session <slug> --target-session <other> --claim "<exact text>" --reason "<why>"`
+   before `finish`. CI checks the claims dated with the current UTC date, but
+   a claim's `ts` uses the writer's local clock. A version bump checks this
+   before `finish`; see `docs/release-candidates.md`.
 6. The Stop hook in `.claude/settings.json` records a claims verdict when a
    session stops. It observes; it never blocks. The explicit `finish` is the gate.
 

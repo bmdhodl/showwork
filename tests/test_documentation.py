@@ -1,4 +1,5 @@
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -19,11 +20,51 @@ def test_documentation_links():
 
 
 def test_readme_python_floor_matches_package_metadata():
-    import re
     metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     floor = re.search(r'requires-python = ">=([0-9.]+)"', metadata).group(1)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert f"Python {floor} or newer" in readme
+
+
+# Lines that state the current package version. Each must follow pyproject.toml.
+CURRENT_VERSION_LINES = {
+    "ARCHITECTURE.md": (
+        r'`__version__ = "([^"]+)"`, matching `pyproject.toml`',
+        r"PyPI package `showwork`, version ([^,\s]+),",
+    ),
+    "docs/release-candidates.md": (r"The current source metadata is (\S+)\.",),
+}
+
+
+def package_version() -> str:
+    metadata = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    return re.search(r'^version = "([^"]+)"$', metadata, re.MULTILINE).group(1)
+
+
+def stated_versions(text: str, patterns: tuple[str, ...]) -> list[str | None]:
+    found = []
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        found.append(match.group(1) if match else None)
+    return found
+
+
+@pytest.mark.parametrize("name", sorted(CURRENT_VERSION_LINES))
+def test_current_version_lines_follow_package_metadata(name):
+    # REGRESSION: a claim pinned ARCHITECTURE.md to "0.6.5". The 0.6.6 bump
+    # made it false the same day and CI's verify went RED. A claim that a doc
+    # names the current version should cite this test, not a literal.
+    text = (ROOT / name).read_text(encoding="utf-8")
+    patterns = CURRENT_VERSION_LINES[name]
+    assert stated_versions(text, patterns) == [package_version()] * len(patterns)
+
+
+def test_current_version_check_fails_on_a_stale_or_missing_line():
+    patterns = CURRENT_VERSION_LINES["ARCHITECTURE.md"]
+    half_bumped = ('`__version__ = "0.6.6"`, matching `pyproject.toml`.\n'
+                   "- PyPI package `showwork`, version 0.6.5, zero dependencies\n")
+    assert stated_versions(half_bumped, patterns) == ["0.6.6", "0.6.5"]
+    assert stated_versions("no version line", patterns) == [None, None]
 
 
 @pytest.mark.parametrize("link", ["[missing](gone.md)", "[heading](other.md#gone)",

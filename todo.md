@@ -1,5 +1,14 @@
 # showwork build plan
 
+## v0.6.6 release — 2026-10-05  [status: released]
+
+- [x] Merging main no longer fails the agent's gate (#166); summary dedupe (#167)
+- [x] `init --ci` pins `actions/verify` to `19f249f`
+- [x] Slop scan passed at 0.0 for notes, X, LinkedIn, video lines and alt text
+- [x] HDR10 and SDR release video, story run on PyPI 0.6.5 and 0.6.6
+- [x] Tag v0.6.6, PyPI, GitHub release (`docs/reports/release-0.6.6/`)
+- [ ] Posts for 0.6.6 (drafts only; owner approves)
+
 ## v0.6.5 release — 2026-09-27  [status: released]
 
 - [x] Stop hook binds to the task session; one verdict per change, not one per turn

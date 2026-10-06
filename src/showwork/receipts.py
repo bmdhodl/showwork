@@ -44,6 +44,7 @@ _WRITE_APIS = (
     "record_claim",
     "record_event",
     "record_retraction",
+    "record_supersession",
     "start_session",
     "finish_session",
 )

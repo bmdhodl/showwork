@@ -22,7 +22,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from .checks import evaluate_records, gaps_payload, validate_check_shape
+from .checks import apply_append_retractions, evaluate_records, gaps_payload, validate_check_shape
 from .snapshot import (
     escape_result,
     merge_undeclared,
@@ -491,6 +491,40 @@ def record_retraction(root: Path, session: str, claim: str, reason: str) -> dict
     return rec
 
 
+def record_supersession(root: Path, session: str, target_session: str, claim: str,
+                        reason: str) -> dict:
+    """Record that this session's change replaced another session's claim.
+
+    A retraction says a claim was wrong when made; it belongs to its own
+    session. This marker goes to the superseding session's own file, so the
+    other session's closed receipt stays byte-identical. It pins the target's
+    latest record by ts: the same text claimed again later is checked again.
+    """
+    if not _latest_session_start(root, session):
+        raise ValueError("start the session before recording a supersession")
+    if target_session == session:
+        raise ValueError("a session cannot supersede its own claim; retract it instead")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("supersession reason must not be empty")
+    matches = [rec for rec in apply_append_retractions(claims_for_session(root, target_session))
+               if rec.get("session") == target_session and rec.get("claim") == claim
+               and not rec.get("_parse_error")]
+    if not matches:
+        raise ValueError(f"session {target_session!r} has no claim {claim!r}")
+    target = matches[-1]
+    if target.get("retracted") or target.get("_append_retraction_reason"):
+        raise ValueError(f"claim {claim!r} of session {target_session!r} is retracted; "
+                         "there is nothing to supersede")
+    ts = target.get("ts")
+    if not isinstance(ts, str) or not ts:
+        raise ValueError(f"claim {claim!r} has no ts to pin")
+    rec = {"session": session, "ts": _now(),
+           "supersedes": {"session": target_session, "claim": claim, "ts": ts},
+           "supersession_reason": reason.strip()}
+    _append(session_claims_path(root, session), rec)
+    return rec
+
+
 def record_event(root: Path, event: str, session: str, **fields) -> dict:
     rec = {"event": event, "session": session, "ts": _now()}
     rec.update({k: v for k, v in fields.items() if v is not None})
@@ -664,13 +698,24 @@ def claims_for_session(root: Path, session: str) -> list[dict]:
     return _merge_record_streams(others, trailing=trailing)
 
 
+def load_supersessions(root: Path) -> list[dict]:
+    """Supersession markers from every claims file, for any day or session.
+
+    A marker sits in the superseding session's file, often on another day
+    than its target, so neither a day nor a session view finds it alone.
+    """
+    return [rec for path in iter_claim_paths(root) for rec in _read_jsonl(path)
+            if "supersedes" in rec]
+
+
 # ---------- verification entry points ----------
 
 
 def verify_date(root: str | Path | None = None, date_str: str | None = None) -> dict:
     rt = resolve_root(root)
     label = date_str or _today()
-    return evaluate_records(load_claims(rt, label), rt, label=label)
+    return evaluate_records(load_claims(rt, label), rt, label=label,
+                            supersessions=load_supersessions(rt))
 
 
 def verify_session(root: str | Path | None = None, session: str = "", *,
@@ -682,6 +727,7 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
     claims = claims_for_session(rt, session)
     from .outcomes import evaluate_requirements, outcome_summary, requirement_records
     state = evaluate_records(claims, rt, label=f"session {session}",
+                             supersessions=load_supersessions(rt),
                              allowed_check_types=allowed_check_types)
     start = _latest_session_start(rt, session)
     state["outcome"] = outcome_summary(state)
@@ -762,7 +808,8 @@ def start_session(root: Path, session: str, agent: str | None = None,
 
 def finish_session(root: Path, session: str, status: str = "ok",
                    no_verify: bool = False, note: str | None = None,
-                   checks_only: bool = False) -> tuple[int, dict | None]:
+                   checks_only: bool = False,
+                   base: str | None = None) -> tuple[int, dict | None]:
     """Close a session. A clean close (`status=ok`) verifies this session's own
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
     ledger is not done. A clean close also REFUSES when the session has no
@@ -771,6 +818,10 @@ def finish_session(root: Path, session: str, status: str = "ok",
     `verify_bypassed` on an `ok` close. A blocked close still verifies and
     stamps `claims_verdict` so FDR does not treat it as a clean close.
 
+    `base` is the trusted revision the change merges into, resolved as the gate
+    resolves it: an undeclared change that now equals it is the base's, not the
+    session's. An unusable base raises ValueError before any event is written.
+
     Status is matched case-insensitively (`OK` == `ok`) so the Python API cannot
     silently skip the gate with a capitalization variant.
     """
@@ -778,10 +829,12 @@ def finish_session(root: Path, session: str, status: str = "ok",
     if status_norm not in ("ok", "blocked"):
         raise ValueError(f"status must be 'ok' or 'blocked', got {status!r}")
     status = status_norm
+    from .outcomes import receipt_manifest, resolve_base
+    base_revision = resolve_base(root, base) if base is not None else None
     state = None
     verdict = None
     if not no_verify:
-        state = verify_session(root, session)
+        state = verify_session(root, session, base_revision=base_revision)
         verdict = state["verdict"]
     if status == "ok" and not no_verify:
         refuse_reason = None
@@ -812,7 +865,6 @@ def finish_session(root: Path, session: str, status: str = "ok",
                 state["gaps"] = unverified
                 state["refuse_reason"] = refuse_reason
             return 2, state
-    from .outcomes import receipt_manifest
     record_event(root, "session.finish", session, status=status,
                  claims_verdict=verdict,
                  completion_scope="checks_only" if checks_only else "outcome",
