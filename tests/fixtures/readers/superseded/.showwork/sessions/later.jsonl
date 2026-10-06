@@ -1,0 +1,1 @@
+{"event": "session.start", "session": "later", "ts": "2026-10-05T00:00:04", "agent": "claude-code", "tree_snapshot": {"count": 2, "sha256": "ef02f18a32bee1b36b8a0f604e2785f3e6b1469d60c54f4de617b1e9e20d50f2"}, "verifier_version": "0.6.6", "prev": "fae7121e87458e66029021e795a45f12b23737221f512dc195e52c5f36fa0d52"}

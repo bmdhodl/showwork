@@ -29,6 +29,26 @@ for (const [name, want] of Object.entries(readerExpected)) {
   });
 }
 
+test("reader names the session that superseded a closed claim", () => {
+  // Session "fixture" claimed notes/v1-*.md and closed. Session "later"
+  // renamed the note and superseded the claim from its own claims file.
+  const fixture = join(readerFixtures, "superseded");
+  const got = inspectSession(fixture, "fixture");
+  assert.equal(got.manifest, "matches");
+  assert.equal(got.recorded_outcome, "VERIFIED");
+  assert.deepEqual(got.supersessions, [{
+    claim: "one plan note matches notes/v1-*.md", ts: "2026-10-05T00:00:02",
+    by: "later", reason: "the v2 release renames the plan note",
+  }]);
+  const dir = fsExtra.mkdtempSync(join(tmpdir(), "swjs-superseded-"));
+  fsExtra.cpSync(fixture, dir, { recursive: true });
+  fsExtra.rmSync(join(dir, ".showwork", "claims", "later.jsonl"));
+  const bare = inspectSession(dir, "fixture");
+  assert.deepEqual(bare.supersessions, []);
+  // History only: this reader never checks the claim again.
+  assert.equal(bare.recorded_outcome, "VERIFIED");
+});
+
 test("reader never invokes child processes or network", () => {
   const processDefault = childProcess.default;
   const networkDefault = https.default;

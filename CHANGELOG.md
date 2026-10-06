@@ -4,6 +4,16 @@ All notable changes to showwork are recorded here.
 
 ## Unreleased
 
+- The read-only receipts badge now honors a sound supersession as `verify`
+  does. Before, a session that claimed `notes/v1-*.md` and closed GREEN read
+  FAILED on its badge with "count 0 !== 1" after a later session renamed the
+  note and superseded the claim; `verify` skipped the same claim. The badge
+  now skips it and shows "Superseded claim: ...; superseded by session B:
+  <reason>". With no marker the badge still fails the claim, and a broken
+  marker stays a checker error in the superseding session's badge. The Python
+  and JavaScript label readers never check claims again, so their labels do
+  not change; both now disclose `supersessions` (claim, ts, by, reason). The
+  readers still write nothing. SPEC.md states the reader contract.
 - New `showwork supersede` records that a later session's change replaced
   another session's claim. On 2026-10-05 the 0.6.6 release changed a line that
   an earlier session had claimed the same day, so CI's `verify` went RED. A
@@ -16,6 +26,12 @@ All notable changes to showwork are recorded here.
   supersession, or the same claim made again later, stays RED. A broken marker
   is a checker error. A supersession does not count as a false done. SPEC.md
   adds a Supersessions section; older readers keep such claims RED.
+- The `gate` supersession note no longer quotes the claim with Python repr.
+  The text gate printed `claim &#x27;...&#x27;:` because the step summary
+  escapes each quote as an HTML entity. The note now reads
+  `supersedes <session> claim: <claim>; reason: <reason>`. The summary escape
+  stays, so claim and reason text still cannot render as HTML or Markdown in
+  the step summary; `--json` keeps the exact text.
 - `finish` and `verify --session` take `--base REV`, resolved as `gate --base`
   resolves it. A session that merged `main` and had to finish again (for
   example after it added a claim, which changes the receipt manifest) read

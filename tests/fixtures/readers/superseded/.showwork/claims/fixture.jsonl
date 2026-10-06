@@ -1,0 +1,1 @@
+{"session": "fixture", "ts": "2026-10-05T00:00:02", "claim": "one plan note matches notes/v1-*.md", "severity": "RED", "check": {"type": "glob_count", "pattern": "notes/v1-*.md", "op": "==", "n": 1}, "prev": "2db309a4acca327fbb9c186da0ea295ad98c36dd8d8004c2662259dd84795178"}

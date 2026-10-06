@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from .audit import audit_file
+from .checks import supersession_error
 from .ledger import split_record_lines, _reject_nonfinite, _merge_record_streams, session_file_stem
 from .snapshot import IGNORE_SEMANTIC, scope_from_events, validate_snapshot
 
@@ -52,7 +53,7 @@ def load_receipt(root: Path, session: str) -> dict:
         raise ValueError("workspace or session missing")
     base = confined_path(root, root / ".showwork")
     if not base.is_dir():
-        return {"claims": [], "events": [], "files": {}, "audit": []}
+        return {"claims": [], "events": [], "files": {}, "audit": [], "supersessions": []}
     paths = sorted(base.glob("claims-*.jsonl"))
     legacy = base / "sessions.jsonl"
     if legacy.exists():
@@ -63,7 +64,7 @@ def load_receipt(root: Path, session: str) -> dict:
             paths.extend(sorted(folder.glob("*.jsonl")))
     if len(paths) > MAX_LEDGER_FILES:
         raise ValueError("too many receipt files for bounded reader")
-    claim_streams, events, files, audits = [], [], {}, []
+    claim_streams, events, files, audits, supersessions = [], [], {}, [], []
     total = 0
     for path in paths:
         data = read_bytes(root, path)
@@ -88,6 +89,12 @@ def load_receipt(root: Path, session: str) -> dict:
         if path.parent.name == "sessions" or path.name == "sessions.jsonl":
             events.extend(selected)
         else:
+            # A later session's marker lives in its own file. It is read here
+            # but stays out of this receipt's claims and manifest.
+            supersessions.extend(
+                row for row in rows if row.get("session") != session and
+                isinstance(row.get("supersedes"), dict) and
+                row["supersedes"].get("session") == session)
             claim_streams.append((path, selected))
             if selected:
                 files[path.relative_to(root).as_posix()] = hashlib.sha256(
@@ -116,7 +123,29 @@ def load_receipt(root: Path, session: str) -> dict:
                              object_pairs_hook=_unique_object)
         validate_snapshot(payload, meta)
     return {"claims": claims, "events": events, "files": files, "audit": audits,
+            "supersessions": supersessions,
             "snapshot_scope": {"ignore_patterns": [], **scope}}
+
+
+def superseded_claims(claims: list[dict], markers: list[dict]) -> list[dict]:
+    """Sound markers that pin one of these claim records, in file order.
+
+    A broken marker or one that pins no record names nothing here. The
+    superseding session's own view reports a broken marker as an error.
+    """
+    pinned = {(row["session"], row["claim"], row["ts"]) for row in claims
+              if "supersedes" not in row and not isinstance(row.get("retracts"), dict)
+              and all(isinstance(row.get(key), str) for key in ("session", "claim", "ts"))}
+    out = []
+    for marker in markers:
+        if supersession_error(marker) is not None:
+            continue
+        target = marker["supersedes"]
+        if (target["session"], target["claim"], target["ts"]) in pinned:
+            out.append({"claim": target["claim"], "ts": target["ts"],
+                        "by": marker["session"],
+                        "reason": marker["supersession_reason"].strip()})
+    return out
 
 
 def supported_semantics(row: dict, *, event: bool = False) -> bool:
@@ -182,6 +211,7 @@ def inspect_loaded(receipt: dict) -> dict:
         "recorded_outcome": "VERIFIED" if qualified else "UNVERIFIED",
         "current_execution": "not performed", "current_outcome": "UNVERIFIED",
         "requirement_count": len(requirements),
+        "supersessions": superseded_claims(claims, receipt.get("supersessions", [])),
         "snapshot_scope": receipt.get("snapshot_scope", {"ignore_patterns": []}),
         "capabilities": {**CAPABILITIES, "spec_versions": list(VERSIONS)},
     }
