@@ -733,9 +733,9 @@ It establishes an explicit boundary for new work, not authentic past records.
 
 ### Optional base-revision policy
 
-This is a release-gate policy option, not a change to record framing. A branch
-that merges its base after `session.start` takes the base's edits, and the
-start snapshot reads them as undeclared changes.
+This is a policy option for `gate`, `finish` and `verify --session`, not a
+change to record framing. A branch that merges its base after `session.start`
+takes the base's edits, and the start snapshot reads them as undeclared changes.
 
 Given a base revision, the gate MUST [test:
 tests/test_gate_base.py::test_gate_base_excuses_a_file_that_only_main_changed]
@@ -758,7 +758,20 @@ count only when the base's history once tracked the path. The gate MUST [test:
 tests/test_gate_base.py::test_gate_base_must_not_contain_head] refuse a base
 that already contains HEAD. `--changed-since` MUST [test:
 tests/test_gate_base.py::test_changed_since_uses_its_revision_as_the_base]
-use its revision as the base. `finish` takes no base.
+use its revision as the base.
+
+`finish --base` MUST [test:
+tests/test_gate_base.py::test_finish_base_closes_a_session_that_merged_main]
+apply the same rule, so a session that merged its base can close again. An
+edit inside the merge MUST [test:
+tests/test_gate_base.py::test_finish_base_still_refuses_an_edit_made_inside_the_merge]
+still refuse the close. `finish` MUST [test:
+tests/test_gate_base.py::test_finish_base_must_not_contain_head] reject a base
+that already contains HEAD and write no event. `verify --session --base` MUST
+[test: tests/test_gate_base.py::test_verify_session_base_excuses_a_file_that_only_main_changed]
+apply the same rule, and `verify` MUST [test:
+tests/test_gate_base.py::test_verify_base_needs_a_session] reject `--base`
+without `--session`. A close does not record the base; the gate takes its own.
 
 The operator is responsible for a trustworthy base. In CI, use the pull
 request's base SHA from the event; a local ref that an agent can move proves

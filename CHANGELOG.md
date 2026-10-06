@@ -16,6 +16,15 @@ All notable changes to showwork are recorded here.
   supersession, or the same claim made again later, stays RED. A broken marker
   is a checker error. A supersession does not count as a false done. SPEC.md
   adds a Supersessions section; older readers keep such claims RED.
+- `finish` and `verify --session` take `--base REV`, resolved as `gate --base`
+  resolves it. A session that merged `main` and had to finish again (for
+  example after it added a claim, which changes the receipt manifest) read
+  every file `main` changed as an undeclared change, and the close was
+  refused. The 0.6.6 release session had to add a claim for each such file.
+  The base excuses the same exact matches only: an edit by the session, an
+  edit inside the merge, a revert, and the deletion of a file the base never
+  tracked stay RED. A base that already contains HEAD is rejected, and the
+  rejected `finish` writes no event. `verify --base` needs `--session`.
 
 ## 0.6.6 - 2026-10-05
 

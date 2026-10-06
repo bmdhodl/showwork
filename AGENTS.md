@@ -64,8 +64,12 @@ your own exit gate is the first thing that will tell you.
    `SHOWWORK_COMMAND_TIMEOUT_SECONDS=1800 showwork gate --session <slug> --require-tracked`
    against the committed tree. The gate also reruns the suite, so it needs the
    same limit as `finish`. If you merged `main` after `start`, run
-   `git fetch origin` and add `--base origin/main`. The gate then excuses files
-   that equal `origin/main` exactly. Check the required GitHub receipt job too.
+   `git fetch origin` and add `--base origin/main` to the gate. If you then
+   finish again (for example after you add a claim), add the same
+   `--base origin/main` to `finish`. Both then excuse files that equal
+   `origin/main` exactly; an edit of your own or inside the merge stays RED.
+   Do not add a claim for each file `main` changed. Check the required GitHub
+   receipt job too.
    If CI's `verify` goes RED because your change broke another session's claim
    from the same day, do not retract that claim: a retraction changes that
    session's closed receipt. Record
