@@ -160,12 +160,37 @@ function readExclusions(root, base, session, events, total) {
   return scope;
 }
 
+// Python's str.isspace() set, so trimmed reasons match the reference reader.
+const PY_SPACE = "[\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]";
+const pythonStrip = text => text.replace(new RegExp(`^${PY_SPACE}+|${PY_SPACE}+$`, "gu"), "");
+const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
+const filled = value => typeof value === "string" && value.length > 0;
+
+function soundSupersession(row) {
+  // Mirrors checks.supersession_error: a broken marker supersedes nothing.
+  const target = row.supersedes;
+  return isObject(target) && ["session", "claim", "ts"].every(key => filled(target[key])) &&
+    typeof row.supersession_reason === "string" && pythonStrip(row.supersession_reason) !== "" &&
+    filled(row.session) && row.session !== target.session &&
+    !["claim", "check", "retracted", "retracts"].some(key => Object.hasOwn(row, key));
+}
+
+function supersededClaims(claims, markers) {
+  const key = (session, claim, ts) => JSON.stringify([session, claim, ts]);
+  const pinned = new Set(claims.filter(row => !Object.hasOwn(row, "supersedes") && !isObject(row.retracts) &&
+    ["session", "claim", "ts"].every(name => typeof row[name] === "string")).map(row => key(row.session, row.claim, row.ts)));
+  return markers.filter(soundSupersession)
+    .filter(row => pinned.has(key(row.supersedes.session, row.supersedes.claim, row.supersedes.ts)))
+    .map(row => ({ claim: row.supersedes.claim, ts: row.supersedes.ts, by: row.session,
+      reason: pythonStrip(row.supersession_reason) }));
+}
+
 export function inspectSession(workspace, session) {
   const result = {
     integrity: "YELLOW", scope: readerCapabilities.scope, spec_coverage: "supported_reading_fields",
     manifest: "absent", freshness: "open_or_absent", historical_outcome: "absent",
     recorded_outcome: "UNVERIFIED", current_execution: "not performed", current_outcome: "UNVERIFIED",
-    requirement_count: 0, capabilities: { ...readerCapabilities, spec_versions: [...VERSIONS] },
+    requirement_count: 0, supersessions: [], capabilities: { ...readerCapabilities, spec_versions: [...VERSIONS] },
     snapshot_scope: { ignore_patterns: [] },
   };
   try {
@@ -180,7 +205,7 @@ export function inspectSession(workspace, session) {
       if (existsSync(folder)) paths.push(...readdirSync(folder).filter(n => n.endsWith(".jsonl")).sort().map(n => join(folder, n)));
     }
     if (paths.length > 1024) throw new Error("too many receipt files");
-    const streams = [], events = [], audits = [], files = {};
+    const streams = [], events = [], audits = [], files = {}, markers = [];
     let total = 0;
     for (let path of paths) {
       path = confined(root, path);
@@ -195,6 +220,9 @@ export function inspectSession(workspace, session) {
       const selected = rows.filter(row => row.session === session || row.retracts?.session === session);
       if (basename(dirname(path)) === "sessions" || basename(path) === "sessions.jsonl") events.push(...selected);
       else {
+        // A later session's marker lives in its own file; it stays out of this manifest.
+        markers.push(...rows.filter(row => row.session !== session && isObject(row.supersedes) &&
+          row.supersedes.session === session));
         streams.push({ path, rows: selected });
         if (selected.length) files[relative(root, path).replaceAll("\\", "/")] = sha(Buffer.from(bytes.toString("utf8").replaceAll("\r\n", "\n")));
       }
@@ -223,6 +251,7 @@ export function inspectSession(workspace, session) {
       result.spec_coverage = "unsupported";
     }
     result.requirement_count = requirements.length;
+    result.supersessions = supersededClaims(claims, markers);
     const lifecycle = events.filter(row => ["session.start", "session.finish", "session.finish.refused"].includes(row.event));
     const latest = lifecycle.at(-1) || {};
     const close = lifecycle.filter(row => row.event === "session.finish").at(-1);
@@ -240,6 +269,6 @@ export function inspectSession(workspace, session) {
     return result;
   } catch {
     return { ...result, integrity: "unknown", spec_coverage: "unreadable", recorded_outcome: "UNVERIFIED", snapshot_scope: null,
-      reason: "receipt unreadable or outside reader bounds" };
+      supersessions: [], reason: "receipt unreadable or outside reader bounds" };
   }
 }

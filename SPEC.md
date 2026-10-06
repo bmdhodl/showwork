@@ -414,9 +414,23 @@ or claim or retraction fields MUST [test:
 tests/test_supersede.py::test_malformed_supersession_is_visible] be reported as
 a checker error, not honored and not dropped. A supersession MUST [test:
 tests/test_supersede.py::test_supersession_is_not_a_false_done] not count as a
-retraction in the False Done Rate. A reader written before this section does
-not honor the marker, so the superseded claim stays RED there: the safe
-failure.
+retraction in the False Done Rate.
+
+The read-only receipts badge MUST [test:
+tests/test_reader_supersessions.py::test_badge_honors_a_sound_supersession]
+honor a sound marker the same way, without a write: it skips the pinned claim
+and names the superseding session and the reason. With no marker it still
+checks the claim. A broken marker MUST [test:
+tests/test_reader_supersessions.py::test_malformed_supersession_stays_an_error]
+supersede nothing there and stay a checker error in the superseding session's
+badge. The Python and JavaScript label readers check no claims, so a marker
+changes no label and no manifest. They MUST [test:
+tests/test_reader_supersessions.py::test_python_and_js_readers_name_the_same_supersession]
+disclose `supersessions`: one `{claim, ts, by, reason}` entry for each sound
+marker that pins a claim record of the session, in claims-file order, with the
+reason stripped as Python's `str.strip()` strips it. A reader written before
+this section does not honor the marker, so the superseded claim stays RED
+there: the safe failure.
 
 ## Session lifecycle and exit gate
 

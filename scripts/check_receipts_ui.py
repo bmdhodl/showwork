@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
-from showwork.ledger import finish_session, record_claim, start_session
+from showwork.ledger import finish_session, record_claim, record_supersession, start_session
 from showwork.outcomes import record_requirement
 from showwork.receipts import decorate_records, render_badges_html
 
@@ -27,9 +27,25 @@ def main():
         record_claim(root, "artifact", "receipt.txt exists",
                      {"type": "file_exists", "path": "receipt.txt"})
         assert finish_session(root, "artifact")[1]["outcome"]["verdict"] == "VERIFIED"
+        note_claim = "one plan note matches notes/v1-*.md"
+        start_session(root, "earlier")
+        record_requirement(root, "earlier", "file", "receipt.txt exists", "artifact",
+                           {"type": "file_exists", "path": "receipt.txt"})
+        (root / "notes").mkdir()
+        (root / "notes" / "v1-plan.md").write_text("plan")
+        record_claim(root, "earlier", note_claim,
+                     {"type": "glob_count", "pattern": "notes/v1-*.md", "op": "==", "n": 1})
+        assert finish_session(root, "earlier")[1]["outcome"]["verdict"] == "VERIFIED"
+        start_session(root, "later")
+        (root / "notes" / "v1-plan.md").rename(root / "notes" / "v2-plan.md")
+        record_claim(root, "later", "the plan note moved to v2",
+                     {"type": "path_moved", "from": "notes/v1-plan.md", "to": "notes/v2-plan.md"})
+        record_supersession(root, "later", "earlier", note_claim,
+                            "the v2 release renames the plan note")
         rows = decorate_records([
             {"session": "loose", "title": "Unproven behavior", "surface": "home"},
             {"session": "artifact", "title": "Declared file check", "surface": "activity"},
+            {"session": "earlier", "title": "Superseded claim", "surface": "activity"},
         ], root)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
@@ -45,10 +61,18 @@ def main():
                 claimed.locator("summary").click()
                 assert claimed.locator(".panel").is_visible()
                 assert "outcome requirements are unverified" in claimed.inner_text()
-                verified = page.locator('article[data-state="verified"]')
+                verified = page.locator('details[data-session="artifact"]')
+                assert verified.get_attribute("data-state") == "verified"
                 verified.locator("summary").click()
                 assert "0 behavior, 1 artifact" in verified.inner_text()
                 assert "Unlisted requirements: unknown" in verified.inner_text()
+                superseded = page.locator('details[data-session="earlier"]')
+                assert superseded.get_attribute("data-state") == "verified"
+                assert not superseded.locator(".superseded").is_visible()
+                superseded.locator("summary").click()
+                assert superseded.locator(".superseded").is_visible()
+                assert ("superseded by session later: the v2 release renames the plan note"
+                        in superseded.locator(".superseded").inner_text())
                 assert page.evaluate("document.documentElement.scrollWidth") == width
             if args.screenshot:
                 args.screenshot.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +86,8 @@ def main():
             browser.close()
     print(json.dumps({"passed": True, "viewports": [375, 768, 1440],
                       "checks": ["loose claim stays claimed", "artifact scope visible",
-                                 "details open", "no overflow", "empty state unknown", "no page errors"]}))
+                                 "superseded claim names its session", "details open",
+                                 "no overflow", "empty state unknown", "no page errors"]}))
 
 
 if __name__ == "__main__":
