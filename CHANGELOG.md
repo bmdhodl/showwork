@@ -41,6 +41,15 @@ All notable changes to showwork are recorded here.
   edit inside the merge, a revert, and the deletion of a file the base never
   tracked stay RED. A base that already contains HEAD is rejected, and the
   rejected `finish` writes no event. `verify --base` needs `--session`.
+- `gate` text output and the CI step summary show `'` and `"` as plain
+  characters. The summary escaped them as HTML entities, so every command
+  requirement row printed `stdout has &#x27;passed&#x27;`, and errors such as
+  `cannot resolve base 'x'` and claims with apostrophes did the same. `<`, `>`
+  and `&` stay escaped, so text cannot open an HTML tag or an autolink.
+  `[ ] ( )` stay backslash-escaped, so text cannot form a link or a link
+  title. No summary text goes into a URL or an HTML attribute. This replaces
+  the decision to keep the quote escape in 0.6.6 and in the supersession note
+  entry above; the HTML and Markdown escapes stay.
 
 ## 0.6.6 - 2026-10-05
 

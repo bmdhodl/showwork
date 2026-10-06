@@ -43,7 +43,8 @@ class _SummaryLines(list):
 
 def _text(value: object) -> str:
     value = re.sub(r"[^\s@]+@[^\s@]+", "<email>", redact(value))
-    value = html.escape(value, quote=True)
+    # Quotes stay: no text lands in a URL or an attribute, and [ ] ( ) block link titles.
+    value = html.escape(value, quote=False)
     return re.sub(r"([\\`*_[\]()|])", r"\\\1", value)
 
 

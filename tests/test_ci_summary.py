@@ -135,13 +135,32 @@ def test_actual_cli_gate_routes_its_result_to_summary_without_second_verificatio
     assert "write-read" in output
 
 
+def test_quotes_in_gate_text_print_as_plain_characters():
+    """REGRESSION: every command row printed stdout has &#x27;passed&#x27; in the terminal."""
+    row = receipt()
+    row["checks"]["results"][0].update(claim='the "write" survives reopen',
+                                       detail="exit 0, stdout has 'passed'")
+    row["errors"] = ["cannot resolve base 'x' to a commit; fetch it with full history"]
+    summary = render_summary({"verdict": "RED", "sessions": [row]}, revision=SHA)
+    assert "pass: exit 0, stdout has 'passed'" in summary
+    assert 'the "write" survives reopen' in summary
+    assert "- cannot resolve base 'x' to a commit" in summary
+    assert "&#x27;" not in summary and "&quot;" not in summary
+
+
 def test_untrusted_text_and_link_parameters_cannot_inject_markdown_or_commands():
     row = receipt("../../bad")
     row["checks"]["results"][0]["claim"] = "<script> | [click](https://evil.test) sk-abcdefghijklmnop owner@example.test"
+    row["checks"]["results"][0]["detail"] = ('[t](https://evil.test "title") <a href="https://evil.test" '
+                                             'onclick="x"> [ref]: https://evil.test "t" &quot;')
     summary = render_summary({"verdict": "RED", "sessions": [row]}, revision="main)",
                              repository="evil/../../repo", server_url="javascript:alert(1)")
     assert "<script>" not in summary
     assert "[click](https://evil.test)" not in summary
+    assert '](https://evil.test "title")' not in summary
+    assert '<a href="https://evil.test"' not in summary
+    assert "[ref]:" not in summary
+    assert "&amp;quot;" in summary  # An entity in the input stays literal text.
     assert "sk-abcdefghijklmnop" not in summary
     assert "owner@example.test" not in summary
     assert "javascript:" not in summary
