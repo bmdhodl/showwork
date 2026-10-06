@@ -600,9 +600,10 @@ def main(argv: list[str] | None = None) -> int:
                                        for row in baseline["acknowledged"])
             result["notes"].extend(f"{session_result['session']}: {note}"
                                    for note in _base_notes(session_result.get("base_matches")))
+            # No quotes: the text gate output is also the step summary, which escapes them as entities.
             result["notes"].extend(
-                f"{session_result['session']}: supersedes {row['session']} claim "
-                f"{row['claim']!r}: {row['reason']}"
+                f"{session_result['session']}: supersedes {row['session']} claim: "
+                f"{row['claim']}; reason: {row['reason']}"
                 for row in session_result.get("supersedes", []))
         if args.json:
             print(json.dumps(result, indent=2))
