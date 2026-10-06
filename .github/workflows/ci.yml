@@ -29,6 +29,18 @@ jobs:
       - name: Reset workspace and keep the Python environment
         run: git clean -ffdx -e /.venv/
 
+      # Wheels and the Chromium build are the same on every run until
+      # pyproject.toml or requirements-ui.txt changes, so they come from the
+      # cache. On 2026-10-05 the browser install took 25 to 29 seconds and the
+      # dependency install 10 to 11 seconds of each three-minute job.
+      - name: Restore pip wheels and the acceptance browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/ms-playwright
+          key: deps-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-ui.txt') }}
+
       - name: Install dependencies when inputs changed
         run: bash scripts/ci/ensure-python-dependencies.sh
 
@@ -74,6 +86,18 @@ jobs:
           persist-credentials: false
           # Receipts describe the branch, not GitHub's synthetic merge commit.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      # Wheels and the Chromium build are the same on every run until
+      # pyproject.toml or requirements-ui.txt changes, so they come from the
+      # cache. On 2026-10-05 the browser install took 25 to 29 seconds and the
+      # dependency install 10 to 11 seconds of each three-minute job.
+      - name: Restore pip wheels and the acceptance browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/ms-playwright
+          key: deps-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-ui.txt') }}
 
       - name: Install acceptance test dependencies
         run: bash scripts/ci/ensure-python-dependencies.sh
