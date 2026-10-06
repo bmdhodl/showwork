@@ -1,0 +1,25 @@
+## agent session on fix-login
+showwork verify - session fix-login  =>  GREEN  (2/2 checks passed)
+## a teammate's PR lands on main
+## branch protection: merge main into fix-login
+Automatic merge went well; stopped before committing as requested
+(the merge commit also changed README.md to Login guide, edited by the agent.)
+## CI receipt job: gate --changed-since <PR base SHA>
+showwork outcome gate: RED
+Reviewed revision: 23ced9db7ab602ac747008da4e15ae685b51e2c6
+
+Limitations: undeclared requirements: unknown; test adequacy: not assessed; formatting does not change the verdict.
+
+### Session fix-login
+
+Outcome: UNVERIFIED. Gate: RED. `.showwork/sessions/fix-login.jsonl`.
+Historical integrity: GREEN.
+
+| Requirement / receipt | Scope | Result | Observed revision | Test evidence |
+| --- | --- | --- | --- | --- |
+| suite: check.py passes (`.showwork/sessions/fix-login.jsonl`) | behavior | pass: exit 0 | 23ced9db7ab602ac747008da4e15ae685b51e2c6 | exit 0; stdout SHA256 c69380124d6a6689a98b013e5e80334ea5f16395a2305966a22a29fb218838d8 |
+
+- declared acceptance checks are not verified
+- undeclared change: README.md: README.md changed since session.start; no active claim named that path
+fix-login: historical integrity GREEN; selected session; unrelated RED findings still fail
+exit=2
