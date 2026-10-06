@@ -48,7 +48,8 @@ All notable changes to showwork are recorded here.
   and `&` stay escaped, so text cannot open an HTML tag or an autolink.
   `[ ] ( )` stay backslash-escaped, so text cannot form a link or a link
   title. No summary text goes into a URL or an HTML attribute. This replaces
-  the 0.6.6 decision to keep the escape.
+  the decision to keep the quote escape in 0.6.6 and in the supersession note
+  entry above; the HTML and Markdown escapes stay.
 
 ## 0.6.6 - 2026-10-05
 
