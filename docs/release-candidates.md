@@ -41,6 +41,38 @@ The current source metadata is 0.6.6. A locally built 0.6.6 wheel is a test
 artifact and must not replace the published 0.6.6 distribution. A new version
 needs a separate owner-reviewed change.
 
+## Claims a version bump replaces
+
+A version bump makes each claim that pins the old version false. CI's
+`showwork verify` checks every claim dated with the current UTC date, so a
+claim recorded on the day of the bump turns `main` RED. On 2026-10-05 the
+0.6.6 bump did this to a claim that ARCHITECTURE.md names 0.6.5. A claim's
+`ts` uses the writer's local clock, so its date can differ from CI's date.
+
+Before the release session finishes, verify CI's date and your local date:
+
+```text
+python -c "import datetime; print(datetime.datetime.now(datetime.timezone.utc).date())"
+python -m showwork verify --no-report --date UTC_DATE
+python -m showwork verify --no-report
+```
+
+For each failed claim of another session that the bump replaced, record
+`showwork supersede --session RELEASE --target-session OTHER --claim "EXACT
+TEXT" --reason "the X.Y.Z bump moves FILE to X.Y.Z"`. Do not retract it: a
+retraction changes that session's closed receipt. Repair a failed claim that
+the bump did not replace; it is a real regression. The follow-up change that
+moves `actions/verify@vX.Y.Z` pins to the new tag does the same for claims
+that pin the old tag. Claims from earlier days keep their actual result in
+the nightly historical replay.
+
+Release claims must not pin the new version either, because the next bump
+makes them false. `test_current_version_lines_follow_package_metadata` in
+`tests/test_documentation.py` reads the version from `pyproject.toml` and
+checks each line that states the current version. The `regression`
+requirement (`scripts/run_tests.py`) runs it, so that requirement backs a
+claim that the documents name the current version.
+
 ## No release and retry
 
 Omit `--accepted-change`, or supply an identical base and reviewed revision,
