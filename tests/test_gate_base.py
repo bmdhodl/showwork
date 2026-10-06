@@ -13,7 +13,7 @@ import subprocess
 import pytest
 
 from showwork.cli import main
-from showwork.ledger import finish_session, record_claim, start_session
+from showwork.ledger import finish_session, load_all_events, record_claim, start_session
 from showwork.outcomes import record_requirement
 
 SESSION = "topic-work"
@@ -74,6 +74,24 @@ def gate(root, capsys, *args):
 def gate_text(root, capsys, *args):
     code = main(["--root", str(root), "gate", "--require-tracked", *args])
     return code, capsys.readouterr().out
+
+
+def add_a_claim(root):
+    """Reopen the closed receipt: a new claim changes its manifest, so it must close again."""
+    (root / "notes.md").write_text("feature notes\n")
+    record_claim(root, SESSION, "notes.md exists",
+                 {"type": "file_exists", "path": "notes.md"})
+
+
+def finish(root, capsys, *args):
+    code = main(["--root", str(root), "finish", "--session", SESSION, *args])
+    captured = capsys.readouterr()
+    return code, captured.out + captured.err
+
+
+def verify(root, capsys, *args):
+    code = main(["--root", str(root), "verify", "--json", "--no-report", *args])
+    return code, json.loads(capsys.readouterr().out)
 
 
 def test_gate_base_excuses_a_file_that_only_main_changed(repo, capsys):
@@ -246,3 +264,77 @@ def test_gate_base_and_changed_since_cannot_be_combined(repo, capsys):
     code, result = gate(root, capsys, "--changed-since", "main", "--base", "main")
     assert code == 2
     assert any("--changed-since already sets the base" in error for error in result["errors"])
+
+
+def test_finish_base_closes_a_session_that_merged_main(repo, capsys):
+    """REGRESSION: finish had no base, so a re-run after a merge from main was refused.
+
+    A session that adds a claim after it merged main must close again: the new
+    claim changes the receipt manifest the gate checks. Plain finish read every
+    file main changed as an undeclared change and refused the close.
+    """
+    root, git = repo
+    close_session(root, git)
+    change_on_main(root, git, "shared.py", "value = 2\n")
+    git("merge", "-q", "--no-edit", "main")
+    add_a_claim(root)
+
+    code, output = finish(root, capsys)
+    assert code == 2
+    assert "undeclared change: shared.py" in output
+
+    base = git("rev-parse", "main")
+    code, output = finish(root, capsys, "--base", "main")
+    assert code == 0, output
+    assert f"shared.py changed since session.start and equals base {base[:12]}" in output
+
+    git("add", "-A")
+    git("commit", "-q", "-m", "receipt with the new claim")
+    code, result = gate(root, capsys, "--session", SESSION, "--base", "main")
+    assert code == 0, result["errors"]
+
+
+def test_finish_base_still_refuses_an_edit_made_inside_the_merge(repo, capsys):
+    root, git = repo
+    close_session(root, git)
+    change_on_main(root, git, "shared.py", "value = 2\n")
+    git("merge", "-q", "--no-commit", "--no-ff", "main")
+    (root / "shared.py").write_text("value = 2  # tuned in the merge\n")
+    git("add", "shared.py")
+    git("commit", "-q", "--no-edit")
+    add_a_claim(root)
+    code, output = finish(root, capsys, "--base", "main")
+    assert code == 2
+    assert "undeclared change: shared.py" in output
+
+
+def test_finish_base_must_not_contain_head(repo, capsys):
+    # A refused base is a usage error: it writes no close and no refusal.
+    root, git = repo
+    close_session(root, git)
+    add_a_claim(root)
+    events = len(load_all_events(root))
+    code, output = finish(root, capsys, "--base", "HEAD")
+    assert code == 2
+    assert "contains HEAD" in output
+    assert len(load_all_events(root)) == events
+
+
+def test_verify_session_base_excuses_a_file_that_only_main_changed(repo, capsys):
+    root, git = repo
+    close_session(root, git)
+    change_on_main(root, git, "shared.py", "value = 2\n")
+    git("merge", "-q", "--no-edit", "main")
+    code, state = verify(root, capsys, "--session", SESSION)
+    assert code == 2
+    assert "base_matches" not in state
+    code, state = verify(root, capsys, "--session", SESSION, "--base", "main")
+    assert code == 0, state["gaps"]
+    assert state["base_matches"] == {"revision": git("rev-parse", "main"), "paths": ["shared.py"]}
+
+
+def test_verify_base_needs_a_session(repo, capsys):
+    root, git = repo
+    code = main(["--root", str(root), "verify", "--base", "main", "--no-report"])
+    assert code == 2
+    assert "--base needs --session" in capsys.readouterr().err

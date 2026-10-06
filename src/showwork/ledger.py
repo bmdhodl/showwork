@@ -762,7 +762,8 @@ def start_session(root: Path, session: str, agent: str | None = None,
 
 def finish_session(root: Path, session: str, status: str = "ok",
                    no_verify: bool = False, note: str | None = None,
-                   checks_only: bool = False) -> tuple[int, dict | None]:
+                   checks_only: bool = False,
+                   base: str | None = None) -> tuple[int, dict | None]:
     """Close a session. A clean close (`status=ok`) verifies this session's own
     claims first and REFUSES (exit 2) if any is RED: a green exit with a red
     ledger is not done. A clean close also REFUSES when the session has no
@@ -771,6 +772,10 @@ def finish_session(root: Path, session: str, status: str = "ok",
     `verify_bypassed` on an `ok` close. A blocked close still verifies and
     stamps `claims_verdict` so FDR does not treat it as a clean close.
 
+    `base` is the trusted revision the change merges into, resolved as the gate
+    resolves it: an undeclared change that now equals it is the base's, not the
+    session's. An unusable base raises ValueError before any event is written.
+
     Status is matched case-insensitively (`OK` == `ok`) so the Python API cannot
     silently skip the gate with a capitalization variant.
     """
@@ -778,10 +783,12 @@ def finish_session(root: Path, session: str, status: str = "ok",
     if status_norm not in ("ok", "blocked"):
         raise ValueError(f"status must be 'ok' or 'blocked', got {status!r}")
     status = status_norm
+    from .outcomes import receipt_manifest, resolve_base
+    base_revision = resolve_base(root, base) if base is not None else None
     state = None
     verdict = None
     if not no_verify:
-        state = verify_session(root, session)
+        state = verify_session(root, session, base_revision=base_revision)
         verdict = state["verdict"]
     if status == "ok" and not no_verify:
         refuse_reason = None
@@ -812,7 +819,6 @@ def finish_session(root: Path, session: str, status: str = "ok",
                 state["gaps"] = unverified
                 state["refuse_reason"] = refuse_reason
             return 2, state
-    from .outcomes import receipt_manifest
     record_event(root, "session.finish", session, status=status,
                  claims_verdict=verdict,
                  completion_scope="checks_only" if checks_only else "outcome",

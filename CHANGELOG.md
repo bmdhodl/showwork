@@ -2,6 +2,18 @@
 
 All notable changes to showwork are recorded here.
 
+## Unreleased
+
+- `finish` and `verify --session` take `--base REV`, resolved as `gate --base`
+  resolves it. A session that merged `main` and had to finish again (for
+  example after it added a claim, which changes the receipt manifest) read
+  every file `main` changed as an undeclared change, and the close was
+  refused. The 0.6.6 release session had to add a claim for each such file.
+  The base excuses the same exact matches only: an edit by the session, an
+  edit inside the merge, a revert, and the deletion of a file the base never
+  tracked stay RED. A base that already contains HEAD is rejected, and the
+  rejected `finish` writes no event. `verify --base` needs `--session`.
+
 ## 0.6.6 - 2026-10-05
 
 - `gate --base REV` takes a trusted base revision. `--changed-since` sets it,
