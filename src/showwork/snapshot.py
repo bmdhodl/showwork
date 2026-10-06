@@ -18,7 +18,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from .checks import apply_append_retractions, gaps_payload
+from .checks import apply_append_retractions, gaps_payload, is_scored
 
 # Generated output is outside the source snapshot. A build or a browser run rewrites
 # thousands of files under these directories, and a session that ran one
@@ -279,6 +279,9 @@ def declared_paths(claims: list[dict], root: Path) -> set[str]:
             continue
         if record.get("retracted") or record.get("_append_retraction_reason"):
             continue
+        # A supersession marker declares nothing, even a broken one with a check.
+        if "supersedes" in record:
+            continue
         check = record.get("check")
         if not isinstance(check, dict):
             continue
@@ -479,7 +482,7 @@ def merge_undeclared(state: dict, extra: list[dict]) -> dict:
         verdict = "YELLOW"
     else:
         verdict = "GREEN"
-    scored = [r for r in results if not r.get("retracted")]
+    scored = [r for r in results if is_scored(r)]
     passed = sum(1 for r in scored if r["status"] == "pass")
     merged = dict(state)
     merged["results"] = results

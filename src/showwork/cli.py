@@ -5,6 +5,7 @@
                      --type file_exists --path F
     showwork claim  --session S --claim TEXT --type file_contains --path F --pattern P
     showwork retract --session S --claim TEXT --reason R
+    showwork supersede --session S --target-session T --claim TEXT --reason R
     showwork verify [--date YYYY-MM-DD | --session S] [--json] [--no-report]
     showwork finish --session S [--status ok|blocked] [--no-verify] [--note N]
     showwork status [--session S] [--json]
@@ -56,6 +57,7 @@ from .ledger import (
     record_claim,
     record_event,
     record_retraction,
+    record_supersession,
     resolve_root,
     session_artifacts_dir,
     session_file_stem,
@@ -71,6 +73,9 @@ SESSION_ENV = "SHOWWORK_SESSION"
 
 CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
                "glob_count", "command", "http_probe", "git_state"]
+
+BASE_HELP = ("trusted Git revision this change merges into; a file changed since "
+             "session start that now equals it is the base's change, not the session's")
 
 
 class CheckSpecError(ValueError):
@@ -250,6 +255,15 @@ def _audit_report_path(ledger: Path, label: str) -> Path:
     return report
 
 
+def _base_notes(matches: dict | None) -> list[str]:
+    """One note per path that a trusted base excused from the undeclared-change check."""
+    if not matches:
+        return []
+    return [f"{path} changed since session.start and equals base {matches['revision'][:12]}; "
+            "counted as a change from the base, not from this session"
+            for path in matches["paths"]]
+
+
 def _print_state(state: dict, as_json: bool) -> None:
     from .explain import explain_state, render_explanation
     explanation = explain_state(state)
@@ -265,6 +279,8 @@ def _print_state(state: dict, as_json: bool) -> None:
     exclusions = state.get("snapshot_scope", {}).get("ignore_patterns", [])
     if exclusions:
         print("Snapshot exclusions (frozen): " + json.dumps(exclusions))
+    for note in _base_notes(state.get("base_matches")):
+        print("Base: " + note)
     marks = {"pass": "OK ", "fail": "XX ", "error": "!! ", "skipped": ".. "}
     for r in state["results"]:
         print(f"  {marks.get(r['status'], '?? ')} check for claim: {r['claim']}")
@@ -395,10 +411,7 @@ def main(argv: list[str] | None = None) -> int:
     selection.add_argument("--session")
     selection.add_argument("--changed-since", help="gate every receipt changed from a Git revision")
     p.add_argument("--require-tracked", action="store_true")
-    p.add_argument("--base",
-                   help="trusted Git revision this change merges into; a file changed since "
-                        "session start that now equals it is the base's change, not the "
-                        "session's (--changed-since sets it)")
+    p.add_argument("--base", help=BASE_HELP + " (--changed-since sets it)")
     p.add_argument("--legacy-integrity-baseline",
                    help="explicitly acknowledge unchanged shared legacy history at a full Git commit ID; audit stays RED")
     p.add_argument("--json", action="store_true")
@@ -411,12 +424,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--claim", required=True, help="exact text of the claim being retracted")
     p.add_argument("--reason", required=True)
 
+    p = sub.add_parser("supersede",
+                       help="record that this session's change replaced another session's claim")
+    p.add_argument("--session", required=True, help="the session whose change replaced the claim")
+    p.add_argument("--target-session", required=True, help="the session that made the claim")
+    p.add_argument("--claim", required=True, help="exact text of the claim being superseded")
+    p.add_argument("--reason", required=True)
+
     p = sub.add_parser("verify", help="verify claims; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--date", help="verify one day's ledger (default: today)")
     p.add_argument("--session", help="verify one session's claims across all days")
     p.add_argument("--json", action="store_true")
     p.add_argument("--no-report", action="store_true",
                    help="do not write the markdown audit report")
+    p.add_argument("--base", help=BASE_HELP + "; needs --session")
 
     p = sub.add_parser("finish", help="record session.finish; a clean close verifies own claims first")
     p.add_argument("--session", required=True)
@@ -424,6 +445,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-verify", action="store_true",
                    help="deliberately bypass the exit gate (stamped on the event)")
     p.add_argument("--note")
+    p.add_argument("--base", help=BASE_HELP)
 
     p.add_argument("--checks-only", action="store_true",
                    help="close individual checks only; does not certify an outcome")
@@ -576,12 +598,12 @@ def main(argv: list[str] | None = None) -> int:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")
                 result["notes"].extend(f"acknowledged historical RED: {row['path']} ({row['detail']})"
                                        for row in baseline["acknowledged"])
-            matches = session_result.get("base_matches")
-            if matches:
-                result["notes"].extend(
-                    f"{session_result['session']}: {path} changed since session.start and equals "
-                    f"base {matches['revision'][:12]}; counted as a change from the base, not from this session"
-                    for path in matches["paths"])
+            result["notes"].extend(f"{session_result['session']}: {note}"
+                                   for note in _base_notes(session_result.get("base_matches")))
+            result["notes"].extend(
+                f"{session_result['session']}: supersedes {row['session']} claim "
+                f"{row['claim']!r}: {row['reason']}"
+                for row in session_result.get("supersedes", []))
         if args.json:
             print(json.dumps(result, indent=2))
         else:
@@ -625,9 +647,27 @@ def main(argv: list[str] | None = None) -> int:
         print("retraction recorded")
         return 0
 
+    if args.cmd == "supersede":
+        try:
+            record_supersession(root, args.session, args.target_session, args.claim, args.reason)
+        except (ValueError, OSError) as exc:
+            print(f"supersede rejected: {exc}", file=sys.stderr)
+            return 2
+        print("supersession recorded")
+        return 0
+
     if args.cmd == "verify":
+        if args.base is not None and not args.session:
+            print("verify rejected: --base needs --session", file=sys.stderr)
+            return 2
         if args.session:
-            state = verify_session(root, args.session)
+            from .outcomes import resolve_base
+            try:
+                base_revision = resolve_base(root, args.base) if args.base is not None else None
+            except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+                print(f"verify rejected: {exc}", file=sys.stderr)
+                return 2
+            state = verify_session(root, args.session, base_revision=base_revision)
         else:
             try:
                 state = verify_date(root, args.date)
@@ -641,9 +681,13 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_BY_VERDICT[state["verdict"]]
 
     if args.cmd == "finish":
-        code, state = finish_session(root, args.session, status=args.status,
-                                     no_verify=args.no_verify, note=args.note,
-                                     checks_only=args.checks_only)
+        try:
+            code, state = finish_session(root, args.session, status=args.status,
+                                         no_verify=args.no_verify, note=args.note,
+                                         checks_only=args.checks_only, base=args.base)
+        except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+            print(f"finish rejected: {exc}", file=sys.stderr)
+            return 2
         if state is not None:
             _print_state(state, False)
         if code != 0:

@@ -11,7 +11,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from .checks import evaluate_records
-from .ledger import claims_for_session, load_all_claims, load_all_events
+from .ledger import claims_for_session, load_all_claims, load_all_events, load_supersessions
 
 
 def _parse_since(since: str | None) -> datetime | None:
@@ -218,6 +218,7 @@ def session_status(root: Path, session: str | None = None) -> dict:
         by_session.setdefault(name, []).append(e)
 
     names = [session] if session else sorted(by_session)
+    supersessions = load_supersessions(root)
     rows = []
     for name in names:
         evs = by_session.get(name, [])
@@ -236,7 +237,7 @@ def session_status(root: Path, session: str | None = None) -> dict:
                 open_ = False
         # Prefer live verify for open sessions; else last stamped verdict.
         state = evaluate_records(claims_for_session(root, name), root,
-                                 label=f"session {name}")
+                                 label=f"session {name}", supersessions=supersessions)
         rows.append({
             "session": name,
             "started": started,

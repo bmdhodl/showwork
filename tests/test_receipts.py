@@ -210,7 +210,7 @@ def test_receipts_module_source_has_no_write_calls():
     src = Path(__file__).resolve().parents[1] / "src" / "showwork" / "receipts.py"
     text = src.read_text(encoding="utf-8")
     for name in ("record_claim(", "record_event(", "record_retraction(",
-                 "start_session(", "finish_session("):
+                 "record_supersession(", "start_session(", "finish_session("):
         assert name not in text, name
 
 
