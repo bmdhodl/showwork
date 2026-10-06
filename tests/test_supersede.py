@@ -302,3 +302,53 @@ def test_supersession_is_not_a_false_done(repo, capsys):
     assert fdr["false_done_session_ids"] == []
     assert fdr["sessions"][CODEX]["retractions"] == 0
     assert fdr["sessions"][RELEASE]["checked_claims"] == 1
+
+
+def test_text_gate_prints_the_supersession_note_without_html_entities(repo, capsys):
+    """REGRESSION: the text gate printed the superseded claim as `&#x27;...&#x27;`.
+
+    The note quoted the claim with repr(), and the summary escapes each quote
+    as an HTML entity. The text gate output is also the GitHub step summary,
+    so the escape stays and the note carries no quotes of its own.
+    """
+    root, git = repo
+    close_codex_session(root, git)
+    open_release_session(root, git)
+    for claim in (PACKAGE, ACTION):
+        assert supersede(root, capsys, claim)[0] == 0
+    close_release_session(root, git)
+
+    code, output = cli(root, capsys, "gate", "--require-tracked", "--changed-since", "main")
+    assert code == 0, output
+    for claim in (PACKAGE, ACTION):
+        assert f"{RELEASE}: supersedes {CODEX} claim: {claim}; reason: {REASON}" in output
+    assert not re.search(r"&#?\w+;", output), output
+
+
+def test_supersession_note_stays_escaped_in_the_step_summary(repo, capsys):
+    # Claim and reason text come from the ledger. The text gate output goes to
+    # the step summary, so neither may render as HTML or Markdown there. The
+    # JSON note keeps the exact text for machine readers.
+    claim = "<img src=x onerror=alert(1)> see [home](https://evil.test)"
+    reason = "`code` *bold* | cell"
+    root, git = repo
+    start_session(root, CODEX, agent="codex")
+    record_requirement(root, CODEX, "suite", "check.py passes", "behavior",
+                       {"type": "command", "argv": ["python", "check.py"]})
+    record_claim(root, CODEX, claim, {"type": "file_exists", "path": "ARCHITECTURE.md"})
+    assert finish_session(root, CODEX)[0] == 0
+    git("add", "-A")
+    git("commit", "-q", "-m", "codex receipt")
+    open_release_session(root, git)
+    code, output = supersede(root, capsys, claim, reason=reason)
+    assert code == 0, output
+    close_release_session(root, git)
+
+    code, output = cli(root, capsys, "gate", "--require-tracked", "--changed-since", "main")
+    assert code == 0, output
+    assert (r"claim: &lt;img src=x onerror=alert\(1\)&gt; see \[home\]\(https://evil.test\); "
+            r"reason: \`code\` \*bold\* \| cell") in output
+    assert "<img" not in output and "[home](" not in output
+    code, result = gate(root, capsys, "--changed-since", "main")
+    assert code == 0, result["errors"]
+    assert f"{RELEASE}: supersedes {CODEX} claim: {claim}; reason: {reason}" in result["notes"]
