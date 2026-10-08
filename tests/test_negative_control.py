@@ -69,6 +69,34 @@ def test_always_pass_test_is_insensitive(tmp_path):
     assert result["verdict"] == "INSENSITIVE"
 
 
+def test_empty_directories_are_preserved_and_fingerprinted(tmp_path):
+    test = """from pathlib import Path
+import unittest
+
+class Acceptance(unittest.TestCase):
+    def test_marker(self):
+        self.assertTrue(Path('marker').is_dir())
+"""
+    root = prepare(tmp_path, test, broken="return a + b")
+    (root / "repaired/marker").mkdir()
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert result["broken"]["source_sha256"] != result["repaired"]["source_sha256"]
+
+
+def test_worktree_git_pointer_files_are_excluded(tmp_path):
+    test = TEST.replace("import unittest", "import unittest\nfrom pathlib import Path")
+    test = test.replace("        self.assertEqual", "        self.assertFalse(Path('.git').exists())\n        self.assertEqual")
+    root = prepare(tmp_path, test)
+    for name in ("broken", "repaired"):
+        (root / name / ".git").write_text("gitdir: /original/worktree", encoding="utf-8")
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert (root / "repaired/.git").read_text() == "gitdir: /original/worktree"
+
+
 @pytest.mark.parametrize("test,broken", [
     (TEST, "raise RuntimeError('crash')"),
     (TEST, "return ("),

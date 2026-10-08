@@ -25,7 +25,7 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def read_fixture(root: Path) -> dict[str, bytes]:
+def read_fixture(root: Path) -> dict[str, bytes | None]:
     """Take an exact input copy; reject links rather than copy their targets."""
     if (not root.is_dir() or root.is_symlink()
             or getattr(root.lstat(), "st_file_attributes", 0) & 0x400):
@@ -36,24 +36,29 @@ def read_fixture(root: Path) -> dict[str, bytes]:
 
     for directory, folders, names in os.walk(root, followlinks=False, onerror=unreadable):
         folders[:] = sorted(n for n in folders if n not in {".git", "__pycache__"})
-        for name in folders + sorted(names):
+        for name in folders + sorted(n for n in names if n != ".git"):
             path = Path(directory) / name
             if path.is_symlink() or getattr(path.lstat(), "st_file_attributes", 0) & 0x400:
                 raise ValueError(f"fixture links are unsupported: {path}")
-            if path.is_file() and path.suffix not in {".pyc", ".pyo"}:
+            if path.is_dir():
+                files[path.relative_to(root).as_posix() + "/"] = None
+            elif path.is_file() and path.suffix not in {".pyc", ".pyo"}:
                 files[path.relative_to(root).as_posix()] = path.read_bytes()
     return files
 
 
-def tree_digest(files: dict[str, bytes]) -> str:
-    manifest = {name: digest(data) for name, data in sorted(files.items())}
+def tree_digest(files: dict[str, bytes | None]) -> str:
+    manifest = {name: None if data is None else digest(data) for name, data in sorted(files.items())}
     return digest(json.dumps(manifest, sort_keys=True).encode("utf-8"))
 
 
-def write_copy(root: Path, files: dict[str, bytes]) -> None:
+def write_copy(root: Path, files: dict[str, bytes | None]) -> None:
     root.mkdir(parents=True, exist_ok=True)
     for name, data in files.items():
         path = root / name
+        if data is None:
+            path.mkdir(parents=True, exist_ok=True)
+            continue
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
@@ -113,7 +118,7 @@ def worker(result_path: Path) -> int:
     return 0 if result.wasSuccessful() else 1
 
 
-def observe(source: dict[str, bytes], tests: dict[str, bytes], timeout: float) -> dict:
+def observe(source: dict[str, bytes | None], tests: dict[str, bytes | None], timeout: float) -> dict:
     observation = {"source_sha256": tree_digest(source), "timed_out": False}
     with tempfile.TemporaryDirectory(prefix="showwork-control-") as scratch:
         root = Path(scratch)

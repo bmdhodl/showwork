@@ -9,7 +9,7 @@
       "-B",
       "E:\\C-Offload\\github\\showwork-negative-control-20261008\\examples\\acceptance-review\\compare.py",
       "--worker",
-      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-woxxkkny\\observation.json"
+      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-i8tu8l6e\\observation.json"
     ],
     "exit_code": 1,
     "tests_run": 1,
@@ -22,9 +22,9 @@
     "expected_failures": 0,
     "unexpected_successes": 0,
     "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "stderr_sha256": "d519f13e89b2844a4d9d3ab2e1b756412102e3ea4bf5040cc89b0e5e7b1ae608",
+    "stderr_sha256": "f0b4547edf352481e096eafc103b3a722e3816469206f57d51f9e043b52b611f",
     "stdout_tail": "",
-    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... FAIL\r\n\r\n======================================================================\r\nFAIL: test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-woxxkkny\\workspace\\_checks\\test_app.py\", line 17, in test_save_survives_a_fresh_reader\r\n    self.assertEqual(load(path), \"dark\")\r\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\r\nAssertionError: None != 'dark'\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.004s\r\n\r\nFAILED (failures=1)\r\n"
+    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... FAIL\r\n\r\n======================================================================\r\nFAIL: test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-i8tu8l6e\\workspace\\_checks\\test_app.py\", line 17, in test_save_survives_a_fresh_reader\r\n    self.assertEqual(load(path), \"dark\")\r\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\r\nAssertionError: None != 'dark'\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.003s\r\n\r\nFAILED (failures=1)\r\n"
   },
   "repaired": {
     "source_sha256": "c344ce1ab96a1901e077f4385b92a466c97f1eeaa451d7732e2bf00ad0e7ee9a",
@@ -35,7 +35,7 @@
       "-B",
       "E:\\C-Offload\\github\\showwork-negative-control-20261008\\examples\\acceptance-review\\compare.py",
       "--worker",
-      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-np3ifn_6\\observation.json"
+      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-dp8spg6u\\observation.json"
     ],
     "exit_code": 0,
     "tests_run": 1,
@@ -48,13 +48,13 @@
     "expected_failures": 0,
     "unexpected_successes": 0,
     "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "stderr_sha256": "9ded735f1ccafb8b79ff6391947cdf2cb21f588eb817a04c89284dd9b21a981e",
+    "stderr_sha256": "0d014d6b3ca89db77868f52f4bbe6ee0a743e2ff67dbcc48c6f0d319370c1639",
     "stdout_tail": "",
-    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... ok\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.104s\r\n\r\nOK\r\n"
+    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... ok\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.101s\r\n\r\nOK\r\n"
   },
-  "observed_at": "2026-10-08T22:02:10.885586+00:00",
+  "observed_at": "2026-10-08T22:18:17.968632+00:00",
   "tests_sha256": "efdf812e737c2665775eec76c106ee26e13c4cae9235b61c4866c70d41de8bac",
-  "runner_sha256": "a2bbae33d16e04e1b6d577a2c5a1d9659201570dc72814fa47c22ef3981e4ee1",
+  "runner_sha256": "b69445f23f2262314d17e286764f95565d8075dce3fd54b732fc85738e98ca0d",
   "python": "3.13.2 (tags/v3.13.2:4f8bb39, Feb  4 2025, 15:23:48) [MSC v.1942 64 bit (AMD64)]",
   "timeout_seconds": 30,
   "independent_review": "not established",

@@ -84,3 +84,9 @@ classification, including while the dispatch frame is still on the live stack.
 The updated focused runner, acceptance example and CI-policy suite passed
 42 tests. The earlier full-suite log is retained as initial implementation
 evidence; the final session finish and CI provide evidence for the revised head.
+
+A second Codex review found that empty directories were omitted from fixture
+copies and that `.git` pointer files were not excluded. Both reproductions
+failed before the repair. Fixture manifests now include directory entries in
+their hashes and recreate them, and `.git` is excluded whether it is a file or
+directory. All 44 focused checks passed after these corrections.
