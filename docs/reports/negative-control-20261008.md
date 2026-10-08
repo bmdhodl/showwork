@@ -65,3 +65,22 @@ in `E:/C-Offload/github/showwork-negative-control-20261008` for local review.
 
 Receipt: `codex-negative-control-20261008`.
 Sign-off: OpenAI | GPT-6 | auto.
+
+## Publication follow-up
+
+The owner subsequently authorized pushing and merging. PR #180's first CI run
+passed the behavioral suite, but the advisory receipt job hid a RED outcome:
+its command replay timed out at the default 120 seconds. The receipt step now
+uses the same 600-second command allowance as the existing genesis suite step.
+A regression test failed before the workflow fix. Publication requires the
+actual receipt verdict to pass, not merely an advisory job's successful exit.
+
+Codex review on the initial PR head identified two additional unittest cases:
+setup/teardown subtests bypassed the ordinary failure callback, and callable
+test descriptors such as `partialmethod` lack their own `__code__`. Both issues
+were reproduced (three failing cases) before fixing classification to inspect
+unittest's test-method dispatch frame. Subtest callbacks now use the same
+classification, including while the dispatch frame is still on the live stack.
+The updated focused runner, acceptance example and CI-policy suite passed
+42 tests. The earlier full-suite log is retained as initial implementation
+evidence; the final session finish and CI provide evidence for the revised head.

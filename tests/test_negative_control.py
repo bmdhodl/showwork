@@ -125,6 +125,34 @@ def test_setup_assertion_is_not_a_caught_production_defect(tmp_path):
     assert result["verdict"] == "INCONCLUSIVE"
 
 
+@pytest.mark.parametrize("phase", ["setUp", "tearDown"])
+def test_subtest_fixture_assertion_is_inconclusive(tmp_path, phase):
+    test = TEST.replace("    def test_add", f"    def {phase}(self):\n        with self.subTest(phase='{phase}'):\n            self.assertEqual(add(2, 2), 4)\n\n    def test_add")
+    root = prepare(tmp_path, test)
+    proc, result = run(root)
+    assert proc.returncode == 2
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert result["broken"]["errors"] == 1
+
+
+@pytest.mark.parametrize("subtest", [False, True])
+def test_partialmethod_assertion_is_a_caught_defect(tmp_path, subtest):
+    test = """import functools
+import unittest
+from app import add
+
+class Acceptance(unittest.TestCase):
+    def check_sum(self, expected):
+        ASSERTION
+    test_add = functools.partialmethod(check_sum, 4)
+""".replace("ASSERTION", "with self.subTest():\n            self.assertEqual(add(2, 2), expected)" if subtest else "self.assertEqual(add(2, 2), expected)")
+    root = prepare(tmp_path, test)
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert result["broken"]["failures"] == 1
+
+
 def test_bundled_persistence_example_is_sensitive(tmp_path):
     fixtures = RUNNER.parent / "fixtures"
     output = tmp_path / "report.json"

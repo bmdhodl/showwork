@@ -107,6 +107,8 @@ jobs:
 
       - name: Review the receipts shipped by this change
         uses: ./actions/verify
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"
         with:
           mode: advisory
           changed-since: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}

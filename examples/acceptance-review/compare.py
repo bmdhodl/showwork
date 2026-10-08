@@ -67,17 +67,36 @@ class ObservedResult(unittest.TextTestResult):
         self.test_ids.append(test.id())
         super().startTest(test)
 
-    def addFailure(self, test, err):
-        # unittest also calls this for assertion failures in setUp/tearDown.
-        # Only an assertion reached through the test method is a control.
-        method = getattr(test, getattr(test, "_testMethodName", ""), None)
-        code = getattr(method, "__code__", None)
+    def in_test_method(self, test, err):
+        # unittest dispatches any callable test through this hook, including
+        # partialmethod and async tests. Fixture callbacks use different hooks.
+        code = getattr(test._callTestMethod, "__code__", None)
         traceback = err[2]
         while traceback is not None:
-            if traceback.tb_frame.f_code is code:
-                return super().addFailure(test, err)
+            if traceback.tb_frame.f_code is code and traceback.tb_frame.f_locals.get("self") is test:
+                return True
             traceback = traceback.tb_next
+        # A subtest catches the exception before the dispatch hook unwinds,
+        # so that frame is on the live stack instead of the error traceback.
+        frame = sys._getframe()
+        try:
+            while frame is not None:
+                if frame.f_code is code and frame.f_locals.get("self") is test:
+                    return True
+                frame = frame.f_back
+        finally:
+            del frame
+        return False
+
+    def addFailure(self, test, err):
+        if self.in_test_method(test, err):
+            return super().addFailure(test, err)
         return super().addError(test, err)
+
+    def addSubTest(self, test, subtest, err):
+        if err is not None and not self.in_test_method(test, err):
+            return super().addError(subtest, err)
+        return super().addSubTest(test, subtest, err)
 
 
 def worker(result_path: Path) -> int:
