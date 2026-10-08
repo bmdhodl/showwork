@@ -75,6 +75,11 @@ there is no in-place mutation/restore cycle. Fixture directories must contain
 only the small inputs you intend to execute. Symlinks and Windows reparse
 points are refused; `.git`, bytecode and `__pycache__` are excluded. `_checks`
 is reserved for the shared suite. Output must be outside the input directories.
+Child entries retain file bytes, empty directories and ordinary permission
+bits, which are included in their hashes. Windows preserves its supported
+read-only permission; POSIX also preserves executable permissions. The supplied
+root directory is a container, recreated as writable scratch. Ownership, ACLs,
+timestamps and special mode bits are outside this fixture format.
 
 | Result | Exit | Meaning |
 | --- | --- | --- |

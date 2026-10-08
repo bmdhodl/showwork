@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -79,6 +80,32 @@ class Acceptance(unittest.TestCase):
 """
     root = prepare(tmp_path, test, broken="return a + b")
     (root / "repaired/marker").mkdir()
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert result["broken"]["source_sha256"] != result["repaired"]["source_sha256"]
+
+
+@pytest.mark.parametrize("entry", ["file", pytest.param(
+    "directory", marks=pytest.mark.skipif(os.name == "nt", reason="directory traversal permissions are POSIX-only"))])
+def test_permission_only_repair_is_preserved_and_fingerprinted(tmp_path, entry):
+    # Windows exposes the read-only bit; POSIX also exposes executable bits.
+    access = "W_OK" if os.name == "nt" else "X_OK"
+    test = f"""import os
+import unittest
+
+class Acceptance(unittest.TestCase):
+    def test_permission(self):
+        self.assertTrue(os.access('marker', os.{access}))
+"""
+    root = prepare(tmp_path, test, broken="return a + b")
+    for name in ("broken", "repaired"):
+        if entry == "directory":
+            (root / name / "marker").mkdir()
+        else:
+            (root / name / "marker").write_text("same bytes", encoding="utf-8")
+    (root / "broken/marker").chmod(0o444 if os.name == "nt" else 0o644)
+    (root / "repaired/marker").chmod(0o666 if os.name == "nt" else 0o755)
     proc, result = run(root)
     assert proc.returncode == 0, proc.stderr
     assert result["verdict"] == "SENSITIVE"

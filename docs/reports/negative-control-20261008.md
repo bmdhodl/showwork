@@ -90,3 +90,13 @@ copies and that `.git` pointer files were not excluded. Both reproductions
 failed before the repair. Fixture manifests now include directory entries in
 their hashes and recreate them, and `.git` is excluded whether it is a file or
 directory. All 44 focused checks passed after these corrections.
+
+The subsequent review identified permission-only repairs. The reproduction
+returned INSENSITIVE on Windows before the fix because copying removed the
+read-only difference. Manifests now hash ordinary mode bits and restore file
+permissions and, after populating their children, directory permissions.
+The focused suite passed 45 tests locally. A separate POSIX directory-traversal
+case is skipped on Windows and exercised by Linux CI; the file case checks
+Windows write permission locally and executable permission on POSIX. Ownership,
+ACLs, timestamps, special mode bits and container-root permissions are explicitly
+outside this example's fixture format.

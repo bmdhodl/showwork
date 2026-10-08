@@ -11,6 +11,7 @@ import json
 import math
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -20,13 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 from showwork.process import run_process
 
+Fixture = dict[str, tuple[bytes | None, int]]
+
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def read_fixture(root: Path) -> dict[str, bytes | None]:
-    """Take an exact input copy; reject links rather than copy their targets."""
+def read_fixture(root: Path) -> Fixture:
+    """Copy child entries' bytes and permissions; refuse linked targets."""
     if (not root.is_dir() or root.is_symlink()
             or getattr(root.lstat(), "st_file_attributes", 0) & 0x400):
         raise ValueError(f"fixture must be a regular directory: {root}")
@@ -40,27 +43,35 @@ def read_fixture(root: Path) -> dict[str, bytes | None]:
             path = Path(directory) / name
             if path.is_symlink() or getattr(path.lstat(), "st_file_attributes", 0) & 0x400:
                 raise ValueError(f"fixture links are unsupported: {path}")
+            mode = stat.S_IMODE(path.stat().st_mode) & 0o777
             if path.is_dir():
-                files[path.relative_to(root).as_posix() + "/"] = None
+                files[path.relative_to(root).as_posix() + "/"] = (None, mode)
             elif path.is_file() and path.suffix not in {".pyc", ".pyo"}:
-                files[path.relative_to(root).as_posix()] = path.read_bytes()
+                files[path.relative_to(root).as_posix()] = (path.read_bytes(), mode)
     return files
 
 
-def tree_digest(files: dict[str, bytes | None]) -> str:
-    manifest = {name: None if data is None else digest(data) for name, data in sorted(files.items())}
+def tree_digest(files: Fixture) -> str:
+    manifest = {name: {"sha256": None if data is None else digest(data), "mode": mode}
+                for name, (data, mode) in sorted(files.items())}
     return digest(json.dumps(manifest, sort_keys=True).encode("utf-8"))
 
 
-def write_copy(root: Path, files: dict[str, bytes | None]) -> None:
+def write_copy(root: Path, files: Fixture) -> None:
     root.mkdir(parents=True, exist_ok=True)
-    for name, data in files.items():
+    directories = []
+    for name, (data, mode) in files.items():
         path = root / name
         if data is None:
             path.mkdir(parents=True, exist_ok=True)
+            directories.append((path, mode))
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+        path.chmod(mode)
+    # Populate children before restoring restrictive directory permissions.
+    for path, mode in sorted(directories, key=lambda entry: len(entry[0].parts), reverse=True):
+        path.chmod(mode)
 
 
 class ObservedResult(unittest.TextTestResult):
@@ -118,7 +129,7 @@ def worker(result_path: Path) -> int:
     return 0 if result.wasSuccessful() else 1
 
 
-def observe(source: dict[str, bytes | None], tests: dict[str, bytes | None], timeout: float) -> dict:
+def observe(source: Fixture, tests: Fixture, timeout: float) -> dict:
     observation = {"source_sha256": tree_digest(source), "timed_out": False}
     with tempfile.TemporaryDirectory(prefix="showwork-control-") as scratch:
         root = Path(scratch)
