@@ -1,0 +1,62 @@
+{
+  "verdict": "SENSITIVE",
+  "broken": {
+    "source_sha256": "63b902fb77fed04bb1a920fd2790c71c158b54623d746655a4cec8d915bb005d",
+    "timed_out": false,
+    "argv": [
+      "C:\\Python313\\python.exe",
+      "-I",
+      "-B",
+      "E:\\C-Offload\\github\\showwork-negative-control-20261008\\examples\\acceptance-review\\compare.py",
+      "--worker",
+      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-jet29ix4\\observation.json"
+    ],
+    "exit_code": 1,
+    "tests_run": 1,
+    "test_ids": [
+      "test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader"
+    ],
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unexpected_successes": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "848c9fcfe05564b4ec307246e232beab046fb27b9486ab38d14b7cf0eefb7922",
+    "stdout_tail": "",
+    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... FAIL\r\n\r\n======================================================================\r\nFAIL: test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-jet29ix4\\workspace\\_checks\\test_app.py\", line 17, in test_save_survives_a_fresh_reader\r\n    self.assertEqual(load(path), \"dark\")\r\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\r\nAssertionError: None != 'dark'\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.004s\r\n\r\nFAILED (failures=1)\r\n"
+  },
+  "repaired": {
+    "source_sha256": "c344ce1ab96a1901e077f4385b92a466c97f1eeaa451d7732e2bf00ad0e7ee9a",
+    "timed_out": false,
+    "argv": [
+      "C:\\Python313\\python.exe",
+      "-I",
+      "-B",
+      "E:\\C-Offload\\github\\showwork-negative-control-20261008\\examples\\acceptance-review\\compare.py",
+      "--worker",
+      "C:\\Users\\patri\\AppData\\Local\\Temp\\showwork-control-c48i012z\\observation.json"
+    ],
+    "exit_code": 0,
+    "tests_run": 1,
+    "test_ids": [
+      "test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader"
+    ],
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unexpected_successes": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "580981c189eb0d6ed0d1a8aa87f2fe03a64a254bcc499ff5e2edd55044432ecf",
+    "stdout_tail": "",
+    "stderr_tail": "test_save_survives_a_fresh_reader (test_app.PersistenceAcceptance.test_save_survives_a_fresh_reader) ... ok\r\n\r\n----------------------------------------------------------------------\r\nRan 1 test in 0.117s\r\n\r\nOK\r\n"
+  },
+  "observed_at": "2026-10-08T21:05:46.998830+00:00",
+  "tests_sha256": "efdf812e737c2665775eec76c106ee26e13c4cae9235b61c4866c70d41de8bac",
+  "runner_sha256": "5239868140dbca2e84b14bfd27764f2bc861ded6d8e6f968d2aabcd35a719dbf",
+  "python": "3.13.2 (tags/v3.13.2:4f8bb39, Feb  4 2025, 15:23:48) [MSC v.1942 64 bit (AMD64)]",
+  "timeout_seconds": 30,
+  "independent_review": "not established",
+  "scope": "sensitivity to this supplied defect only; test adequacy and requirement coverage not assessed"
+}

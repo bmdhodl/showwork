@@ -3,6 +3,11 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- Add an opt-in unittest comparison runner to the acceptance-review example.
+  The same checks run on copied broken and repaired fixtures. Always-passing
+  checks are insensitive; setup errors, skips, empty suites and timeouts are
+  inconclusive. Reports record input and output hashes without claiming test
+  adequacy, independent review or sandboxing. Existing outcome gates are unchanged.
 
 - The read-only receipts badge now honors a sound supersession as `verify`
   does. Before, a session that claimed `notes/v1-*.md` and closed GREEN read

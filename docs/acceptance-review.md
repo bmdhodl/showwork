@@ -52,3 +52,55 @@ It does not cover concurrency, crash recovery, schema migration, hostile input,
 all product requirements or real-user adequacy. Its explicit acceptance predicates
 also execute under Python optimization; `-O` cannot turn a broken implementation
 or missing output into success.
+
+## Compare one shared test suite against a broken fixture and its repair
+
+The optional [comparison runner](../examples/acceptance-review/compare.py)
+automates this narrow check for stdlib `unittest.TestCase` suites. Run it from
+a source checkout; it imports that checkout's process runner. It adds no
+runtime dependency and changes no ledger format or default gate.
+
+```text
+python examples/acceptance-review/compare.py --broken examples/acceptance-review/fixtures/broken --repaired examples/acceptance-review/fixtures/repaired --tests examples/acceptance-review/fixtures/checks --output control-result.json
+```
+
+The supplied example calls the application's save/load functions and reads
+the persisted value in a fresh process. The broken implementation's save is
+empty. The repaired implementation writes the value. The test fixture supplies
+an empty temporary directory and an input string, never the expected file.
+
+Both implementations run against copies of the same tests in separate fresh
+temporary directories, which are cleaned after each run. Inputs stay in place;
+there is no in-place mutation/restore cycle. Fixture directories must contain
+only the small inputs you intend to execute. Symlinks and Windows reparse
+points are refused; `.git`, bytecode and `__pycache__` are excluded. `_checks`
+is reserved for the shared suite. Output must be outside the input directories.
+
+| Result | Exit | Meaning |
+| --- | --- | --- |
+| `SENSITIVE` | 0 | At least one test assertion rejected the broken fixture; the same test inventory passed on the repair. |
+| `INSENSITIVE` | 1 | Both fixtures passed. The checks did not expose this supplied defect. |
+| `REPAIR_FAILED` | 1 | The repair still has an ordinary assertion failure. |
+| `INCONCLUSIVE` | 2 | Setup/teardown error, import/syntax error, timeout, missing observation, no tests, skips, expected failures or differing test inventories prevented the comparison. |
+
+`--timeout` is a positive finite number of seconds per child, default 30.
+Timeout cleanup uses showwork's existing process-tree handling. This bounds
+ordinary children, not processes that deliberately escape that boundary.
+The report keeps the actual child exit codes, input/test/runner hashes,
+interpreter version, output hashes and bounded diagnostic tails.
+
+These are trusted project tests running with your privileges, **not sandboxed
+code**. A child can still access paths outside its copied directory. Test code
+can forge its own observations. The shared test source is fixed between runs,
+but it can branch on the fixture. An assertion failure can be unrelated to the
+intended defect. A useful result therefore remains a signal about one chosen
+counterexample, not proof of test quality, independence or full requirements.
+The report always leaves independent review unestablished; keep the named
+reviewer and scope in the existing PR/report rather than infer them from exit 0.
+
+For showwork acceptance, declare a behavior `command` that runs this script
+with `expect_exit=0` and `stdout_contains=SENSITIVE` before claiming completion.
+Use an output beneath your session's artifact directory and explicitly claim
+that file too. A `file_exists` claim on the report alone is only an artifact
+observation; it must not replace rerunning the comparison. A project test
+runner remains responsible for all other declared behavior requirements.
