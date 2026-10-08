@@ -82,6 +82,13 @@ def test_ci_receipt_job_reviews_changed_committed_outcomes_on_trusted_branches()
     assert "continue-on-error" not in receipts
 
 
+def test_receipt_replay_has_the_full_suite_command_budget():
+    # REGRESSION: advisory CI went green while its receipt replay timed out at 120s.
+    workflow = read_repo_file(".github", "workflows", "ci.yml")
+    step = workflow.split("- name: Review the receipts shipped by this change", 1)[1]
+    assert 'env:\n          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"' in step
+
+
 def test_ci_and_publishing_use_github_hosted_runners():
     workflow = read_repo_file(".github", "workflows", "ci.yml")
     assert "actions/setup-node@" in workflow
