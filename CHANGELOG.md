@@ -3,6 +3,20 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- New `showwork lock` and `tests_intact` check type refuse a clean close when
+  the agent moved its own finish line (#179). `lock` records a `session.lock`
+  event with the requirements digest and the SHA-256 of each command script
+  and of every file an explicit `--path` glob matches. A later edit, deletion
+  or new file there, or a requirement added after the lock, fails `verify`,
+  `finish` and `gate` with `refuse_reason: locked_checks_changed`, even when a
+  claim names the file. `tests_intact` pins a base commit and compares Python
+  test files with `ast`: a deleted test file or test, a new skip or xfail
+  marker, or fewer assertions or literal parametrize cases fail with
+  `tests_weakened`. Adding tests passes. Finish events of a locked session
+  carry `lock_check`. Both readers accept the new event and check type, and
+  the badge reruns the lock's file comparison. Counts are not meaning: a
+  weaker assertion with the same count still passes. See
+  `docs/locked-checks.md`; SPEC.md documents both.
 - Add an opt-in unittest comparison runner to the acceptance-review example.
   The same checks run on copied broken and repaired fixtures. Always-passing
   checks are insensitive; setup errors, skips, empty suites and timeouts are

@@ -1,5 +1,15 @@
 # showwork build plan
 
+## #179 lock the finish line — 2026-10-14  [status: PR open, owner review]
+
+- [x] `showwork lock`: freeze requirements, command scripts and `--path` globs
+- [x] `tests_intact`: deleted tests, new skips/xfails, fewer assertions or cases
+- [x] REFUSED with `locked_checks_changed` / `tests_weakened`; honest session PASS
+- [x] SPEC, README limits, `docs/locked-checks.md`, readers, badge
+- [ ] Next (deferred): fails-on-base check for a claimed regression test
+- [ ] Next (deferred): anchor a lock outside the ledger (gate flag or base commit)
+- [ ] Next (deferred): runtime pytest collection count, non-Python suites
+
 ## v0.6.6 release — 2026-10-05  [status: released]
 
 - [x] Merging main no longer fails the agent's gate (#166); summary dedupe (#167)
