@@ -22,6 +22,9 @@ Check types:
                   # Fixed timeout, bounded response, no redirects, HTTP(S) only.
     git_state     {clean?: bool, branch?: str, commit?: hex prefix}
                   # Fixed git subcommands; at least one assertion is required.
+    tests_intact  {path, base: full commit ID}
+                  # Static ast comparison of Python test files with the base:
+                  # no deleted tests, new skips/xfails, or fewer assertions.
 
 Vacuous checks are rejected, not blessed: a regex that matches the empty
 string proves nothing, and a glob count that is always true (>= 0) proves
@@ -84,6 +87,7 @@ CHECK_FIELDS = {
     "command": frozenset({"type", "argv", "expect_exit", "stdout_contains"}),
     "http_probe": frozenset({"type", "url", "expect_status", "body_contains"}),
     "git_state": frozenset({"type", "clean", "branch", "commit"}),
+    "tests_intact": frozenset({"type", "path", "base"}),
 }
 
 # Claim-time and verify-time hint when a command check cannot run.
@@ -598,6 +602,9 @@ def validate_check_shape(check: dict, root: Path) -> str | None:
                 "git_state.commit must be a hexadecimal prefix of at least 7 characters"
             )
         return None
+    if ctype == "tests_intact":
+        from .tests_intact import shape_error
+        return shape_error(check)
     return None
 
 
@@ -889,6 +896,11 @@ def chk_git_state(c: dict, root: Path) -> tuple[str, str]:
     return ("pass", "Git state matches: " + ", ".join(details))
 
 
+def chk_tests_intact(c: dict, root: Path) -> tuple[str, str]:
+    from .tests_intact import chk_tests_intact as compare_with_base
+    return compare_with_base(c, root)
+
+
 CHECKERS = {
     "file_exists": chk_file_exists,
     "file_contains": chk_file_contains,
@@ -898,6 +910,7 @@ CHECKERS = {
     "command": chk_command,
     "http_probe": chk_http_probe,
     "git_state": chk_git_state,
+    "tests_intact": chk_tests_intact,
 }
 
 

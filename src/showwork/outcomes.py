@@ -36,6 +36,10 @@ def record_requirement(root: Path, session: str, requirement_id: str,
         raise ValueError(error)
     if scope == "behavior" and check.get("type") != "command":
         raise ValueError("behavior requires an executable command check; file text is not behavior")
+    from .lock import LOCK_EVENT
+    from .ledger import load_all_events
+    if any(e.get("session") == session and e.get("event") == LOCK_EVENT for e in load_all_events(root)):
+        raise ValueError("this session's acceptance checks are locked; use a new session to change them")
     if any(row.get("requirement_id") == requirement_id for row in requirement_records(root, session)):
         raise ValueError("requirement id already exists; acceptance checks cannot be weakened in place")
     if claims_for_session(root, session):
