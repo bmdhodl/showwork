@@ -15,10 +15,10 @@ MAX_FILE_BYTES = 4 * 1024 * 1024
 MAX_TOTAL_BYTES = 32 * 1024 * 1024
 MAX_LEDGER_FILES = 1024
 VERSIONS = tuple(f"spec-v0.{i}" for i in range(1, 6))
-EVENTS = frozenset({"session.start", "session.requirement", "session.finish",
+EVENTS = frozenset({"session.start", "session.requirement", "session.lock", "session.finish",
                     "session.finish.refused"})
 CHECK_TYPES = frozenset({"file_exists", "file_contains", "path_moved", "frontmatter",
-                         "glob_count", "command", "http_probe", "git_state"})
+                         "glob_count", "command", "http_probe", "git_state", "tests_intact"})
 CAPABILITIES = {
     "spec_versions": list(VERSIONS), "integrity": "hash-chain",
     "scope": "recorded requirements and receipt manifest",

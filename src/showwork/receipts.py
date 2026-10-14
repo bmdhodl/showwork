@@ -23,6 +23,7 @@ from .ledger import (
     session_file_stem,
 )
 from .checks import evaluate_records
+from .lock import lock_results
 from .outcomes import evaluate_requirement_records, outcome_summary
 from .reader import CAPABILITIES, confined_path, inspect_loaded, load_receipt, read_bytes
 from .snapshot import merge_undeclared, undeclared_results, unreferenced_artifacts
@@ -257,6 +258,7 @@ def evidence_for_session(root: str | Path | None, session: str) -> dict[str, Any
         if snapshot.exists():
             read_bytes(workspace, snapshot)  # Bound the reference checker's input.
         extra += undeclared_results(workspace, declared, start, snapshot)
+        extra += lock_results(workspace, events, requirements)[0]
         state = merge_undeclared(state, extra)
         state["outcome"] = outcome_summary(state)
         if reader["recorded_outcome"] != "VERIFIED":
