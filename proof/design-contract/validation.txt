@@ -1,0 +1,9 @@
+
+Independent CSS review regression: appended live override plus recomputed css_sha256 failed before exact generated CSS serialization comparison.
+$ python -m pytest tests/test_design_contract.py -q --basetemp <fresh-temp>
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+.............                                                            [100%]
+13 passed in 0.17s
+exit_code:0
+
+Earlier full suite:940passed,1POSIX-only skip,1timing failure in unchanged timeout descendant test; termination took2.8s while fixture child wrote after2s. Isolated test subsequently passed in4.42s. The following full exit-gate attempt was interrupted as incomplete when independent review found the CSS verifier gap; it is not counted as a pass. No runtime or fixture changes were made.
