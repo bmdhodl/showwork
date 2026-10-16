@@ -93,3 +93,19 @@ def test_failed_command_displays_bounded_redacted_tail(tmp_path, stream):
     assert "sk-abcdefghijklmnop" not in result["detail"]
     assert len(result["detail"]) < 2000
     assert "Python " + sys.version.split()[0] in result["detail"]
+
+
+def test_failed_command_shows_stdout_reason_when_stderr_has_a_warning(tmp_path):
+    """REGRESSION #174: a one-line warning on stderr hid pytest's failure,
+    which pytest prints on stdout. Both bounded tails must show."""
+    script = tmp_path / "fail.py"
+    script.write_text(
+        "import sys\n"
+        "print('DeprecationWarning: something old', file=sys.stderr)\n"
+        "print('FAILED tests/test_x.py::test_y - AssertionError: 1 != 2')\n"
+        "raise SystemExit(1)\n")
+    result = verify_claim({"claim": "suite", "check": {"type": "command", "argv": ["python", "fail.py"]}}, tmp_path)
+    assert result["status"] == "fail"
+    assert "AssertionError: 1 != 2" in result["detail"]
+    assert "DeprecationWarning" in result["detail"]
+    assert "stdout tail:" in result["detail"] and "stderr tail:" in result["detail"]
