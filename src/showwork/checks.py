@@ -711,13 +711,19 @@ def chk_command(c: dict, root: Path, *, evidence: dict | None = None,
 
 
 def _command_diagnostics(proc) -> str:
-    """Failure context from bounded, redacted stderr (or stdout when absent)."""
+    """Failure context: a bounded, redacted tail of each stream that has output.
+
+    Both streams, because a one-line warning on stderr used to hide the real
+    reason on stdout, where pytest prints its failures (#174).
+    """
     runtime = f"Python {sys.version.split()[0]}; interpreter {_command_context_text(sys.executable)}"
-    stream = "stderr" if (proc.stderr or "").strip() else "stdout"
-    raw = proc.stderr if stream == "stderr" else proc.stdout
-    lines = [line for line in (raw or "").splitlines() if line.strip()][-6:]
-    safe = [_command_context_text(line) for line in lines]
-    return f"\n       {runtime}" + (f"\n       {stream} tail:\n       " + "\n       ".join(safe) if safe else "")
+    text = f"\n       {runtime}"
+    for stream, raw in (("stdout", proc.stdout), ("stderr", proc.stderr)):
+        lines = [line for line in (raw or "").splitlines() if line.strip()][-6:]
+        if lines:
+            safe = [_command_context_text(line) for line in lines]
+            text += f"\n       {stream} tail:\n       " + "\n       ".join(safe)
+    return text
 
 
 def _command_context_text(text: str) -> str:
