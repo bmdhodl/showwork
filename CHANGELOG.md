@@ -3,6 +3,10 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- A failed `command` check now shows a bounded, redacted tail of each stream
+  that has output. Before, any text on stderr hid stdout, so a one-line
+  warning hid pytest's failure, which pytest prints on stdout (#174).
+
 - Add an opt-in unittest comparison runner to the acceptance-review example.
   The same checks run on copied broken and repaired fixtures. Always-passing
   checks are insensitive; setup errors, skips, empty suites and timeouts are
