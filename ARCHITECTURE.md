@@ -545,7 +545,7 @@ Rerun it only when chain semantics change, and commit the diff consciously.
 - The Python API re-exported from `showwork/__init__.py`. `record_claim`,
   `verify_session`, `verify_date`, `resolve_root`, `finish_session`,
   `audit_root`, plus the control-plane types.
-- `SPEC.md`, the portable `spec-v0.4` ledger format. Every normative
+- `SPEC.md`, the portable `spec-v0.5` ledger format. Every normative
   requirement names a behavioral test beside it, and reader-only conformance
   is defined there for auditors like `js/showwork-audit`.
 - `actions/verify`, consumable as `bmdhodl/showwork/actions/verify@v0.6.6`.
