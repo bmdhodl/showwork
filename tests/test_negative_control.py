@@ -208,6 +208,44 @@ class Acceptance(unittest.TestCase):
     assert result["broken"]["failures"] == 1
 
 
+SUBTEST_TEST = """import unittest
+from app import add
+
+class Acceptance(unittest.TestCase):
+    def check_sum(self):
+        with self.subTest():
+            self.assertEqual(add(2, 2), 4)
+
+"""
+
+
+@pytest.mark.parametrize("methods", [
+    "    def test_add(self):\n        with self.subTest():\n            self.assertEqual(add(2, 2), 4)\n",
+    "    def test_add(self):\n        self.check_sum()\n",
+], ids=["in-test-method", "in-helper"])
+def test_subtest_assertion_in_test_method_is_a_caught_defect(tmp_path, methods):
+    """REGRESSION: Python 3.10 counted this subtest failure as an error."""
+    root = prepare(tmp_path, SUBTEST_TEST + methods)
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert result["broken"]["failures"] == 1
+    assert result["broken"]["errors"] == 0
+
+
+@pytest.mark.parametrize("methods", [
+    "    def setUp(self):\n        self.check_sum()\n\n    def test_add(self):\n        pass\n",
+    "    def test_add(self):\n        self.addCleanup(self.check_sum)\n",
+], ids=["setUp-helper", "cleanup-added-by-test-method"])
+def test_subtest_assertion_outside_test_method_stays_an_error(tmp_path, methods):
+    root = prepare(tmp_path, SUBTEST_TEST + methods)
+    proc, result = run(root)
+    assert proc.returncode == 2
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert result["broken"]["errors"] == 1
+    assert result["broken"]["failures"] == 0
+
+
 def test_bundled_persistence_example_is_sensitive(tmp_path):
     fixtures = RUNNER.parent / "fixtures"
     output = tmp_path / "report.json"

@@ -74,6 +74,18 @@ def write_copy(root: Path, files: Fixture) -> None:
         path.chmod(mode)
 
 
+SUBTEST_CODE = unittest.TestCase.subTest.__wrapped__.__code__
+
+
+def runs_under(frame, code, test) -> bool:
+    """Return whether this frame or one of its callers runs code for test."""
+    while frame is not None:
+        if frame.f_code is code and frame.f_locals.get("self") is test:
+            return True
+        frame = frame.f_back
+    return False
+
+
 class ObservedResult(unittest.TextTestResult):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -94,14 +106,20 @@ class ObservedResult(unittest.TextTestResult):
             traceback = traceback.tb_next
         # A subtest catches the exception before the dispatch hook unwinds,
         # so that frame is on the live stack instead of the error traceback.
-        frame = sys._getframe()
-        try:
-            while frame is not None:
-                if frame.f_code is code and frame.f_locals.get("self") is test:
-                    return True
-                frame = frame.f_back
-        finally:
-            del frame
+        if runs_under(sys._getframe(), code, test):
+            return True
+        # Python 3.10 reports subtest outcomes after the test method returns,
+        # so the dispatch hook is on neither stack. The traceback goes through
+        # this test's subTest frame. The next frame entered subTest. Its
+        # callers show whether the test method or a fixture entered it.
+        # A finished coroutine frame keeps no callers, so an async subtest
+        # failure stays an error on 3.10.
+        traceback = err[2]
+        while traceback is not None and traceback.tb_next is not None:
+            frame = traceback.tb_frame
+            if frame.f_code is SUBTEST_CODE and frame.f_locals.get("self") is test:
+                return runs_under(traceback.tb_next.tb_frame, code, test)
+            traceback = traceback.tb_next
         return False
 
     def addFailure(self, test, err):

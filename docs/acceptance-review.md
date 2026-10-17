@@ -88,6 +88,12 @@ timestamps and special mode bits are outside this fixture format.
 | `REPAIR_FAILED` | 1 | The repair still has an ordinary assertion failure. |
 | `INCONCLUSIVE` | 2 | Setup/teardown error, import/syntax error, timeout, missing observation, no tests, skips, expected failures or differing test inventories prevented the comparison. |
 
+A failed subtest counts as an assertion failure only when the test method
+runs it, directly or through a helper. A failed subtest in `setUp`, `tearDown`
+or a cleanup is an error.
+On Python 3.10, a failed subtest in an async test method is also an error, so
+that comparison is `INCONCLUSIVE`.
+
 `--timeout` is a positive finite number of seconds per child, default 30.
 Timeout cleanup uses showwork's existing process-tree handling. This bounds
 ordinary children, not processes that deliberately escape that boundary.
