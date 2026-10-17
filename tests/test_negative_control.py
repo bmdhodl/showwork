@@ -246,6 +246,33 @@ def test_subtest_assertion_outside_test_method_stays_an_error(tmp_path, methods)
     assert result["broken"]["failures"] == 0
 
 
+TEARDOWN_EXIT_TEST = SUBTEST_TEST + """    def test_add(self):
+        try:
+            self.assertEqual(add(2, 2), 4)
+        except AssertionError as exc:
+            self.caught = exc
+
+    def tearDown(self):
+        caught = getattr(self, "caught", None)
+        if caught is not None:
+            subtest = self.subTest()
+            subtest.__enter__()
+            subtest.__exit__(type(caught), caught, caught.__traceback__)
+"""
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11),
+                    reason="Python 3.10 reads subtest callers from the traceback")
+def test_subtest_that_teardown_exits_stays_an_error(tmp_path):
+    """REGRESSION: the Python 3.10 traceback check changed this result on 3.11+."""
+    root = prepare(tmp_path, TEARDOWN_EXIT_TEST)
+    proc, result = run(root)
+    assert proc.returncode == 2
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert result["broken"]["errors"] == 1
+    assert result["broken"]["failures"] == 0
+
+
 def test_bundled_persistence_example_is_sensitive(tmp_path):
     fixtures = RUNNER.parent / "fixtures"
     output = tmp_path / "report.json"

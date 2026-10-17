@@ -108,12 +108,16 @@ class ObservedResult(unittest.TextTestResult):
         # so that frame is on the live stack instead of the error traceback.
         if runs_under(sys._getframe(), code, test):
             return True
+        # Python 3.11 and later report a subtest while it exits, so the live
+        # stack above is the whole answer.
+        if sys.version_info >= (3, 11):
+            return False
         # Python 3.10 reports subtest outcomes after the test method returns,
         # so the dispatch hook is on neither stack. The traceback goes through
         # this test's subTest frame. The next frame entered subTest. Its
         # callers show whether the test method or a fixture entered it.
-        # A finished coroutine frame keeps no callers, so an async subtest
-        # failure stays an error on 3.10.
+        # A finished coroutine or generator frame keeps no callers, so a
+        # subtest failure that one of them enters stays an error on 3.10.
         traceback = err[2]
         while traceback is not None and traceback.tb_next is not None:
             frame = traceback.tb_frame

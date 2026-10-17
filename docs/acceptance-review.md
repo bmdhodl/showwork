@@ -91,8 +91,9 @@ timestamps and special mode bits are outside this fixture format.
 A failed subtest counts as an assertion failure only when the test method
 runs it, directly or through a helper. A failed subtest in `setUp`, `tearDown`
 or a cleanup is an error.
-On Python 3.10, a failed subtest in an async test method is also an error, so
-that comparison is `INCONCLUSIVE`.
+On Python 3.10, a failed subtest is also an error when an async test method or
+a generator enters it, for example a `contextlib.contextmanager` helper. That
+comparison is `INCONCLUSIVE`.
 
 `--timeout` is a positive finite number of seconds per child, default 30.
 Timeout cleanup uses showwork's existing process-tree handling. This bounds

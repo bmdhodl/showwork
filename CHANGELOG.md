@@ -16,10 +16,12 @@ All notable changes to showwork are recorded here.
 - On Python 3.10 the comparison runner counts a failed subtest in a test
   method as a failure. Before, Python 3.10 reported it as an error, so a check
   that caught the defect read INCONCLUSIVE. Python 3.10 reports subtest
-  outcomes after the test method returns, so the runner now follows the frame
-  that entered `subTest` to its callers. A failed subtest in `setUp`,
-  `tearDown` or a cleanup stays an error. An async subtest failure on 3.10
-  also stays an error.
+  outcomes after the test method returns, so on 3.10 the runner now follows
+  the frame that entered `subTest` to its callers. A failed subtest in
+  `setUp`, `tearDown` or a cleanup stays an error. On 3.10 a failed subtest
+  that an async test method or a generator, such as a `contextmanager`
+  helper, enters also stays an error. Results on Python 3.11 and later do
+  not change.
 
 - The read-only receipts badge now honors a sound supersession as `verify`
   does. Before, a session that claimed `notes/v1-*.md` and closed GREEN read
