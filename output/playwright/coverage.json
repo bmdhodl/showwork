@@ -1,0 +1,101 @@
+{
+  "surfaces": [
+    {
+      "surface": "dashboard-empty",
+      "checks": [
+        {
+          "width": 375,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 768,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 1440,
+          "overflow": false,
+          "logo_loaded": true
+        }
+      ],
+      "reduced_motion": true,
+      "zoom_200_percent": true,
+      "visible_words": 128,
+      "count_method": "rendered innerText of main/article; navigation excluded when present"
+    },
+    {
+      "surface": "dashboard-result",
+      "checks": [
+        {
+          "width": 375,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 768,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 1440,
+          "overflow": false,
+          "logo_loaded": true
+        }
+      ],
+      "reduced_motion": true,
+      "zoom_200_percent": true,
+      "visible_words": 134,
+      "count_method": "rendered innerText of main/article; navigation excluded when present"
+    },
+    {
+      "surface": "receipts-empty",
+      "checks": [
+        {
+          "width": 375,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 768,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 1440,
+          "overflow": false,
+          "logo_loaded": true
+        }
+      ],
+      "reduced_motion": true,
+      "zoom_200_percent": true,
+      "visible_words": 16,
+      "count_method": "rendered innerText of main/article; navigation excluded when present"
+    },
+    {
+      "surface": "receipts-states",
+      "checks": [
+        {
+          "width": 375,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 768,
+          "overflow": false,
+          "logo_loaded": true
+        },
+        {
+          "width": 1440,
+          "overflow": false,
+          "logo_loaded": true
+        }
+      ],
+      "reduced_motion": true,
+      "zoom_200_percent": true,
+      "visible_words": 25,
+      "count_method": "rendered innerText of main/article; navigation excluded when present"
+    }
+  ],
+  "human_review": "separate; not established by automated checks"
+}
