@@ -11,6 +11,8 @@ A done with no check-backed claims is claimed, not verified.
 
 from __future__ import annotations
 
+from ._design import CSS as DESIGN_CSS, LOGO
+
 import html
 import json
 import os
@@ -473,11 +475,16 @@ h2 {{ font-size:1rem; color:var(--dim); margin:1.5rem 0 .75rem; }}
 .badge.unknown {{ background:color-mix(in srgb,var(--unknown) 20%,transparent); color:var(--unknown); }}
 .panel {{ margin-top:.6rem; color:var(--dim); font-size:.9rem; }}
 .claim {{ color:var(--fg); }}
+{DESIGN_CSS}
+.badge {{ border-radius:4px; padding:10px 12px; }}
+.card {{ padding:24px; }}
+section {{ margin-top:32px; }}
 </style>
 </head>
 <body>
 <main class="wrap">
-<h1>{_esc(title)}</h1>
+<header class="bmd-identity">{LOGO}<h1>{_esc(title)}</h1></header>
+<p>Open a status to see its checks and next step.</p>
 <section data-surface="home"><h2>Home</h2><div class="grid">{home}</div></section>
 <section data-surface="activity"><h2>Activity</h2><div class="grid">{activity}</div></section>
 </main>

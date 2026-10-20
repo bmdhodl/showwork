@@ -14,6 +14,8 @@ from __future__ import annotations
 import html
 import json
 
+from ._design import CSS as DESIGN_CSS, LOGO
+
 __all__ = ["render", "CSS"]
 
 
@@ -93,9 +95,9 @@ def render(data: dict) -> str:
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>showwork - agent control</title><style>{CSS}</style></head>
+<title>showwork - agent control</title><style>{CSS}{DESIGN_CSS}</style></head>
 <body><div class="wrap">
-<h1>showwork &mdash; agent control</h1>
+<header class="bmd-identity">{LOGO}<h1>showwork &mdash; agent control</h1></header>
 <p class="sub">Runs, status, interventions, and proof of work. Static file, no service behind it.</p>
 
 <div class="grid">{stat_html}</div>
