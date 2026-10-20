@@ -216,8 +216,9 @@ interpreter and resolved script that ran, while the claim retains its declared
 arguments. `python` records the executing interpreter's version. This corrects
 execution evidence without changing the claim format.
 
-Failed commands display up to six redacted stderr lines, falling back to stdout
-when stderr is empty, and identify the actual Python version and interpreter.
+Failed commands display a redacted tail of up to six non-blank lines for each
+stream with output, stdout first and then stderr, and identify the actual Python
+version and interpreter.
 The exit code and output hashes remain authoritative; a diagnostic is context.
 
 The runner may set `SHOWWORK_COMMAND_TIMEOUT_SECONDS` to an integer from 1 to

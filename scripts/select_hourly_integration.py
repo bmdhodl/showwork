@@ -4,6 +4,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+from time import sleep
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -64,8 +66,16 @@ def api(path):
         'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
         'X-GitHub-Api-Version': '2022-11-28',
     })
-    with urlopen(request, timeout=20) as response:
-        return json.load(response)
+    # Short gateway outages are not evidence of missing execution history.
+    for attempt in range(3):
+        try:
+            with urlopen(request, timeout=20) as response:
+                return json.load(response)
+        except HTTPError as error:
+            if error.code not in {502, 503, 504} or attempt == 2:
+                raise
+            error.close()
+            sleep(attempt + 1)
 
 
 def history(repo, sha):

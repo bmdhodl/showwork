@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import unittest
 
 import pytest
 
@@ -206,6 +208,123 @@ class Acceptance(unittest.TestCase):
     assert proc.returncode == 0, proc.stderr
     assert result["verdict"] == "SENSITIVE"
     assert result["broken"]["failures"] == 1
+
+
+SUBTEST_TEST = """import unittest
+from app import add
+
+class Acceptance(unittest.TestCase):
+    def check_sum(self):
+        with self.subTest():
+            self.assertEqual(add(2, 2), 4)
+
+"""
+
+
+@pytest.mark.parametrize("methods", [
+    "    def test_add(self):\n        with self.subTest():\n            self.assertEqual(add(2, 2), 4)\n",
+    "    def test_add(self):\n        self.check_sum()\n",
+], ids=["in-test-method", "in-helper"])
+def test_subtest_assertion_in_test_method_is_a_caught_defect(tmp_path, methods):
+    """REGRESSION: Python 3.10 counted this subtest failure as an error."""
+    root = prepare(tmp_path, SUBTEST_TEST + methods)
+    proc, result = run(root)
+    assert proc.returncode == 0, proc.stderr
+    assert result["verdict"] == "SENSITIVE"
+    assert result["broken"]["failures"] == 1
+    assert result["broken"]["errors"] == 0
+
+
+@pytest.mark.parametrize("methods", [
+    "    def setUp(self):\n        self.check_sum()\n\n    def test_add(self):\n        pass\n",
+    "    def test_add(self):\n        self.addCleanup(self.check_sum)\n",
+], ids=["setUp-helper", "cleanup-added-by-test-method"])
+def test_subtest_assertion_outside_test_method_stays_an_error(tmp_path, methods):
+    root = prepare(tmp_path, SUBTEST_TEST + methods)
+    proc, result = run(root)
+    assert proc.returncode == 2
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert result["broken"]["errors"] == 1
+    assert result["broken"]["failures"] == 0
+
+
+TEARDOWN_EXIT_TEST = SUBTEST_TEST + """    def test_add(self):
+        try:
+            self.assertEqual(add(2, 2), 4)
+        except AssertionError as exc:
+            self.caught = exc
+
+    def tearDown(self):
+        caught = getattr(self, "caught", None)
+        if caught is not None:
+            subtest = self.subTest()
+            subtest.__enter__()
+            subtest.__exit__(type(caught), caught, caught.__traceback__)
+"""
+
+
+@pytest.mark.skipif(sys.version_info < (3, 11),
+                    reason="Python 3.10 reads subtest callers from the traceback")
+def test_subtest_that_teardown_exits_stays_an_error(tmp_path):
+    """REGRESSION: the Python 3.10 traceback check changed this result on 3.11+."""
+    root = prepare(tmp_path, TEARDOWN_EXIT_TEST)
+    proc, result = run(root)
+    assert proc.returncode == 2
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert result["broken"]["errors"] == 1
+    assert result["broken"]["failures"] == 0
+
+
+def test_python_310_subtest_report_order_reads_callers_from_traceback(monkeypatch):
+    """REGRESSION: Python 3.10 reports a subtest after the test method returns.
+
+    Python 3.11 and later report it while the test method runs, so the live
+    stack answers there. This test keeps each subtest outcome and classifies it
+    after the run, as Python 3.10 does. The traceback check then runs on every
+    Python version.
+    """
+    spec = importlib.util.spec_from_file_location("negative_control", RUNNER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class Recorder(unittest.TestResult):
+        def __init__(self):
+            super().__init__()
+            self.subtests = []
+
+        def addSubTest(self, test, subtest, err):
+            if err is not None:
+                self.subtests.append((test, err))
+
+    class Checks(unittest.TestCase):
+        def setUp(self):
+            if self._testMethodName == "test_setup_enters":
+                self.check()
+
+        def check(self):
+            with self.subTest():
+                self.fail("subtest")
+
+        def test_method_enters(self):
+            with self.subTest():
+                self.fail("subtest")
+
+        def test_helper_enters(self):
+            self.check()
+
+        def test_setup_enters(self):
+            pass
+
+    recorder = Recorder()
+    for name in ("test_method_enters", "test_helper_enters", "test_setup_enters"):
+        Checks(name).run(recorder)
+    observer = module.ObservedResult(io.StringIO(), True, 0)
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "version_info", (3, 10, 0, "final", 0))
+        verdicts = {test._testMethodName: observer.in_test_method(test, err)
+                    for test, err in recorder.subtests}
+    assert verdicts == {"test_method_enters": True, "test_helper_enters": True,
+                        "test_setup_enters": False}
 
 
 def test_bundled_persistence_example_is_sensitive(tmp_path):

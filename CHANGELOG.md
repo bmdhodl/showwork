@@ -3,11 +3,25 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- A failed `command` check now shows a bounded, redacted tail of each stream
+  that has output. Before, any text on stderr hid stdout, so a one-line
+  warning hid pytest's failure, which pytest prints on stdout (#174).
+
 - Add an opt-in unittest comparison runner to the acceptance-review example.
   The same checks run on copied broken and repaired fixtures. Always-passing
   checks are insensitive; setup errors, skips, empty suites and timeouts are
   inconclusive. Reports record input and output hashes without claiming test
   adequacy, independent review or sandboxing. Existing outcome gates are unchanged.
+
+- On Python 3.10 the comparison runner counts a failed subtest in a test
+  method as a failure. Before, Python 3.10 reported it as an error, so a check
+  that caught the defect read INCONCLUSIVE. Python 3.10 reports subtest
+  outcomes after the test method returns, so on 3.10 the runner now follows
+  the frame that entered `subTest` to its callers. A failed subtest in
+  `setUp`, `tearDown` or a cleanup stays an error. On 3.10 a failed subtest
+  that an async test method or a generator, such as a `contextmanager`
+  helper, enters also stays an error. Results on Python 3.11 and later do
+  not change.
 
 - The read-only receipts badge now honors a sound supersession as `verify`
   does. Before, a session that claimed `notes/v1-*.md` and closed GREEN read
