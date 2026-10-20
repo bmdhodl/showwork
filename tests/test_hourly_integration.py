@@ -1,7 +1,11 @@
 """Actions history is evidence only when the actual integration job passed."""
 import importlib.util
+import io
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import Mock, call
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -176,3 +180,73 @@ def test_cli_writes_admission_without_a_fresh_test_claim(tmp_path, monkeypatch):
     assert 'run=false' in (tmp_path / 'output').read_text()
     assert 'not a test result' in (tmp_path / 'summary').read_text()
     assert f'head_sha={SHA}' in paths[0]
+
+
+@pytest.fixture
+def gateway_api(monkeypatch):
+    module = selector()
+    request = Mock()
+    pause = Mock()
+    monkeypatch.setenv('GH_TOKEN', 'fixture-only')
+    monkeypatch.setattr(module, 'urlopen', request)
+    monkeypatch.setattr(module, 'sleep', pause)
+    return module, request, pause
+
+
+@pytest.mark.parametrize('status', [502, 503, 504])
+@pytest.mark.parametrize('failures', [1, 2])
+def test_api_recovers_from_transient_gateway_error(gateway_api, status, failures):
+    # REGRESSION: one temporary 502 stopped hourly admission in issue #188.
+    module, request, pause = gateway_api
+    errors = [HTTPError('https://api.github.com/jobs', status,
+                        'temporary gateway failure', {}, None) for _ in range(failures)]
+    request.side_effect = [*errors, io.BytesIO(b'{"jobs": [], "total_count": 0}')]
+
+    assert module.api('repos/owner/repo/actions/runs/9/jobs') == {'jobs': [], 'total_count': 0}
+    assert request.call_count == failures + 1
+    assert pause.call_args_list == [call(n) for n in range(1, failures + 1)]
+    assert all(c.args[0].get_method() == 'GET' and c.kwargs == {'timeout': 20}
+               for c in request.call_args_list)
+
+
+@pytest.mark.parametrize('status', [502, 503, 504])
+def test_api_exhausted_gateway_errors_fail_closed(gateway_api, status):
+    module, request, pause = gateway_api
+    error = HTTPError('https://api.github.com/jobs', status, 'gateway failure', {}, None)
+    request.side_effect = error
+
+    with pytest.raises(HTTPError) as raised:
+        module.api('repos/owner/repo/actions/runs/9/jobs')
+    assert raised.value is error
+    assert request.call_count == 3
+    assert pause.call_args_list == [call(1), call(2)]
+
+
+@pytest.mark.parametrize('status', [400, 401, 403, 404, 429, 500, 501])
+def test_api_other_http_errors_are_not_retried(gateway_api, status):
+    module, request, pause = gateway_api
+    request.side_effect = HTTPError('https://api.github.com/jobs', status,
+                                    'not a retryable gateway response', {}, None)
+    with pytest.raises(HTTPError):
+        module.api('repos/owner/repo/actions/runs/9/jobs')
+    assert request.call_count == 1
+    pause.assert_not_called()
+
+
+@pytest.mark.parametrize('error', [TimeoutError('timed out'), URLError('connection refused')])
+def test_api_transport_errors_remain_explicit_failures(gateway_api, error):
+    module, request, pause = gateway_api
+    request.side_effect = error
+    with pytest.raises(type(error)):
+        module.api('repos/owner/repo/actions/runs/9/jobs')
+    assert request.call_count == 1
+    pause.assert_not_called()
+
+
+def test_api_invalid_json_is_not_retried(gateway_api):
+    module, request, pause = gateway_api
+    request.return_value = io.BytesIO(b'not json')
+    with pytest.raises(json.JSONDecodeError):
+        module.api('repos/owner/repo/actions/runs/9/jobs')
+    assert request.call_count == 1
+    pause.assert_not_called()
