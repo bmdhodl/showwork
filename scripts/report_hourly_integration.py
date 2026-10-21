@@ -2,6 +2,8 @@
 import json
 import os
 import re
+from time import sleep
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -67,8 +69,16 @@ def api(path, method='GET', payload=None):
                  'Content-Type': 'application/json',
                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
                  'X-GitHub-Api-Version': '2022-11-28'})
-    with urlopen(request, timeout=20) as response:
-        return json.load(response)
+    # Only reads are safe to retry: a failed POST/PATCH may already be applied.
+    for attempt in range(3):
+        try:
+            with urlopen(request, timeout=20) as response:
+                return json.load(response)
+        except HTTPError as error:
+            if request.get_method() != 'GET' or error.code not in {502, 503, 504} or attempt == 2:
+                raise
+            error.close()
+            sleep(attempt + 1)
 
 
 def main():
