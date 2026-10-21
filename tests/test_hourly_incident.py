@@ -1,7 +1,10 @@
 """Hourly skips cannot close a repair issue or generate repeated notifications."""
 import importlib.util
+import io
 import json
 from pathlib import Path
+from unittest.mock import Mock, call
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -135,3 +138,109 @@ def test_invalid_execution_identity_fails_before_api_access(sha, repo):
     with pytest.raises(ValueError):
         reporter().report(forbidden, repo, sha, 17, 'refs/heads/main',
                           'main', 'success', 'failure')
+
+
+@pytest.fixture
+def incident_api(monkeypatch):
+    module = reporter()
+    request, pause = Mock(), Mock()
+    monkeypatch.setenv('GH_TOKEN', 'fixture-only')
+    monkeypatch.setattr(module, 'urlopen', request)
+    monkeypatch.setattr(module, 'sleep', pause, raising=False)
+    return module, request, pause
+
+
+@pytest.mark.parametrize('status', [502, 503, 504])
+@pytest.mark.parametrize('failures', [1, 2])
+@pytest.mark.parametrize('outcome', ['created', 'updated', 'recovered'])
+def test_report_recovers_after_gateway_read(incident_api, status, failures, outcome):
+    # REGRESSION: a transient read must not erase incident or recovery reporting.
+    module, request, pause = incident_api
+    issues = [] if outcome == 'created' else [{'number': 42, 'body': module.MARKER}]
+    errors = [HTTPError('https://api.github.com/issues', status, 'gateway', {}, None)
+              for _ in range(failures)]
+    request.side_effect = [*errors, io.BytesIO(json.dumps(issues).encode()), io.BytesIO(b'{}')]
+    integration = 'success' if outcome == 'recovered' else 'failure'
+
+    assert module.report(module.api, 'owner/repo', 'a'*40, 17, 'refs/heads/main',
+                         'main', 'success', integration) == outcome
+    assert request.call_count == failures + 2
+    assert pause.call_args_list == [call(n) for n in range(1, failures + 1)]
+    methods = [c.args[0].get_method() for c in request.call_args_list]
+    assert methods == ['GET'] * (failures + 1) + ['POST' if outcome == 'created' else 'PATCH']
+    assert all(c.kwargs == {'timeout': 20} for c in request.call_args_list)
+    payload = json.loads(request.call_args.args[0].data)
+    assert 'https://github.com/owner/repo/actions/runs/17' in payload['body']
+    if outcome == 'recovered':
+        assert payload['state'] == 'closed'
+
+
+@pytest.mark.parametrize('status', [502, 503, 504])
+def test_incident_read_exhaustion_raises_without_writing(incident_api, status):
+    module, request, pause = incident_api
+    error = HTTPError('https://api.github.com/issues', status, 'gateway', {}, None)
+    request.side_effect = error
+    with pytest.raises(HTTPError) as raised:
+        module.report(module.api, 'owner/repo', 'a'*40, 17, 'refs/heads/main',
+                      'main', 'success', 'failure')
+    assert raised.value is error
+    assert request.call_count == 3
+    assert all(c.args[0].get_method() == 'GET' for c in request.call_args_list)
+    assert pause.call_args_list == [call(1), call(2)]
+
+
+@pytest.mark.parametrize('method', ['POST', 'PATCH'])
+@pytest.mark.parametrize('status', [502, 503, 504])
+def test_incident_writes_are_never_retried_after_read_recovery(incident_api, method, status):
+    module, request, pause = incident_api
+    error = HTTPError('https://api.github.com/issues', status, 'gateway', {}, None)
+    issues = [] if method == 'POST' else [{'number': 42, 'body': module.MARKER}]
+    request.side_effect = [error, io.BytesIO(json.dumps(issues).encode()), error]
+    with pytest.raises(HTTPError) as raised:
+        module.report(module.api, 'owner/repo', 'a'*40, 17, 'refs/heads/main',
+                      'main', 'success', 'failure')
+    assert raised.value is error
+    assert [c.args[0].get_method() for c in request.call_args_list] == ['GET', 'GET', method]
+    assert pause.call_args_list == [call(1)]
+
+
+@pytest.mark.parametrize('status', [400, 401, 403, 404, 429, 500, 501])
+def test_incident_other_http_errors_are_not_retried(incident_api, status):
+    module, request, pause = incident_api
+    request.side_effect = HTTPError('https://api.github.com/issues', status, 'other', {}, None)
+    with pytest.raises(HTTPError):
+        module.api('repos/owner/repo/issues')
+    assert request.call_count == 1
+    pause.assert_not_called()
+
+
+@pytest.mark.parametrize('error', [TimeoutError('timeout'), URLError('connection refused')])
+def test_incident_transport_errors_are_not_retried(incident_api, error):
+    module, request, pause = incident_api
+    request.side_effect = error
+    with pytest.raises(type(error)):
+        module.api('repos/owner/repo/issues')
+    assert request.call_count == 1
+    pause.assert_not_called()
+
+
+def test_incident_invalid_json_is_not_retried(incident_api):
+    module, request, pause = incident_api
+    request.return_value = io.BytesIO(b'not json')
+    with pytest.raises(json.JSONDecodeError):
+        module.api('repos/owner/repo/issues')
+    assert request.call_count == 1
+    pause.assert_not_called()
+
+
+def test_incident_retry_closes_gateway_response_before_waiting(incident_api):
+    # REGRESSION: a retried HTTPError must not retain its response stream.
+    module, request, pause = incident_api
+    stream = io.BytesIO(b'gateway failure')
+    error = HTTPError('https://api.github.com/issues', 502, 'gateway', {}, stream)
+    request.side_effect = [error, io.BytesIO(b'[]')]
+    def check_closed(_):
+        assert stream.closed
+    pause.side_effect = check_closed
+    assert module.api('repos/owner/repo/issues') == []
+    assert request.call_count == 2
