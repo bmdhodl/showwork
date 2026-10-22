@@ -276,6 +276,53 @@ declared hexadecimal prefix. A non-repository root or failed Git query MUST
 [test: tests/test_checks.py::test_git_state_errors_outside_repository] return
 an error.
 
+### `tests_intact`
+
+```json
+{"type":"tests_intact","path":"tests","base":"<full 40- or 64-hex commit ID>"}
+```
+
+The check compares Python test files under `path` at the pinned `base`
+commit with the working tree. A writer MUST [test:
+tests/test_tests_intact.py::test_tests_intact_shape_is_validated] reject a
+`base` that is not a full lowercase commit ID and a `path` that is empty or
+leaves the project root. The reference CLI resolves `--commit` (default
+`HEAD`) to that full ID when the check is recorded [test:
+tests/test_tests_intact.py::test_cli_pins_the_base_as_a_full_commit].
+
+Test files are `test_*.py` and `*_test.py`, read from Git objects at `base`,
+never from the working tree [test:
+tests/test_tests_intact.py::test_base_is_read_from_git_not_the_worktree]. Tests
+are module functions named `test*` and `test*` methods of classes named
+`Test*` or deriving from a `*TestCase` base. Source is parsed with `ast`; no
+test is imported or run. For each base test the check MUST [test:
+tests/test_tests_intact.py::test_weakened_tests_fail_with_the_reason] fail
+when the test is gone, when its skip and xfail markers increased (decorators,
+class or module `pytestmark`, `pytest.skip`/`xfail`/`importorskip`,
+`unittest.skip*`, `expectedFailure`, `skipTest`, `SkipTest`), when its
+assertion count fell (`assert` statements, calls named `assert*`, and
+`raises`/`warns`/`deprecated_call`), or when its literal parametrize case
+count fell. A deleted base test file MUST [test:
+tests/test_tests_intact.py::test_deleted_test_file_fails] fail. New tests and
+higher counts pass [test:
+tests/test_tests_intact.py::test_unchanged_and_strengthened_tests_pass].
+A base with no test files or no tests under `path` MUST [test:
+tests/test_tests_intact.py::test_no_tests_at_base_is_an_error_not_a_pass]
+return an error, as MUST [test:
+tests/test_tests_intact.py::test_unknown_base_commit_is_an_error] a base the
+repository cannot read.
+
+The comparison is by count and name. A test rewritten to assert something
+weaker with the same counts, an assertion moved into an unchanged helper, an
+early `return`, a renamed test (read as a deletion), dynamic parametrization,
+and markers applied through an alias are outside this check. When that rewrite
+happens in the same session as a non-test code change, and a declared check
+covers the test file, verification MUST [test:
+tests/test_check_lock.py::test_rewritten_test_after_removing_behavior_is_refused]
+fail, name the test file and the check, and refuse a clean close with
+`tests_weakened`. Conftest hooks, fixtures and runner configuration are not
+test files; lock them instead.
+
 ## Integrity chain (`spec-v0.2`)
 
 Append-only stops being a promise and becomes provable. Chain hashing is
@@ -600,6 +647,65 @@ tests/test_run.py::test_run_gate_refuses_success_with_no_claims] refuse with
 exit 2 when the wrapped command exits 0 without check-backed claims, matching
 the finish gate.
 
+## Locked checks (`session.lock`)
+
+An owner can freeze a session's declared checks before handing the work to an
+agent. A `session.lock` event in the session's events file records:
+
+```json
+{"event":"session.lock","session":"fix-nav","ts":"...","lock_format":"showwork-lock-v1",
+ "requirement_ids":["suite","intact"],"requirements_sha256":"<sha256>",
+ "lock_patterns":["tests/conftest.py"],"locked_files":{"scripts/run_tests.py":"<sha256>"},
+ "git_commit":"<HEAD when locked>","prev":"..."}
+```
+
+`requirements_sha256` hashes the session's requirement records as
+`receipt_manifest.requirements_sha256` does. `locked_files` maps the script of
+every `command` requirement, and every file a `lock_patterns` glob matched, to
+the SHA-256 of its bytes. Patterns use the `relative-glob-v1` rules of snapshot
+exclusions. A writer MUST [test:
+tests/test_check_lock.py::test_lock_needs_requirements_and_comes_before_claims]
+refuse a lock before the session starts, without requirements, after the
+session's first claim, or with a pattern that is invalid or matches no file.
+It MUST [test: tests/test_check_lock.py::test_second_or_forged_lock_record_is_refused]
+refuse a second lock, and `require` MUST [test:
+tests/test_check_lock.py::test_locked_requirements_cannot_be_extended] refuse
+a new requirement after the lock.
+
+`verify --session`, `finish` and `gate` MUST [test:
+tests/test_check_lock.py::test_edited_locked_check_is_refused_even_when_claimed]
+fail RED when a locked file changed, even when an active claim names it. They
+MUST [test: tests/test_check_lock.py::test_locked_glob_refuses_changed_deleted_and_new_files]
+also fail for a deleted locked file and for a new file a locked pattern matches,
+and MUST [test: tests/test_check_lock.py::test_locked_requirements_cannot_be_extended]
+fail when the requirement records no longer hash to the locked digest. More than
+one lock record, or a malformed one, MUST [test:
+tests/test_check_lock.py::test_second_or_forged_lock_record_is_refused] fail.
+LF/CRLF checkout conversion of UTF-8 text is not a change [test:
+tests/test_check_lock.py::test_lock_tolerates_crlf_checkout]. The rows are
+synthetic and never satisfy minimum proof. A `--base` excuses no lock finding.
+
+A refused close MUST [test:
+tests/test_check_lock.py::test_edited_locked_check_is_refused_even_when_claimed]
+record `refuse_reason: locked_checks_changed` when a lock row fails, and
+`tests_weakened` when a `tests_intact` check fails [test:
+tests/test_check_lock.py::test_added_skip_marker_is_refused]. Finish and
+refused events of a locked session MUST [test:
+tests/test_check_lock.py::test_honest_session_that_adds_tests_passes] carry
+`lock_check`: `status` (`intact`, `changed` or `invalid`), the locked
+requirement digest, requirement and file counts, and the findings. The gate
+MUST [test: tests/test_check_lock.py::test_gate_refuses_a_locked_check_changed_after_close]
+rerun the lock comparison. Python and JavaScript readers MUST [test:
+tests/test_check_lock.py::test_readers_support_a_locked_receipt_and_badge_checks_the_lock]
+read `session.lock` and `tests_intact` as supported fields; the read-only badge
+reruns the lock's file comparison and runs no `tests_intact` check. A reader
+written before this section reports such a receipt as unsupported.
+
+The lock is a record in an agent-writable ledger. It detects a change made
+after the lock through any path, and the chain detects an edit of committed
+history. It does not stop an agent that rewrites a whole unanchored session
+file or never runs the lock; commit the lock or publish its digest first.
+
 ## Optional pytest observations
 
 The pytest adapter uses existing artifact claims; it adds no ledger record type
@@ -814,7 +920,7 @@ An implementation conforms to `spec-v0.4` when:
 - every appended record extends the integrity chain, and audits detect
   tampering, deletion, and unchained appends while accepting concurrent forks
   (a `prev` re-anchored to an earlier line) as GREEN and reporting them;
-- all eight checker semantics and anti-vacuous rules match this document;
+- all nine checker semantics and anti-vacuous rules match this document;
 - exit-gate and Stop-hook behavior remain distinct;
 - sessions with `tree_snapshot` fail RED on undeclared deletes and edits;
 - artifact files no active claim names warn YELLOW without refusing a close;

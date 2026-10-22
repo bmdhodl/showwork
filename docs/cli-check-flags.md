@@ -21,6 +21,7 @@ CLI crash.
 | `command` | `--command-arg` (repeat) | `--expect-exit` `--stdout-contains` |
 | `http_probe` | `--url` `--expect-status` | `--body-contains` |
 | `git_state` | at least one of `--clean` `--branch` `--commit` | those same flags |
+| `tests_intact` | `--path` | `--commit` (default `HEAD`, pinned as a full commit ID) |
 
 `--absent` belongs to `file_contains` only. It means the regex is not in the
 file. It does not mean "this path is gone." There is no `file_exists --absent`.
@@ -37,7 +38,7 @@ and neighbors) and `tests/test_checks.py::test_validate_check_shape_rejects_file
 
 | Kind | What it proves | What it does not prove |
 | --- | --- | --- |
-| Artifact check (`file_exists`, `file_contains`, `path_moved`, `frontmatter`, `glob_count`) | A path or glob in this tree matches the claim | That the application behaves correctly |
+| Artifact check (`file_exists`, `file_contains`, `path_moved`, `frontmatter`, `glob_count`, `tests_intact`) | A path or glob in this tree matches the claim, or Python tests were not weakened vs a pinned commit | That the application behaves correctly, or that a rewritten assertion is still meaningful |
 | Behavior acceptance (`command`) | A project Python script ran and matched exit/stdout | That the script tested the right thing |
 | Integrity (`showwork audit`, JS reader) | The ledger chain hashes | That the checks were adequate, or that a signer attested the bytes |
 | Current rerun (`verify` / `finish` now) | The named checks against this tree now | The historical close, unless you also read that close record |

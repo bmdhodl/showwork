@@ -7,8 +7,8 @@ import { auditFile } from "./index.mjs";
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const VERSIONS = Object.freeze([1, 2, 3, 4, 5].map(i => `spec-v0.${i}`));
-const EVENTS = new Set(["session.start", "session.requirement", "session.finish", "session.finish.refused"]);
-const CHECK_TYPES = new Set(["file_exists", "file_contains", "path_moved", "frontmatter", "glob_count", "command", "http_probe", "git_state"]);
+const EVENTS = new Set(["session.start", "session.requirement", "session.lock", "session.finish", "session.finish.refused"]);
+const CHECK_TYPES = new Set(["file_exists", "file_contains", "path_moved", "frontmatter", "glob_count", "command", "http_probe", "git_state", "tests_intact"]);
 const IGNORE_SEMANTIC = "snapshot-exclusions-v1";
 const IGNORE_FORMAT = "relative-glob-v1";
 export const readerCapabilities = Object.freeze({

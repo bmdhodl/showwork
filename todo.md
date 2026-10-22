@@ -1,5 +1,13 @@
 # showwork build plan
 
+## #179 lock checks and refuse weakened tests — 2026-10-22
+
+- [x] `showwork lock` freezes declared requirements and their files
+- [x] `tests_intact` refuses deleted tests, new skip/xfail, and assertion drops
+- [x] Same-session rewrite of a covered test plus code change is REFUSED
+- [x] Honest session that adds tests still PASSes
+- [ ] Owner review of the fresh PR that supersedes #182 (no merge/publish)
+
 ## v0.6.6 release — 2026-10-05  [status: released]
 
 - [x] Merging main no longer fails the agent's gate (#166); summary dedupe (#167)

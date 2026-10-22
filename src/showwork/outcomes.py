@@ -22,7 +22,8 @@ def requirement_records(root: Path, session: str) -> list[dict]:
 def record_requirement(root: Path, session: str, requirement_id: str,
                        description: str, scope: str, check: dict) -> dict:
     from .checks import validate_check_shape
-    from .ledger import _latest_session_start, claims_for_session, record_event
+    from .ledger import _latest_session_start, claims_for_session, load_all_events, record_event
+    from .lock import LOCK_EVENT
     if not _latest_session_start(root, session):
         raise ValueError("start the session before declaring requirements")
     if not isinstance(requirement_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", requirement_id):
@@ -36,6 +37,8 @@ def record_requirement(root: Path, session: str, requirement_id: str,
         raise ValueError(error)
     if scope == "behavior" and check.get("type") != "command":
         raise ValueError("behavior requires an executable command check; file text is not behavior")
+    if any(e.get("session") == session and e.get("event") == LOCK_EVENT for e in load_all_events(root)):
+        raise ValueError("this session's acceptance checks are locked; use a new session to change them")
     if any(row.get("requirement_id") == requirement_id for row in requirement_records(root, session)):
         raise ValueError("requirement id already exists; acceptance checks cannot be weakened in place")
     if claims_for_session(root, session):

@@ -3,6 +3,7 @@
     showwork start  --session S [--agent A] [--note N]
     showwork require --session S --id ID --scope artifact|behavior --description TEXT
                      --type file_exists --path F
+    showwork lock   --session S [--path RELATIVE_GLOB]
     showwork claim  --session S --claim TEXT --type file_contains --path F --pattern P
     showwork retract --session S --claim TEXT --reason R
     showwork supersede --session S --target-session T --claim TEXT --reason R
@@ -64,6 +65,7 @@ from .ledger import (
     start_session,
     verify_date,
     verify_session,
+    weakened_reason,
 )
 from .receipts import receipts_payload, render_badges_html, resolve_receipts_root
 from .scaffold import init_project, uninstall_project
@@ -72,7 +74,7 @@ from .report import render_status, render_usage, session_status, usage_report
 SESSION_ENV = "SHOWWORK_SESSION"
 
 CHECK_TYPES = ["file_exists", "file_contains", "path_moved", "frontmatter",
-               "glob_count", "command", "http_probe", "git_state"]
+               "glob_count", "command", "http_probe", "git_state", "tests_intact"]
 
 BASE_HELP = ("trusted Git revision this change merges into; a file changed since "
              "session start that now equals it is the base's change, not the session's")
@@ -112,6 +114,7 @@ TYPE_FLAG_DESTS = {
     "command": frozenset({"command_arg", "expect_exit", "stdout_contains"}),
     "http_probe": frozenset({"url", "expect_status", "body_contains"}),
     "git_state": frozenset({"clean", "branch", "commit"}),
+    "tests_intact": frozenset({"path", "commit"}),
 }
 
 
@@ -196,7 +199,22 @@ def _build_check(args: argparse.Namespace) -> dict | None:
         if args.commit is not None:
             c["commit"] = args.commit
         return c
+    if t == "tests_intact":
+        return {"type": t, "path": _req(args, "path"),
+                "base": _full_commit(getattr(args, "root", None), args.commit or "HEAD")}
     raise CheckSpecError(f"unknown check type {t!r}")
+
+
+def _full_commit(root: str | None, revision: str) -> str:
+    """Pin a revision as an immutable commit ID so the base cannot move later."""
+    if revision.startswith("-"):
+        raise CheckSpecError("--commit must be a Git revision")
+    result = subprocess.run(
+        ["git", "-C", str(resolve_root(root)), "rev-parse", "--verify", "--quiet", f"{revision}^{{commit}}"],
+        capture_output=True, text=True, timeout=15)
+    if result.returncode or not result.stdout.strip():
+        raise CheckSpecError(f"tests_intact needs a Git commit to compare against; cannot resolve {revision!r}")
+    return result.stdout.strip()
 
 
 def _req(args: argparse.Namespace, name: str):
@@ -406,6 +424,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--scope", choices=["artifact", "behavior"], required=True)
     _add_check_flags(p)
 
+    p = sub.add_parser("lock", help="freeze the declared requirements and the files that define them")
+    p.add_argument("--session", required=True)
+    p.add_argument("--path", action="append", metavar="RELATIVE_GLOB",
+                   help="also lock files matching this relative glob, e.g. conftest.py or "
+                        "tests/fixtures/**; repeat per glob")
+
     p = sub.add_parser("gate", help="require a complete outcome receipt and rerun its checks")
     selection = p.add_mutually_exclusive_group(required=True)
     selection.add_argument("--session")
@@ -574,6 +598,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"requirement rejected: {exc}", file=sys.stderr)
             return 2
         print("acceptance requirement recorded")
+        return 0
+
+    if args.cmd == "lock":
+        from .lock import record_lock
+        try:
+            event = record_lock(root, args.session, args.path)
+        except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+            print(f"lock rejected: {exc}", file=sys.stderr)
+            return 2
+        print(f"checks locked: {len(event['requirement_ids'])} requirements, "
+              f"{len(event['locked_files'])} files")
+        for rel in event["locked_files"]:
+            print(f"  locked {rel}")
+        print(f"requirements sha256: {event['requirements_sha256']}")
         return 0
 
     if args.cmd == "gate":
@@ -872,7 +910,7 @@ def main(argv: list[str] | None = None) -> int:
         if gate_refuse:
             refuse_reason = (
                 "no_check_backed_claims" if not has_minimum_proof(state) else
-                "claims_red" if state["verdict"] != "GREEN" else
+                (weakened_reason(state) or "claims_red") if state["verdict"] != "GREEN" else
                 "acceptance_requirements_unverified"
             )
             unverified = gaps_payload(state)

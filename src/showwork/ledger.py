@@ -736,9 +736,14 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
     except ValueError:
         return state
     extra: list[dict] = evaluate_requirements(rt, session, allowed_check_types=allowed_check_types)
+    session_rows = [row for row in load_all_events(rt) if row.get("session") == session]
+    from .lock import lock_results
+    lock_rows, lock_summary = lock_results(rt, session_rows, requirement_records(rt, session))
+    extra += lock_rows
+    if lock_summary is not None:
+        state["lock"] = lock_summary
     try:
-        scope, _ = scope_from_events([row for row in load_all_events(rt)
-                                     if row.get("session") == session])
+        scope, _ = scope_from_events(session_rows)
         state["snapshot_scope"] = {"ignore_patterns": [], **scope}
     except ValueError as exc:
         extra.append(escape_result("snapshot exclusions invalid", str(exc)))
@@ -765,6 +770,8 @@ def verify_session(root: str | Path | None = None, session: str = "", *,
             undeclared, matched = split_base_matches(rt, undeclared, base_revision)
             state["base_matches"] = {"revision": base_revision, "paths": matched}
         extra += undeclared
+        from .tests_intact import covered_edit_results
+        extra += covered_edit_results(rt, requirement_records(rt, session), start, snap_path)
     state = merge_undeclared(state, extra)
     state["outcome"] = outcome_summary(state)
     return state
@@ -850,14 +857,15 @@ def finish_session(root: Path, session: str, status: str = "ok",
                 "type": None,
             }]
         elif verdict != "GREEN":
-            refuse_reason = "claims_red"
+            refuse_reason = weakened_reason(state) or "claims_red"
         elif not checks_only and state["outcome"]["verdict"] != "VERIFIED":
             refuse_reason = "acceptance_requirements_unverified"
         if refuse_reason is not None:
             record_event(root, "session.finish.refused", session,
                          status=status, claims_verdict=verdict, note=note,
                          refuse_reason=refuse_reason,
-                         claims_unverified=unverified)
+                         claims_unverified=unverified,
+                         lock_check=state.get("lock"))
             if state is not None:
                 # Surface the refuse reason on the returned state for CLI/tests.
                 state = dict(state)
@@ -874,5 +882,16 @@ def finish_session(root: Path, session: str, status: str = "ok",
                                    for r in (state or {}).get("results", [])
                                    if "requirement_id" in r and "evidence" in r],
                  verify_bypassed=(True if (no_verify and status == "ok") else None),
+                 lock_check=(state or {}).get("lock"),
                  note=note)
     return 0, state
+
+
+def weakened_reason(state: dict) -> str | None:
+    """Name a refusal caused by a moved finish line rather than unfinished work."""
+    failed = [r for r in state.get("results", []) if r.get("status") == "fail"]
+    if any(r.get("type") == "locked_check" for r in failed):
+        return "locked_checks_changed"
+    if any(r.get("type") in {"tests_intact", "covered_test"} for r in failed):
+        return "tests_weakened"
+    return None

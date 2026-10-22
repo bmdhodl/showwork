@@ -20,6 +20,7 @@ recovery in an empty directory.
 ## Complete a task
 
 - [Gate CI on receipts](ci.md)
+- [Lock the checks and refuse weakened tests](locked-checks.md)
 - [Wrap agent commands](adapters.md)
 - [Keep concurrent writers separate](concurrency.md)
 - [Adopt showwork across repositories](fleet-adoption.md)

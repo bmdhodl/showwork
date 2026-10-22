@@ -45,7 +45,9 @@ Three rules drive every design decision below:
 | File | Role |
 |---|---|
 | `src/showwork/ledger.py` | Append-only storage, record framing, hash chain writes, session lifecycle, the `finish` gate |
-| `src/showwork/checks.py` | The eight deterministic checkers, the verification driver, verdict algebra, retraction and supersession resolution |
+| `src/showwork/checks.py` | The nine deterministic checkers, the verification driver, verdict algebra, retraction and supersession resolution |
+| `src/showwork/tests_intact.py` | The `tests_intact` checker: static comparison of Python tests with a pinned base commit |
+| `src/showwork/lock.py` | `showwork lock`: freezes requirements and their files; lock findings for verify, finish and gate |
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
 | `src/showwork/cli.py` | Argument parsing and the subcommands; exit codes |
 | `src/showwork/snapshot.py` | Session-start tree snapshot and undeclared-change detection |
