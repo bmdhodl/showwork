@@ -450,8 +450,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--checks-only", action="store_true",
                    help="close individual checks only; does not certify an outcome")
 
-    p = sub.add_parser("status", help="show open/closed sessions and live verdicts")
-    p.add_argument("--session", help="one session id (default: all)")
+    p = sub.add_parser("status", help="show sessions and current checks (commands require --session)")
+    p.add_argument("--session", help="rerun all checks, including commands, for one session "
+                   "(default: all sessions without commands)")
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser(

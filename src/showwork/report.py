@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from .checks import evaluate_records
+from .checks import CHECKERS, evaluate_records
 from .ledger import claims_for_session, load_all_claims, load_all_events, load_supersessions
 
 
@@ -210,7 +210,7 @@ def usage_report(root: Path, *, since: str | None = None,
 
 
 def session_status(root: Path, session: str | None = None) -> dict:
-    """Open vs closed, last verdict, and unverified gaps."""
+    """Show current checks and history; only an explicit session reruns commands."""
     events = load_all_events(root)
     by_session: dict[str, list[dict]] = {}
     for e in events:
@@ -219,6 +219,7 @@ def session_status(root: Path, session: str | None = None) -> dict:
 
     names = [session] if session else sorted(by_session)
     supersessions = load_supersessions(root)
+    allowed = None if session else frozenset(CHECKERS) - {"command"}
     rows = []
     for name in names:
         evs = by_session.get(name, [])
@@ -235,9 +236,9 @@ def session_status(root: Path, session: str | None = None) -> dict:
                 open_ = True
             elif e.get("event") == "session.finish":
                 open_ = False
-        # Prefer live verify for open sessions; else last stamped verdict.
         state = evaluate_records(claims_for_session(root, name), root,
-                                 label=f"session {name}", supersessions=supersessions)
+                                 label=f"session {name}", supersessions=supersessions,
+                                 allowed_check_types=allowed)
         rows.append({
             "session": name,
             "started": started,
@@ -249,6 +250,10 @@ def session_status(root: Path, session: str | None = None) -> dict:
             "live_verdict": state["verdict"],
             "live_passed": state["passed"],
             "live_total": state["total"],
+            "command_checks_not_run": sum(
+                r.get("type") == "command" and r.get("policy_disabled", False)
+                for r in state["results"]
+            ),
             "gaps": state["gaps"],
             "agent": next((e.get("agent") for e in evs
                            if e.get("event") == "session.start" and e.get("agent")), None),
@@ -300,6 +305,11 @@ def render_status(status: dict) -> str:
         lines.append(
             f"    historical_finish={historical} current_rerun={row['live_verdict']}"
         )
+        if row.get("command_checks_not_run"):
+            lines.append(
+                f"    command_checks=NOT_RUN ({row['command_checks_not_run']}); "
+                "use status --session <id> to rerun that session's commands"
+            )
         if row["gaps"]:
             for g in row["gaps"][:5]:
                 lines.append(f"    gap: {g['claim']} — {g['detail']}")
