@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
+
+from showwork import checks
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,6 +90,38 @@ def test_receipt_replay_has_the_full_suite_command_budget():
     workflow = read_repo_file(".github", "workflows", "ci.yml")
     step = workflow.split("- name: Review the receipts shipped by this change", 1)[1]
     assert 'env:\n          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "600"' in step
+
+
+def test_daily_verify_has_the_documented_full_suite_budget(tmp_path, monkeypatch):
+    # REGRESSION: today's full-suite claims inherited a 120-second deadline.
+    workflow = read_repo_file(".github", "workflows", "ci.yml")
+    step = workflow.split("- name: Verify today's claims", 1)[1].split("\n  conformance-js:", 1)[0]
+    setting = re.search(r'(?m)^        env:\n          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "([0-9]+)"$', step)
+    assert setting, "daily verification must configure its own command budget"
+    timeout = setting.group(1)
+    assert timeout == "1800"
+    assert f"SHOWWORK_COMMAND_TIMEOUT_SECONDS={timeout}" in read_repo_file("AGENTS.md")
+    assert "run: .venv/bin/showwork verify" in step
+    monkeypatch.setenv("SHOWWORK_COMMAND_TIMEOUT_SECONDS", timeout)
+    runner = tmp_path / "scripts" / "run_tests.py"
+    runner.parent.mkdir()
+    runner.write_text("print('passed')\n", encoding="utf-8")
+    seen = []
+
+    def run(argv, **kwargs):
+        seen.append(kwargs["timeout"])
+        if kwargs["timeout"] < 300:
+            raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+        return subprocess.CompletedProcess(argv, 0, "passed\n", "")
+
+    monkeypatch.setattr(checks, "run_process", run)
+    evidence = {}
+    result = checks.chk_command({"type": "command", "argv": ["python", "scripts/run_tests.py"],
+                                 "expect_exit": 0, "stdout_contains": "passed"}, tmp_path, evidence=evidence)
+    assert result[0] == "pass"
+    assert seen == [1800]
+    assert evidence["timeout_seconds"] == 1800
+    assert evidence["argv"][1] == str(runner)
 
 
 def test_ci_and_publishing_use_github_hosted_runners():
