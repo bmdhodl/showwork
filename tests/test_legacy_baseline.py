@@ -192,3 +192,44 @@ def test_init_workflow_uses_merge_base_aware_action(tmp_path):
     assert main(["--root", str(tmp_path), "init"]) == 0
     workflow = (tmp_path / "docs/ci/showwork-verify.yml").read_text()
     assert "bmdhodl/showwork/actions/verify@19f249f09b7b13f5577fbd1d2420caa3be9c76ee" in workflow
+
+
+def test_audit_baseline_preserves_yellow_and_historical_bytes(tmp_path, capsys):
+    # REGRESSION: immutable pre-chain history made nightly audit fail forever.
+    baseline = project(tmp_path, legacy='{"session":"old","claim":"before"}\n')
+    before = (tmp_path / LEGACY).read_bytes()
+    assert main(['--root', str(tmp_path), 'audit', '--json']) == 3
+    capsys.readouterr()
+    assert main(['--root', str(tmp_path), 'audit', '--json', '--legacy-integrity-baseline', baseline]) == 0
+    state = json.loads(capsys.readouterr().out)
+    assert state['verdict'] == 'YELLOW' and state['policy_verdict'] == 'GREEN'
+    assert state['legacy_baseline']['acknowledged'][0]['verdict'] == 'YELLOW'
+    assert next(r for r in state['files'] if r['file'] == 'claims-2026-01-01.jsonl')['verdict'] == 'YELLOW'
+    assert (tmp_path / LEGACY).read_bytes() == before
+
+
+@pytest.mark.parametrize('mutation', ['edit', 'delete', 'new_legacy', 'per_session', 'moving_pin'])
+def test_audit_baseline_never_excuses_new_or_changed_history(tmp_path, mutation):
+    baseline = project(tmp_path, legacy='{"session":"old","claim":"before"}\n')
+    if mutation == 'edit':
+        (tmp_path / LEGACY).write_text('{"session":"old","claim":"rewritten"}\n')
+    elif mutation == 'delete':
+        (tmp_path / LEGACY).unlink()
+    elif mutation == 'new_legacy':
+        (tmp_path / '.showwork/claims-2026-02-02.jsonl').write_text(BAD)
+    elif mutation == 'per_session':
+        (tmp_path / '.showwork/claims/other.jsonl').write_text(BAD)
+    else:
+        baseline = 'HEAD'
+    assert main(['--root', str(tmp_path), 'audit', '--legacy-integrity-baseline', baseline]) != 0
+
+
+def test_gate_keeps_acknowledged_pre_chain_yellow_in_text(tmp_path, capsys):
+    # REGRESSION: adding YELLOW acknowledgements must not label them RED.
+    baseline = project(tmp_path, legacy='{"session":"old","claim":"before"}\n')
+    capsys.readouterr()
+    assert main(['--root', str(tmp_path), 'gate', '--session', 'current',
+                 '--legacy-integrity-baseline', baseline]) == 0
+    text = capsys.readouterr().out
+    assert 'acknowledged historical YELLOW:' in text
+    assert 'acknowledged historical RED:' not in text

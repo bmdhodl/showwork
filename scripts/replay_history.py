@@ -12,7 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from showwork.checks import EXIT_BY_VERDICT, evaluate_records, verify_claim
+from showwork.checks import EXIT_BY_VERDICT, evaluate_records, is_scored, verify_claim
 from showwork.ledger import iter_ledger_jsonl, load_all_claims, load_all_events
 from showwork.outcomes import evaluate_requirement_records
 
@@ -42,10 +42,11 @@ def replay(root):
                      'type': 'ledger-preservation', 'severity': 'RED', 'status': 'fail',
                      'detail': 'ledger files changed during replay; results cannot certify unchanged history'})
     failed = [row for row in rows if row['status'] in {'fail', 'error'}]
-    active = [row for row in rows if not row.get('retracted')]
+    active = [row for row in rows if is_scored(row)]
+    closed = len(rows) - len(active)
     if any(row['status'] == 'fail' and row['severity'] == 'RED' for row in failed):
         verdict = 'RED'
-    elif failed or not active or any(row['status'] == 'skipped' for row in active):
+    elif failed or (not active and not closed) or any(row['status'] == 'skipped' for row in active):
         verdict = 'YELLOW'
     else:
         verdict = 'GREEN'
@@ -53,6 +54,7 @@ def replay(root):
         'scope': 'historical checks replayed against current tree; not historical outcome certification',
         'verdict': verdict, 'total': len(active),
         'passed': sum(row['status'] == 'pass' for row in active),
+        'closed': closed,
         'requirement_count': len(requirements), 'results': rows,
         'limitations': ['integrity is audited separately',
                         'missing check specs remain unverified',

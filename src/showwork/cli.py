@@ -472,6 +472,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("audit", help="verify the ledger's integrity chain; exit 0 GREEN, 3 YELLOW, 2 RED")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--legacy-integrity-baseline",
+                   help="acknowledge unchanged shared legacy files at a full immutable commit; retain their raw integrity verdict")
     p.add_argument("--strict", action="store_true",
                    help="forbid forks: a concurrent branch is RED, not an accepted merge")
 
@@ -597,7 +599,7 @@ def main(argv: list[str] | None = None) -> int:
             baseline = session_result.get("legacy_baseline")
             if baseline:
                 result["notes"].append(f"legacy baseline {baseline['commit']}: {baseline['frozen_files']} immutable shared files")
-                result["notes"].extend(f"acknowledged historical RED: {row['path']} ({row['detail']})"
+                result["notes"].extend(f"acknowledged historical {row['verdict']}: {row['path']} ({row['detail']})"
                                        for row in baseline["acknowledged"])
             result["notes"].extend(f"{session_result['session']}: {note}"
                                    for note in _base_notes(session_result.get("base_matches")))
@@ -738,12 +740,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "audit":
-        state = audit_root(root, strict=args.strict)
+        state = audit_root(root, strict=args.strict, legacy_integrity_baseline=args.legacy_integrity_baseline)
         if args.json:
             print(json.dumps(state, indent=2))
         else:
             print(render_audit(state))
-        return EXIT_BY_VERDICT[state["verdict"]]
+        return EXIT_BY_VERDICT[state.get("policy_verdict", state["verdict"])]
 
     if args.cmd == "run":
         cmd = list(args.command)
