@@ -7,6 +7,7 @@ Runnable copies live in the installed package, not only in this folder.
 
 That writes:
 
+- `.showwork/contract.json` and `.showwork/run_default_check.py` when a test command is obvious
 - `.cursor/rules/showwork.mdc`
 - `.claude/settings.json` Stop hook (merged if the file exists)
 - `docs/ci/showwork-verify.yml` (copy into `.github/workflows/` yourself)

@@ -144,10 +144,10 @@ python -m showwork verify --session first-behavior --no-report
 
 Expected: exit code `0`.
 
-For a real repository, `showwork init` writes Cursor, Claude, and CI
-helpers. A second `init` skips files that already exist and merges
-Claude settings. It does not replace your host config unless you pass
-`--force`.
+For a real repository, `showwork init` writes a default test contract when
+it can detect one, plus Cursor, Claude, and CI helpers. A second `init`
+skips files that already exist and merges Claude settings. It does not
+replace your host config unless you pass `--force`.
 
 A shell-independent copy of this walk is in the
 [Python quickstart](quickstart-python.md#behavior-walk).

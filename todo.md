@@ -1,5 +1,12 @@
 # showwork build plan
 
+## One-command first value — 2026-10-23  [status: in progress]
+
+- [x] `showwork init` detects an obvious test command and writes a default contract (#178)
+- [x] `start` / `finish` apply that contract so a close can PASS or REFUSE without `require` / `claim`
+- [x] Tests cover detection, idempotency, no-overwrite, and fail-then-pass finish
+- [x] PR for #178 (do not merge)
+
 ## v0.6.6 release — 2026-10-05  [status: released]
 
 - [x] Merging main no longer fails the agent's gate (#166); summary dedupe (#167)

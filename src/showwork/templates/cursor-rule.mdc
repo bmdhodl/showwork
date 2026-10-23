@@ -5,6 +5,10 @@ alwaysApply: true
 
 # showwork
 
+If `showwork init` wrote `.showwork/contract.json`, `start` declares that the
+detected test command must pass. You can finish that baseline without a
+separate `require`. Still declare extra requirements for the user's request.
+
 Start material work with:
 
     python -m showwork start --session cursor-<task-slug> --agent cursor

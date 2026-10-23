@@ -7,6 +7,8 @@ import re
 import shlex
 from pathlib import Path
 
+from .contract import uninstall_default_contract, write_default_contract
+
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 
@@ -27,6 +29,7 @@ def init_project(
     """Write adapter files. Returns a list of write/skip/merge notes."""
     root = root.resolve()
     notes: list[str] = []
+    notes.extend(write_default_contract(root, force=force, preview=preview))
     if cursor:
         dest = root / ".cursor" / "rules" / "showwork.mdc"
         notes.append(_write_text(root, dest, _template("cursor-rule.mdc"), force, preview))
@@ -132,7 +135,7 @@ def uninstall_project(root: Path, *, cursor: bool = True, claude: bool = True,
                       ci: bool = True, codex: bool = False, preview: bool = False) -> list[str]:
     """Remove only unchanged generated content; retain edits and foreign hooks."""
     root = root.resolve()
-    notes = []
+    notes = list(uninstall_default_contract(root, preview=preview))
     files = []
     configs = []
     if cursor:

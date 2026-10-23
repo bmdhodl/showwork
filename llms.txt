@@ -5,7 +5,7 @@
 
 ## Entry points
 
-- [README](https://github.com/bmdhodl/showwork/blob/main/README.md): Installation, failed-close example, and trust limits.
+- [README](https://github.com/bmdhodl/showwork/blob/main/README.md): Installation, `showwork init`, failed-close example, and trust limits.
 - [Documentation index](https://github.com/bmdhodl/showwork/blob/main/docs/README.md): Guides by task.
 - [Python quickstart](https://github.com/bmdhodl/showwork/blob/main/docs/quickstart-python.md): Shell-independent example.
 - [Behavior quickstart](https://github.com/bmdhodl/showwork/blob/main/docs/quickstart-behavior.md): Broken function, refused close, repair, and a fresh rerun.

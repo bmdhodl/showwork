@@ -66,6 +66,7 @@ from .ledger import (
     verify_session,
 )
 from .receipts import receipts_payload, render_badges_html, resolve_receipts_root
+from .contract import apply_default_contract
 from .scaffold import init_project, uninstall_project
 from .report import render_status, render_usage, session_status, usage_report
 
@@ -524,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser(
         "init",
-        help="write Cursor rule, Claude Stop hook, and a CI workflow draft",
+        help="write a default test contract when one is obvious, plus host and CI glue",
     )
     p.add_argument("--cursor", action="store_true",
                    help="write .cursor/rules/showwork.mdc")
@@ -556,6 +557,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             start_session(root, args.session, agent=args.agent, note=args.note,
                           host_session=_host_session(), ignore=args.ignore)
+            apply_default_contract(root, args.session)
         except (ValueError, OSError) as exc:
             print(f"start rejected: {exc}", file=sys.stderr)
             return 2
@@ -684,6 +686,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "finish":
         try:
+            apply_default_contract(root, args.session)
             code, state = finish_session(root, args.session, status=args.status,
                                          no_verify=args.no_verify, note=args.note,
                                          checks_only=args.checks_only, base=args.base)
@@ -1028,7 +1031,10 @@ def main(argv: list[str] | None = None) -> int:
         for note in notes:
             print(note)
         if not args.uninstall:
-            print("Next: declare requirements before claims, then close with finish --status ok.")
+            if any(note.startswith("default contract:") for note in notes):
+                print("Next: start a session and close with finish --status ok.")
+            else:
+                print("Next: declare requirements before claims, then close with finish --status ok.")
             print("Native hook trust remains the host user's decision; preview does not activate hooks.")
         return 0
 
