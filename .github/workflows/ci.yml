@@ -56,6 +56,8 @@ jobs:
         run: .venv/bin/python scripts/check_receipts_ui.py
 
       - name: Verify today's claims
+        env:
+          SHOWWORK_COMMAND_TIMEOUT_SECONDS: "1800"
         run: .venv/bin/showwork verify
 
   conformance-js:
