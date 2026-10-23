@@ -28,7 +28,7 @@ def test_init_merges_existing_claude_settings(tmp_path):
     dest.parent.mkdir(parents=True)
     dest.write_text(json.dumps({"permissions": {"allow": ["Bash"]}}), encoding="utf-8")
     notes = init_project(tmp_path, cursor=False, ci=False)
-    assert notes[0].startswith("merge ")
+    assert any(n.startswith("merge ") for n in notes)
     data = json.loads(dest.read_text(encoding="utf-8"))
     assert data["permissions"]["allow"] == ["Bash"]
     assert "Stop" in data["hooks"]
@@ -39,7 +39,7 @@ def test_init_skips_existing_cursor_rule_without_force(tmp_path):
     dest.parent.mkdir(parents=True)
     dest.write_text("keep me\n", encoding="utf-8")
     notes = init_project(tmp_path, claude=False, ci=False)
-    assert "skip " in notes[0]
+    assert any("skip " in n for n in notes)
     assert dest.read_text(encoding="utf-8") == "keep me\n"
     init_project(tmp_path, cursor=True, claude=False, ci=False, force=True)
     assert "keep me" not in dest.read_text(encoding="utf-8")

@@ -3,6 +3,11 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- `showwork init` detects an obvious test command (pytest, `npm test`,
+  `go test ./...`, `cargo test`) and writes a default contract that `start`
+  applies, so `finish` can PASS or REFUSE without a handwritten `require` /
+  `claim`. If nothing is detected, it says so and writes no contract.
+  Existing config is still skipped unless `--force` (#178).
 - A failed `command` check now shows a bounded, redacted tail of each stream
   that has output. Before, any text on stderr hid stdout, so a one-line
   warning hid pytest's failure, which pytest prints on stdout (#174).

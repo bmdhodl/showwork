@@ -141,7 +141,7 @@ def test_readme_commands_execute_as_documented(tmp_path):
             assert result.returncode == expected, result.stdout + result.stderr
             refusals += "REFUSED" in result.stderr
             verified += "Outcome: VERIFIED" in result.stdout
-    assert refusals == 1
+    assert refusals == 2
     assert verified == 1
 
 

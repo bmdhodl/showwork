@@ -49,7 +49,8 @@ Three rules drive every design decision below:
 | `src/showwork/audit.py` | Reads the hash chain back and proves append-only, including fork handling |
 | `src/showwork/cli.py` | Argument parsing and the subcommands; exit codes |
 | `src/showwork/snapshot.py` | Session-start tree snapshot and undeclared-change detection |
-| `src/showwork/scaffold.py` | `showwork init` writes Cursor/Claude/CI glue |
+| `src/showwork/scaffold.py` | `showwork init` writes a default test contract when one is obvious, plus Cursor/Claude/CI glue |
+| `src/showwork/contract.py` | Detects an obvious test command and applies that contract on start/finish |
 | `src/showwork/hooks.py` | Stop-hook adapter. Observes, never gates |
 | `src/showwork/control.py` | PreToolUse approval rules, PostToolUse payload plumbing, Claude Code hook JSON |
 | `src/showwork/guards.py` | `StuckDetector`: repeat / alternation / no-progress signatures |

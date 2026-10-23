@@ -51,6 +51,11 @@ def test_readme_quickstart_names_the_refusal_commands():
     assert "python -m showwork" in README
 
 
+def test_readme_quickstart_leads_with_init():
+    section = README.split("## Quickstart", 1)[1].split("## How it works", 1)[0]
+    assert section.find("showwork init") < section.find("showwork require")
+
+
 def test_readme_require_uses_flags_before_claim():
     require_at = README.find("showwork require --session first-look")
     claim_at = README.find("showwork claim --session first-look")

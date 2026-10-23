@@ -25,15 +25,42 @@ It is advisory and does not change showwork's deterministic verifier.
 
 ## Quickstart
 
-Use a new empty directory. The first close deliberately fails because the
-claimed file does not exist.
-
 ```bash
 python -m pip install showwork
 ```
 
 `python -m showwork` is the same CLI after install. Use it if `showwork`
 is not on PATH. The commands below use Bash quoting.
+
+One command writes a default contract when the repo has an obvious test
+command, and installs the agent hook:
+
+```bash
+showwork init
+```
+
+`init` looks for pytest (`pytest.ini`, `pyproject.toml`, `setup.cfg`, or
+`tests/`), `npm test`, `go test ./...`, and `cargo test`. If it finds one,
+it declares that command must pass at finish. If it finds nothing, it says
+so and writes no contract. It does not overwrite existing config unless you
+pass `--force`.
+
+Start a session and close it. You do not need `require` or `claim` for that
+default contract:
+
+```bash
+showwork start --session first-look --agent cursor
+showwork finish --session first-look --status ok
+```
+
+Expected: exit code `2` and `REFUSED` when the tests fail or no contract
+was written. Exit code `0` and `Outcome: VERIFIED` when the detected tests
+pass.
+
+### See a refused close without a test suite
+
+Use a new empty directory. The first close deliberately fails because the
+claimed file does not exist.
 
 ```bash
 showwork start --session first-look --agent cursor
@@ -108,7 +135,8 @@ for background writers (showwork 0.6.6 and later).
 showwork init
 ```
 
-Review the generated Cursor rule, Claude Code Stop hook, and CI draft at
+Review the generated default contract (`.showwork/contract.json` when a test
+command was found), Cursor rule, Claude Code Stop hook, and CI draft at
 `docs/ci/showwork-verify.yml`. Copy the CI draft into `.github/workflows/`
 when ready. The Stop hook observes results; the explicit finish or CI gate
 enforces a close.
