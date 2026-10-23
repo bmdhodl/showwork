@@ -11,7 +11,10 @@ from datetime import date, datetime
 from pathlib import Path
 
 from .checks import CHECKERS, evaluate_records
-from .ledger import claims_for_session, load_all_claims, load_all_events, load_supersessions
+from .ledger import (
+    _snapshot_claim_files, claims_for_session, load_all_claims,
+    load_all_events, load_supersessions,
+)
 
 
 def _parse_since(since: str | None) -> datetime | None:
@@ -218,7 +221,11 @@ def session_status(root: Path, session: str | None = None) -> dict:
         by_session.setdefault(name, []).append(e)
 
     names = [session] if session else sorted(by_session)
-    supersessions = load_supersessions(root)
+    # Keep this snapshot local: a later status call must see newly appended rows.
+    claim_files = None if session else _snapshot_claim_files(root)
+    supersessions = load_supersessions(root) if claim_files is None else [
+        rec for _, _, _, records in claim_files for rec in records if "supersedes" in rec
+    ]
     allowed = None if session else frozenset(CHECKERS) - {"command"}
     rows = []
     for name in names:
@@ -236,7 +243,7 @@ def session_status(root: Path, session: str | None = None) -> dict:
                 open_ = True
             elif e.get("event") == "session.finish":
                 open_ = False
-        state = evaluate_records(claims_for_session(root, name), root,
+        state = evaluate_records(claims_for_session(root, name, claim_files=claim_files), root,
                                  label=f"session {name}", supersessions=supersessions,
                                  allowed_check_types=allowed)
         rows.append({

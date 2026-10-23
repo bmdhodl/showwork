@@ -163,7 +163,11 @@ def _record_belongs_to_session(rec: dict, session: str) -> bool:
     return isinstance(retracts, dict) and retracts.get("session") == session
 
 
-def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path | None:
+_ClaimFiles = list[tuple[Path, Path, Path, list[dict]]]
+
+
+def _existing_session_jsonl(folder: Path, session: str, current: Path, *,
+                            claim_files: _ClaimFiles | None = None) -> Path | None:
     """Reuse a leftover file for this session instead of splitting the stem.
 
     If the current stem already has a file, keep writing there. If not, and
@@ -171,7 +175,9 @@ def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path |
     """
     if current.is_file():
         owners: set[str] = set()
-        for rec in _read_jsonl(current):
+        records = (_read_jsonl(current) if claim_files is None else next(
+            (records for _, resolved, _, records in claim_files if resolved == current), []))
+        for rec in records:
             name = rec.get("session")
             if isinstance(name, str) and name:
                 owners.add(name)
@@ -188,10 +194,16 @@ def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path |
     if not folder.is_dir():
         return None
     found: list[Path] = []
-    for path in sorted(folder.glob("*.jsonl")):
-        if path.resolve() == current.resolve():
+    if claim_files is None:
+        candidates = ((path, path.resolve(), folder, None)
+                      for path in sorted(folder.glob("*.jsonl")))
+    else:
+        candidates = (row for row in claim_files if row[2] == folder)
+    for path, resolved, _, records in candidates:
+        if resolved == current:
             continue
-        if any(_record_belongs_to_session(rec, session) for rec in _read_jsonl(path)):
+        if any(_record_belongs_to_session(rec, session) for rec in (
+                _read_jsonl(path) if records is None else records)):
             found.append(path)
         if len(found) > 1:
             return None
@@ -200,11 +212,12 @@ def _existing_session_jsonl(folder: Path, session: str, current: Path) -> Path |
     return None
 
 
-def _session_subdir_path(root: Path, subdir: str, session: str) -> Path:
+def _session_subdir_path(root: Path, subdir: str, session: str, *,
+                         claim_files: _ClaimFiles | None = None) -> Path:
     base = ledger_dir(root).resolve()
     folder = (base / subdir).resolve()
     current = (folder / f"{session_file_stem(session)}.jsonl").resolve()
-    existing = _existing_session_jsonl(folder, session, current)
+    existing = _existing_session_jsonl(folder, session, current, claim_files=claim_files)
     path = (existing or current).resolve()
     try:
         path.relative_to(folder)
@@ -669,19 +682,35 @@ def load_all_events(root: Path) -> list[dict]:
     return records
 
 
-def claims_for_session(root: Path, session: str) -> list[dict]:
+def _snapshot_claim_files(root: Path) -> _ClaimFiles:
+    """Read once: original path, resolved file, resolved parent, parsed rows.
+
+    Resolve the parent independently: a file symlink may point outside its
+    directory, while a directory junction changes the spelling of the parent.
+    """
+    return [(path, path.resolve(), path.parent.resolve(), _read_jsonl(path))
+            for path in iter_claim_paths(root)]
+
+
+def claims_for_session(root: Path, session: str, *,
+                       claim_files: _ClaimFiles | None = None) -> list[dict]:
+    """Read one session, optionally reusing a caller-owned file snapshot."""
     try:
-        current: Path | None = session_claims_path(root, session).resolve()
+        current: Path | None = _session_subdir_path(root, "claims", session, claim_files=claim_files)
     except ValueError:
         current = None
     others: list[list[dict]] = []
     trailing: list[dict] = []
-    for path in iter_claim_paths(root):
+    if claim_files is None:
+        files = ((path, path.resolve(), None, None) for path in iter_claim_paths(root))
+    else:
+        files = claim_files
+    for path, resolved, _, records in files:
         recs: list[dict] = []
         errors: list[dict] = []
         belongs = False
-        is_current = current is not None and path.resolve() == current
-        for rec in _read_jsonl(path):
+        is_current = current is not None and resolved == current
+        for rec in (_read_jsonl(path) if records is None else records):
             if rec.get("_parse_error"):
                 errors.append(rec)
             elif _record_belongs_to_session(rec, session):

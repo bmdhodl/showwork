@@ -13,6 +13,113 @@ from showwork.report import analyze_fdr, session_status, usage_report
 from showwork.outcomes import record_requirement
 
 
+def test_unscoped_status_reads_each_claim_file_once(tmp_path, monkeypatch):
+    """REGRESSION: adding sessions must not multiply claim-file reads."""
+    import showwork.ledger as ledger
+
+    (tmp_path / "present.txt").write_text("yes", encoding="utf-8")
+    for index in range(8):
+        name = f"read-count-{index}"
+        start_session(tmp_path, name)
+        record_claim(tmp_path, name, "exists",
+                     check={"type": "file_exists", "path": "present.txt"})
+    reads = {}
+    original = ledger._read_jsonl
+
+    def counted(path):
+        if path.parent.name == "claims":
+            reads[path] = reads.get(path, 0) + 1
+        return original(path)
+
+    monkeypatch.setattr(ledger, "_read_jsonl", counted)
+    status = session_status(tmp_path)
+    assert len(status["sessions"]) == 8
+    assert all(row["live_verdict"] == "GREEN" for row in status["sessions"])
+    assert len(reads) == 8 and max(reads.values()) == 1, reads
+
+
+def test_status_snapshot_preserves_session_selection_and_refreshes(tmp_path, monkeypatch):
+    """Mixed/split files, stem collisions and malformed rows retain their meaning."""
+    import showwork.ledger as ledger
+    import showwork.report as report
+
+    (tmp_path / "present.txt").write_text("yes", encoding="utf-8")
+    names = ["target", "other", "parse-only", "empty", "collision", "ambiguous", "single"]
+    for name in names:
+        start_session(tmp_path, name)
+    folder = tmp_path / ".showwork" / "claims"
+    folder.mkdir(exist_ok=True)
+
+    def claim(session, text, ts="2026-10-02T00:00:00"):
+        return {"session": session, "claim": text, "ts": ts,
+                "check": {"type": "file_exists", "path": "present.txt"}}
+
+    def write(path, records, malformed=False):
+        path.write_text("".join(json.dumps(row) + "\n" for row in records)
+                        + ("{broken\n" if malformed else ""), encoding="utf-8")
+
+    old = claim("target", "repeat")
+    write(tmp_path / ".showwork" / "claims-2026-10-02.jsonl", [old, claim("other", "shared"),
+          {"session": "other", "retracts": {"session": "target", "claim": "repeat"},
+           "retracted": True, "ts": "2026-10-02T00:00:01"}], malformed=True)
+    # The current stream stays last even after the clock rolls back.
+    write(folder / "target.jsonl", [claim("target", "repeat", "2026-10-01T00:00:00")])
+    write(folder / "parse-only.jsonl", [], malformed=True)
+    write(folder / "empty.jsonl", [])
+    write(folder / "collision.jsonl", [claim("other", "collision owner")])
+    write(folder / "old-a.jsonl", [claim("ambiguous", "a")])
+    write(folder / "old-b.jsonl", [claim("ambiguous", "b")])
+    write(folder / "old-single.jsonl", [claim("single", "one leftover")])
+    write(folder / "other.jsonl", [{"session": "other", "supersedes": {
+        "session": "target", "claim": "repeat", "ts": old["ts"]},
+        "supersession_reason": "replaced", "ts": "2026-10-03T00:00:00"}])
+
+    snapshot = ledger._snapshot_claim_files(tmp_path)
+    for name in names:
+        assert ledger.claims_for_session(tmp_path, name, claim_files=snapshot) == ledger.claims_for_session(tmp_path, name)
+    cached = session_status(tmp_path)
+    with monkeypatch.context() as context:
+        context.setattr(report, "_snapshot_claim_files", lambda root: None)
+        assert session_status(tmp_path) == cached
+    write(folder / "single.jsonl", [claim("single", "new append")])
+    refreshed = session_status(tmp_path)
+    assert refreshed != cached
+    assert next(row for row in refreshed["sessions"] if row["session"] == "single")["live_total"] == 2
+
+
+def test_status_snapshot_keeps_linked_claims_directory_fallback_last(tmp_path):
+    """REGRESSION: an in-ledger directory alias must retain leftover-stem order."""
+    import os
+    import subprocess
+    from showwork.ledger import _snapshot_claim_files, claims_for_session
+
+    ledger = tmp_path / ".showwork"
+    actual = ledger / "claim-storage"
+    actual.mkdir(parents=True)
+    link = ledger / "claims"
+    if os.name == "nt":
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(actual)],
+                       check=True, capture_output=True)
+    else:
+        link.symlink_to(actual, target_is_directory=True)
+    (ledger / "sessions.jsonl").write_text(json.dumps({
+        "event": "session.start", "session": "linked", "ts": "2026-10-01T00:00:00"
+    }) + "\n", encoding="utf-8")
+    (actual / "old-stem.jsonl").write_text(json.dumps({
+        "session": "linked", "claim": "missing", "ts": "2026-10-01T00:00:00",
+        "check": {"type": "file_exists", "path": "missing.txt"}
+    }) + "\n", encoding="utf-8")
+    (ledger / "claims-2026-10-02.jsonl").write_text(json.dumps({
+        "session": "linked", "ts": "2026-10-02T00:00:00",
+        "retracts": {"session": "linked", "claim": "missing"},
+        "retracted": True, "retraction_reason": "old observation"
+    }) + "\n", encoding="utf-8")
+    expected = claims_for_session(tmp_path, "linked")
+    assert expected[-1]["claim"] == "missing"
+    assert claims_for_session(tmp_path, "linked", claim_files=_snapshot_claim_files(tmp_path)) == expected
+    assert session_status(tmp_path)["sessions"][0]["live_verdict"] == "RED"
+
+
 def test_usage_report_and_fdr(tmp_path):
     (tmp_path / "a.txt").write_text("x", encoding="utf-8")
     start_session(tmp_path, "real-work", agent="codex")
