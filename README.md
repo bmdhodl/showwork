@@ -129,10 +129,34 @@ enforces a close.
 | `command` | An allowed Python script exits as expected |
 | `http_probe` | An HTTP response has the expected status and optional text |
 | `git_state` | The local Git state matches declared conditions |
+| `tests_intact` | No Python test was deleted, newly skipped or xfailed, or lost assertions since a pinned commit |
 
 Use `showwork <command> --help` for your installed CLI.
 The [specification](SPEC.md) defines check shapes and records;
 [CI documentation](docs/ci.md) explains command and network permissions.
+
+## Lock the finish line
+
+An agent can make a check pass by weakening it: deleting a test, skipping it,
+or editing the runner. Declare the checks, then lock them before the agent
+starts:
+
+```bash
+showwork start --session fix-nav --agent cursor
+showwork require --session fix-nav --id suite --scope behavior --description "the suite passes" --type command --command-arg python --command-arg scripts/run_tests.py --expect-exit 0 --stdout-contains passed
+showwork require --session fix-nav --id intact --scope artifact --description "no test was weakened" --type tests_intact --path tests
+showwork lock --session fix-nav --path tests/conftest.py --path pyproject.toml
+```
+
+`lock` freezes the requirements and the files that define them: each command
+script plus the globs you name. After that, `finish`, `verify` and `gate`
+refuse with `locked_checks_changed` when a locked file or requirement changed,
+and with `tests_weakened` when `tests_intact` finds a deleted test file or
+test, a new skip or xfail, or fewer assertions or parametrize cases than at
+the pinned commit (`HEAD` when the requirement was declared). If a test file
+covered by a declared check is rewritten in the same session as the code,
+the refusal names that test file and the check. Adding tests passes. See
+[locked checks](docs/locked-checks.md).
 
 ## Limits and trust
 
@@ -148,6 +172,19 @@ of the actual outcome.
   part of the user's request. Requirements and tests still need review.
 - A passing command can contain a weak test. A text match cannot prove
   application behavior.
+- `tests_intact` compares names and counts in Python test source with `ast`
+  (pytest and unittest conventions only). A test rewritten to assert something
+  weaker with the same count still passes that check alone, as does an
+  assertion weakened inside a helper, an early `return`, or a marker applied
+  through an alias. A renamed test reads as a deletion. If that rewritten
+  test file is covered by a declared check and non-test code also changed in
+  the same session, finish refuses and names the test file and the check.
+  Lock conftest files, fixtures and runner configuration; `tests_intact` does
+  not read them.
+- A lock lives in the same agent-writable ledger. It catches changes made
+  after the lock, but not an agent that never locks or rewrites a whole
+  unanchored session file. The owner should run `lock` and commit the
+  receipt, or publish the printed digest, before handing off.
 - Hash chains detect changes relative to retained history or a trusted
   head hash. They do not prevent an attacker from replacing an entire
   unanchored ledger.

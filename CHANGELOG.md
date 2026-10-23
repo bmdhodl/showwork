@@ -3,6 +3,23 @@
 All notable changes to showwork are recorded here.
 
 ## Unreleased
+- New `showwork lock` and `tests_intact` check type refuse a clean close when
+  the agent moved its own finish line (#179). `lock` records a `session.lock`
+  event with the requirements digest and the SHA-256 of each command script
+  and of every file an explicit `--path` glob matches. A later edit, deletion
+  or new file there, or a requirement added after the lock, fails `verify`,
+  `finish` and `gate` with `refuse_reason: locked_checks_changed`, even when a
+  claim names the file. `tests_intact` pins a base commit and compares Python
+  test files with `ast`: a deleted test file or test, a new skip or xfail
+  marker, or fewer assertions or literal parametrize cases fail with
+  `tests_weakened`. Adding tests passes. If a test file covered by a declared
+  check is rewritten in the same session as the code, finish refuses and
+  names the test file and the check. Finish events of a locked session carry
+  `lock_check`. Both readers accept the new event and check type, and the
+  badge reruns the lock's file comparison. Counts are not meaning: a weaker
+  assertion with the same count still passes `tests_intact` alone. See
+  `docs/locked-checks.md`; SPEC.md documents both. This supersedes the stale
+  closed PR #182.
 - A failed `command` check now shows a bounded, redacted tail of each stream
   that has output. Before, any text on stderr hid stdout, so a one-line
   warning hid pytest's failure, which pytest prints on stdout (#174).

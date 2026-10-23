@@ -84,27 +84,27 @@ def snapshot_file(ledger: Path, stem: str) -> Path:
     return path
 
 
-def validate_ignore_patterns(ignore: list[str] | None) -> list[str]:
+def validate_ignore_patterns(ignore: list[str] | None, *, label: str = "ignore") -> list[str]:
     """Canonical, bounded POSIX component globs; no implicit Git ignore rules."""
     if ignore is None:
         return []
     if not isinstance(ignore, list) or len(ignore) > MAX_IGNORE_PATTERNS:
-        raise ValueError("ignore must be a list of at most 32 relative globs")
+        raise ValueError(f"{label} must be a list of at most 32 relative globs")
     for pattern in ignore:
         if (not isinstance(pattern, str) or not 1 <= len(pattern) <= MAX_IGNORE_LENGTH
                 or any(ord(c) < 32 or ord(c) == 127 for c in pattern)
                 or any(c in pattern for c in "\\:[]")):
-            raise ValueError("ignore requires a bounded slash-separated relative glob")
+            raise ValueError(f"{label} requires a bounded slash-separated relative glob")
         parts = pattern.split("/")
         if any(part in ("", ".", "..") for part in parts):
-            raise ValueError("ignore cannot be absolute, empty or traverse parents")
+            raise ValueError(f"{label} cannot be absolute, empty or traverse parents")
         if any("**" in part and not (part == "**" and i == len(parts) - 1)
                for i, part in enumerate(parts)) or parts == ["**"]:
-            raise ValueError("ignore supports ** only as a terminal recursive component")
+            raise ValueError(f"{label} supports ** only as a terminal recursive component")
         # A wildcard prefix must not cover the protected ledger or Git state.
         if any(fnmatch.fnmatchcase(name, part.casefold()) for part in parts if part != "**"
                for name in (".git", ".showwork")):
-            raise ValueError("ignore cannot target .git, .showwork or the whole workspace")
+            raise ValueError(f"{label} cannot target .git, .showwork or the whole workspace")
     return sorted(set(ignore))
 
 
