@@ -49,6 +49,16 @@ def test_nightly_package_matrix_never_publishes():
     assert "gh-action-pypi-publish" not in workflow
 
 
+def test_nightly_audit_pins_legacy_history_and_retains_its_findings():
+    workflow = read_repo_file(".github", "workflows", "nightly.yml")
+    audit = workflow.split("  ledger-audit:", 1)[1].split("  package:", 1)[0]
+    assert "fetch-depth: 0" in audit
+    assert re.search(r"python -m showwork audit --json --legacy-integrity-baseline [0-9a-f]{40} > ledger-audit.json", audit)
+    assert "path: ledger-audit.json" in audit
+    assert "if: always()" in audit
+    assert "continue-on-error" not in audit and "|| true" not in audit
+
+
 def test_clean_room_tamper_uses_per_session_event_file():
     workflow = read_repo_file(".github", "workflows", "clean-room-action.yml")
     assert ".showwork/sessions/${SESSION}.jsonl" in workflow

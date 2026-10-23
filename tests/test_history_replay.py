@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 
-from showwork.ledger import record_claim, record_event, record_retraction
+from showwork.ledger import record_claim, record_event, record_retraction, record_supersession, start_session
 
 
 def replay(root):
@@ -105,3 +105,30 @@ def test_command_cannot_erase_requirements_during_replay(tmp_path):
     assert state['requirement_count'] == 1
     assert any(r.get('requirement_id') == 'proof' and r['status'] == 'fail' for r in state['results'])
     assert any(r['type'] == 'ledger-preservation' and r['status'] == 'fail' for r in state['results'])
+
+
+def test_superseded_claims_close_without_becoming_passed_checks(tmp_path):
+    # REGRESSION: a supported supersession was counted as skipped/YELLOW forever.
+    record_claim(tmp_path, 'old', 'old artifact', {'type': 'file_exists', 'path': 'gone'})
+    start_session(tmp_path, 'new')
+    record_supersession(tmp_path, 'new', 'old', 'old artifact', 'point-in-time artifact retired')
+    before = {p: p.read_bytes() for p in (tmp_path / '.showwork').rglob('*.jsonl')}
+    state = replay(tmp_path)
+    assert state['verdict'] == 'GREEN'
+    assert state['total'] == 0 and state['passed'] == 0 and state['closed'] == 1
+    assert state['results'][0]['superseded_by'] == 'new'
+    assert state['results'][0]['status'] == 'skipped'
+    assert before == {p: p.read_bytes() for p in before}
+
+
+def test_supersession_cannot_close_an_immutable_requirement(tmp_path):
+    check = {'type': 'file_exists', 'path': 'gone'}
+    record_claim(tmp_path, 'old', 'old artifact', check)
+    record_event(tmp_path, 'session.requirement', 'old', requirement_id='proof',
+                 claim='old artifact', scope='artifact', check=check)
+    start_session(tmp_path, 'new')
+    record_supersession(tmp_path, 'new', 'old', 'old artifact', 'artifact retired')
+    state = replay(tmp_path)
+    assert state['verdict'] == 'RED'
+    assert state['closed'] == 1 and state['requirement_count'] == 1
+    assert any(r.get('requirement_id') == 'proof' and r['status'] == 'fail' for r in state['results'])

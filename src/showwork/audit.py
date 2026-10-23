@@ -165,7 +165,7 @@ def audit_file(path: Path, strict: bool = False, *, record_text: str | None = No
     return out
 
 
-def audit_root(root: Path, strict: bool = False) -> dict:
+def audit_root(root: Path, strict: bool = False, *, legacy_integrity_baseline: str | None = None) -> dict:
     """Audit every ledger file under the project root."""
     directory = ledger_dir(root)
     files = iter_ledger_jsonl(root)
@@ -178,7 +178,7 @@ def audit_root(root: Path, strict: bool = False) -> dict:
         verdict = "YELLOW"
     else:
         verdict = "GREEN"
-    return {
+    state = {
         "label": f"audit {directory}",
         "verdict": verdict,
         "files": results,
@@ -186,6 +186,22 @@ def audit_root(root: Path, strict: bool = False) -> dict:
         "total_chained": sum(r["chained"] for r in results),
         "total_forks": sum(r["forks"] for r in results),
     }
+    if legacy_integrity_baseline is not None:
+        from .legacy import inspect_legacy_baseline
+
+        baseline = inspect_legacy_baseline(root.resolve(), None, legacy_integrity_baseline)
+        acknowledged = {row['path'] for row in baseline['acknowledged']}
+        outstanding = [row for row in results
+                       if row['verdict'] != 'GREEN' and f".showwork/{row['file']}" not in acknowledged]
+        if baseline['errors'] or any(row['verdict'] == 'RED' for row in outstanding):
+            policy = 'RED'
+        elif outstanding or not results:
+            policy = 'YELLOW'
+        else:
+            policy = 'GREEN'
+        state.update(policy_verdict=policy, legacy_baseline=baseline,
+                     policy_scope='unchanged pinned legacy history acknowledged; historical integrity remains unverified')
+    return state
 
 
 def render_audit(state: dict) -> str:
@@ -194,6 +210,10 @@ def render_audit(state: dict) -> str:
     lines = [f"showwork audit  =>  {state['verdict']}  "
              f"({state['total_chained']}/{state['total_records']} records chained"
              f"{fork_note})"]
+    if 'policy_verdict' in state:
+        lines.append(f"  legacy policy => {state['policy_verdict']}; baseline {state['legacy_baseline']['commit']}")
+        lines.append(f"  {state['policy_scope']}")
+        lines.extend(f"  ERROR {error}" for error in state['legacy_baseline']['errors'])
     if not state["files"]:
         lines.append("  no ledger files found")
     for r in state["files"]:

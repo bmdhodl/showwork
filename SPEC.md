@@ -746,6 +746,24 @@ occur after all acceptance commands have run.
 The operator is responsible for reviewing and protecting the baseline choice.
 It establishes an explicit boundary for new work, not authentic past records.
 
+The reference `audit --legacy-integrity-baseline <full-commit>` policy reuses
+these immutable shared-file comparisons without selecting a current session.
+It MUST [test: tests/test_legacy_baseline.py::test_audit_baseline_preserves_yellow_and_historical_bytes]
+retain every raw finding and the raw `verdict`, including YELLOW pre-chain
+files. Its separate `policy_verdict` controls the exit code and may be GREEN
+only when all non-GREEN findings belong to unchanged pinned shared files.
+It MUST [test: tests/test_legacy_baseline.py::test_audit_baseline_never_excuses_new_or_changed_history]
+refuse an invalid pin, changed or missing baseline bytes, new damaged legacy
+files and per-session corruption. A passing policy does not certify old records.
+
+The full historical replay treats retracted and superseded claims as closed,
+retaining their rows and counting them separately from passed checks [test:
+tests/test_history_replay.py::test_superseded_claims_close_without_becoming_passed_checks].
+Superseding a claim MUST [test:
+tests/test_history_replay.py::test_supersession_cannot_close_an_immutable_requirement]
+leave independently declared acceptance requirements active. Retired artifact
+requirements can therefore still fail replay against a newer tree.
+
 ### Optional base-revision policy
 
 This is a policy option for `gate`, `finish` and `verify --session`, not a

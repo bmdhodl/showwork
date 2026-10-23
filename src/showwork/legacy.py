@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 
 
-def inspect_legacy_baseline(root: Path, session: str, commit: str) -> dict:
+def inspect_legacy_baseline(root: Path, session: str | None, commit: str) -> dict:
     from .audit import audit_file
     from .ledger import _read_jsonl, session_file_stem
 
@@ -35,9 +35,10 @@ def inspect_legacy_baseline(root: Path, session: str, commit: str) -> dict:
         return refuse("legacy integrity baseline commit does not exist")
     if git("merge-base", "--is-ancestor", commit, "HEAD").returncode:
         return refuse("legacy integrity baseline must be an ancestor of HEAD")
-    stem = session_file_stem(session)
-    if git("cat-file", "-e", f"{commit}:.showwork/sessions/{stem}.jsonl").returncode == 0:
-        return refuse("legacy integrity baseline must predate the selected session")
+    if session is not None:
+        stem = session_file_stem(session)
+        if git("cat-file", "-e", f"{commit}:.showwork/sessions/{stem}.jsonl").returncode == 0:
+            return refuse("legacy integrity baseline must predate the selected session")
 
     listing = git("ls-tree", "-r", "--name-only", commit, "--", ".showwork/")
     if listing.returncode:
@@ -63,7 +64,7 @@ def inspect_legacy_baseline(root: Path, session: str, commit: str) -> dict:
                 result["errors"].append(f"legacy baseline file changed, moved or missing: {rel}")
                 continue
             result["frozen_files"] += 1
-            if any(row.get("session") == session for row in _read_jsonl(path)):
+            if session is not None and any(row.get("session") == session for row in _read_jsonl(path)):
                 result["errors"].append(f"legacy baseline cannot acknowledge the selected session: {rel}")
                 continue
             # Genesis hashes use the basename, so an isolated copy produces
@@ -71,9 +72,9 @@ def inspect_legacy_baseline(root: Path, session: str, commit: str) -> dict:
             saved = Path(directory) / path.name
             saved.write_bytes(blob.stdout)
             audit = audit_file(saved)
-            if audit["verdict"] == "RED":
+            if audit["verdict"] != "GREEN":
                 result["acknowledged"].append({
-                    "path": rel, "verdict": "RED", "detail": audit["detail"],
+                    "path": rel, "verdict": audit["verdict"], "detail": audit["detail"],
                     "sha256_lf": hashlib.sha256(blob.stdout.replace(b"\r\n", b"\n")).hexdigest(),
                 })
     return result
