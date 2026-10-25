@@ -213,7 +213,7 @@ def usage_report(root: Path, *, since: str | None = None,
 
 
 def session_status(root: Path, session: str | None = None) -> dict:
-    """Show current checks and history; only an explicit session reruns commands."""
+    """Show local checks and history; explicit sessions also rerun commands and HTTP."""
     events = load_all_events(root)
     by_session: dict[str, list[dict]] = {}
     for e in events:
@@ -226,7 +226,7 @@ def session_status(root: Path, session: str | None = None) -> dict:
     supersessions = load_supersessions(root) if claim_files is None else [
         rec for _, _, _, records in claim_files for rec in records if "supersedes" in rec
     ]
-    allowed = None if session else frozenset(CHECKERS) - {"command"}
+    allowed = None if session else frozenset(CHECKERS) - {"command", "http_probe"}
     rows = []
     for name in names:
         evs = by_session.get(name, [])
@@ -259,6 +259,10 @@ def session_status(root: Path, session: str | None = None) -> dict:
             "live_total": state["total"],
             "command_checks_not_run": sum(
                 r.get("type") == "command" and r.get("policy_disabled", False)
+                for r in state["results"]
+            ),
+            "http_checks_not_run": sum(
+                r.get("type") == "http_probe" and r.get("policy_disabled", False)
                 for r in state["results"]
             ),
             "gaps": state["gaps"],
@@ -316,6 +320,11 @@ def render_status(status: dict) -> str:
             lines.append(
                 f"    command_checks=NOT_RUN ({row['command_checks_not_run']}); "
                 "use status --session <id> to rerun that session's commands"
+            )
+        if row.get("http_checks_not_run"):
+            lines.append(
+                f"    http_checks=NOT_RUN ({row['http_checks_not_run']}); "
+                "use status --session <id> to rerun that session's HTTP probes"
             )
         if row["gaps"]:
             for g in row["gaps"][:5]:
