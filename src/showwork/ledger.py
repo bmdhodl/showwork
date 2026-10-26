@@ -14,11 +14,13 @@ Readers still load the legacy files. Records are never rewritten.
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import re
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -429,14 +431,152 @@ def _prev_hash(path: Path) -> str:
     return previous
 
 
+# Same-machine simultaneous writers on one slug must serialize. Windows
+# `open("a")` is seek-to-end plus write and can overwrite a whole record;
+# POSIX O_APPEND is atomic for small writes, so Linux CI hid the loss.
+# Lock the target file, read the chain head, then one os.write of the line.
+_APPEND_LOCK_TIMEOUT_SECONDS = 10.0
+_APPEND_LOCK_POLL_SECONDS = 0.01
+_LOCKFILE_EXCLUSIVE = 0x00000002
+_LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
+_WINDOWS_LOCK_BUSY = frozenset({32, 33})  # ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+_WINDOWS_LOCK_API = None
+
+
+def _open_append_fd(path: Path) -> int:
+    flags = os.O_APPEND | os.O_WRONLY | os.O_CREAT
+    binary = getattr(os, "O_BINARY", 0)
+    if binary:
+        flags |= binary
+    return os.open(path, flags, 0o644)
+
+
+def _is_lock_busy(exc: OSError) -> bool:
+    if exc.errno in (errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK):
+        return True
+    return getattr(exc, "winerror", None) in _WINDOWS_LOCK_BUSY
+
+
+def _windows_lock_api():
+    """LockFileEx via msvcrt.get_osfhandle.
+
+    ``msvcrt.locking`` cannot lock an empty file (locks cannot extend past
+    EOF), and the first record of every session is written to an empty file.
+    LockFileEx can lock past EOF, so it is the Windows exclusive lock that
+    covers the first writer and every later one with the same mechanism.
+    """
+    global _WINDOWS_LOCK_API
+    if _WINDOWS_LOCK_API is not None:
+        return _WINDOWS_LOCK_API
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    class OVERLAPPED(ctypes.Structure):
+        _fields_ = [
+            ("Internal", ctypes.c_void_p),
+            ("InternalHigh", ctypes.c_void_p),
+            ("Offset", wintypes.DWORD),
+            ("OffsetHigh", wintypes.DWORD),
+            ("hEvent", wintypes.HANDLE),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    lockfileex = kernel32.LockFileEx
+    lockfileex.argtypes = [
+        wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD,
+        wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(OVERLAPPED),
+    ]
+    lockfileex.restype = wintypes.BOOL
+    unlockfileex = kernel32.UnlockFileEx
+    unlockfileex.argtypes = [
+        wintypes.HANDLE, wintypes.DWORD,
+        wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(OVERLAPPED),
+    ]
+    unlockfileex.restype = wintypes.BOOL
+    _WINDOWS_LOCK_API = (msvcrt, ctypes, OVERLAPPED, lockfileex, unlockfileex)
+    return _WINDOWS_LOCK_API
+
+
+def _try_exclusive_lock(fd: int) -> None:
+    if os.name == "nt":
+        msvcrt, ctypes, overlapped_cls, lockfileex, _unlock = _windows_lock_api()
+        handle = msvcrt.get_osfhandle(fd)
+        overlapped = overlapped_cls()
+        if not lockfileex(
+            handle,
+            _LOCKFILE_EXCLUSIVE | _LOCKFILE_FAIL_IMMEDIATELY,
+            0,
+            1,
+            0,
+            ctypes.byref(overlapped),
+        ):
+            err = ctypes.get_last_error()
+            raise OSError(errno.EACCES, "ledger file is locked", None, err)
+        return
+    import fcntl
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _release_exclusive_lock(fd: int) -> None:
+    if os.name == "nt":
+        msvcrt, ctypes, overlapped_cls, _lock, unlockfileex = _windows_lock_api()
+        handle = msvcrt.get_osfhandle(fd)
+        overlapped = overlapped_cls()
+        unlockfileex(handle, 0, 1, 0, ctypes.byref(overlapped))
+        return
+    import fcntl
+    fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _acquire_exclusive_lock(
+    fd: int,
+    path: Path,
+    timeout: float | None = None,
+) -> None:
+    if timeout is None:
+        timeout = _APPEND_LOCK_TIMEOUT_SECONDS
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            _try_exclusive_lock(fd)
+            return
+        except OSError as exc:
+            if not _is_lock_busy(exc):
+                raise
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"could not lock ledger file {path} for append "
+                    f"within {timeout:g}s"
+                ) from exc
+            time.sleep(_APPEND_LOCK_POLL_SECONDS)
+
+
 def _append(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    record["prev"] = _prev_hash(path)
-    line = json.dumps(record, ensure_ascii=False)
-    with path.open("a", encoding="utf-8") as f:
-        f.write(line + "\n")
-    stat = path.stat()
-    _PREV_HASH_CACHE[path.resolve()] = (stat.st_size, stat.st_mtime_ns, line_hash(line))
+    fd = _open_append_fd(path)
+    try:
+        _acquire_exclusive_lock(fd, path)
+        try:
+            # Read the head after the lock so concurrent writers chain
+            # instead of forking off the same parent or overwriting.
+            record["prev"] = _prev_hash(path)
+            line = json.dumps(record, ensure_ascii=False)
+            payload = (line + "\n").encode("utf-8")
+            written = os.write(fd, payload)
+            if written != len(payload):
+                raise OSError(
+                    f"short write to ledger file {path}: "
+                    f"wrote {written} of {len(payload)} bytes"
+                )
+            stat = os.fstat(fd)
+            _PREV_HASH_CACHE[path.resolve()] = (
+                stat.st_size, stat.st_mtime_ns, line_hash(line),
+            )
+        finally:
+            _release_exclusive_lock(fd)
+    finally:
+        os.close(fd)
 
 
 def _read_jsonl(path: Path) -> list[dict]:

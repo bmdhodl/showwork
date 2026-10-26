@@ -88,17 +88,48 @@ runs concurrent sessions and wants strict single-history enforcement can pass
 - **Per-session ledger files** (`sessions/<id>.jsonl` and `claims/<id>.jsonl`)
   are the layout that scales with many agents. spec-v0.3 writes those files.
   Two agents with distinct slugs never share a path. Fork-tolerant audit
-  remains for leftover shared files and for two writers that reuse one slug.
-  It cannot un-RED a ledger that already merged a fork (bmdpat).
+  remains for leftover shared files and for two writers that reuse one slug
+  across worktrees or after a git union merge. Same-machine simultaneous
+  writes to one slug are serialized; see below. It cannot un-RED a ledger
+  that already merged a fork (bmdpat).
 - **Silent `merge=union` as the scaler** concatenates concurrent appends into
   one file. That is a stopgap for leftover shared files, not the layout for
   many AIs. Two agents that share a slug still collide.
 - **A re-anchoring merge driver** would rewrite `prev` on existing records,
   which the append-only contract prohibits.
 
+## Same-slug simultaneous writes
+
+Per-session files keep two agents off one path when they use distinct slugs.
+Two processes that still write the **same** slug at the same instant are a
+different failure. On Windows, `open("a")` is seek-to-end plus write, and one
+record can overwrite the other whole. The losing command printed
+`claim recorded` and exited 0; `showwork audit` stayed GREEN because the
+dropped record was never chained. POSIX `O_APPEND` makes small writes atomic,
+so Linux CI usually did not see it. `record_event` used the same `_append`,
+so `session.start` / `session.requirement` / `session.finish` could vanish
+the same way.
+
+`_append` now takes an exclusive OS lock on the target file (`fcntl.flock` on
+POSIX; `LockFileEx` via `msvcrt.get_osfhandle` on Windows — `msvcrt.locking`
+cannot lock an empty file, and the first record of every session is written
+to one) and writes the full UTF-8 line with a single `os.write` on a
+descriptor opened `O_APPEND | O_WRONLY | O_CREAT`. The chain head is read
+inside that lock, so concurrent writers serialize onto one linear chain
+instead of forking or overwriting. If the lock cannot be taken within 10
+seconds, the append raises and the command exits non-zero. The write is
+lossless, or it fails loudly.
+
+Fork-tolerant audit is unchanged. It still covers leftover shared files and
+git union-merges. It is not how same-machine simultaneous writes are made
+safe, and `--strict` is not a detector for a record that was never written.
+
 ## Operational guidance
 
 - Give each agent a distinct session slug (`cursor-fix-nav`, `codex-fix-nav`).
+- Two processes that share a slug and write at the same moment are serialized
+  on one file. The second waits for the lock; it does not overwrite the first.
+  If it cannot lock in time, it fails loudly.
 - Commit `.showwork/` with the branch. Linked worktrees keep receipts in that
   worktree.
 - After a leftover shared-file merge, `showwork audit` may show GREEN with a
